@@ -12,6 +12,13 @@ def save_config():
     secret_id = secret_id_entry.get()
     port = port_entry.get()
 
+    # 尝试将port的值转换为整数
+    try:
+        port = int(port)
+    except ValueError:
+        messagebox.showerror("Error", "Port must be an integer")
+        return
+
     if not broker or not topic1 or not topic2 or not topic3 or not secret_id or not port:
         messagebox.showerror("Error", "All fields must be filled")
         return
@@ -22,7 +29,7 @@ def save_config():
         'topic2': topic2,
         'topic3': topic3,
         'secret_id': secret_id,
-        'port': port
+        'port': port  # port现在是一个整数
     }
 
     with open(config_path, 'w') as f:
