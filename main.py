@@ -2,6 +2,26 @@ import paho.mqtt.client as mqtt
 import os
 import wmi
 from windows_toasts import Toast, WindowsToaster
+import os
+import json
+
+# 获取APPDATA目录的路径
+appdata_path = os.path.join(os.path.expanduser('~'), 'AppData', 'Roaming', 'Ai-controls')
+
+# 创建mqtt_config.json文件的路径
+config_path = os.path.join(appdata_path, 'mqtt_config.json')
+
+# 从json文件中读取MQTT配置
+with open(config_path, 'r') as f:
+    mqtt_config = json.load(f)
+
+# 从MQTT配置中获取值并赋值给变量
+broker = mqtt_config['broker']
+topic1 = mqtt_config['topic1']
+topic2 = mqtt_config['topic2']
+topic3 = mqtt_config['topic3']
+secret_id = mqtt_config['secret_id']
+port = mqtt_config['port']
 
 # 初始化Windows通知
 toaster = WindowsToaster('Python')
@@ -116,13 +136,7 @@ def on_connect(client, userdata, flags, reason_code, properties):
         client.subscribe(topic3)
 
 
-# MQTT配置
-broker = 'bemfa.com'
-topic1 = 'dnkz006'
-topic2 = 'dnpm002'
-topic3 = 'yckz006'
-secret_id = '***REMOVED***'
-port = 9501
+
 
 # 创建MQTT客户端并配置回调
 mqttc = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
