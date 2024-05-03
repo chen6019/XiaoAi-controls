@@ -2,24 +2,14 @@ import paho.mqtt.client as mqtt
 import os
 import wmi
 from windows_toasts import Toast, WindowsToaster
-import os
 import json
 import logging
 from tkinter import messagebox
 import sys
 import pystray
 from PIL import Image
-import subprocess
 import threading
-
-
-# def on_closing():
-#     # 断开MQTT客户端的连接并停止循环
-#     mqttc.disconnect()
-#     mqttc.loop_stop()
-#     # 停止托盘图标并退出程序
-#     icon.stop()
-#     sys.exit(0)
+import subprocess
 
 def toast(info):
     """
@@ -30,7 +20,7 @@ def toast(info):
     """
     newToast.text_fields = [info]
     toaster.show_toast(newToast)
-
+    
 def on_subscribe(client, userdata, mid, reason_code_list, properties):
     """
     MQTT订阅确认回调。
@@ -84,7 +74,8 @@ def on_message(client, userdata, message):
         if command == 'on':
             toast("电脑已经开着啦")
         elif command == 'off':
-            os.system("shutdown -s -t 10")
+            os.system("shutdown -s -t 30")
+            toast("电脑将在30秒后关机")
         else:
             client.publish(topic1)
     if message.topic == topic2:
@@ -97,12 +88,15 @@ def on_message(client, userdata, message):
             brightness = int(command[3:])
             set_brightness(brightness)
     if message.topic == topic3:
-        # 电脑远程控制
+        # 电脑启动程序
         if command == 'off':
-            os.system('')
+            # 关闭应用程序
+            subprocess.call(['taskkill', '/F', '/IM', app.split('\\')[-1]])
         elif command == 'on':
-            os.system('shell:Applications\com.maxframing.mipc')
-           
+            # 开启应用程序
+            subprocess.Popen(app)
+
+
 def on_connect(client, userdata, flags, reason_code, properties):
     """
     MQTT连接确认回调。
@@ -124,6 +118,16 @@ def on_connect(client, userdata, flags, reason_code, properties):
         client.subscribe(topic2) 
         client.subscribe(topic3)
 
+def open_gui():
+    subprocess.Popen(["python", "GUI.py"])
+# 创建一个菜单项来完全退出程序
+def exit_program():
+    # 断开MQTT客户端的连接并停止循环
+    mqttc.disconnect()
+    mqttc.loop_stop()
+    # 停止托盘图标并退出程序
+    icon.stop()
+    sys.exit(0)
     
     
 # 创建一个托盘图标
@@ -132,19 +136,8 @@ icon = pystray.Icon("Ai-controls")
 # 创建一个图像
 image = Image.open("icon.png")  # 你需要提供一个图标文件
 # 创建一个菜单项来打开GUI.py
-def open_gui(icon, item):
-    subprocess.Popen(["python", "GUI.py"])
-# 创建一个菜单项来完全退出程序
-def exit_program(icon, item):
-    # 断开MQTT客户端的连接并停止循环
-    mqttc.disconnect()
-    mqttc.loop_stop()
-    # 停止托盘图标并退出程序
-    icon.stop()
-    sys.exit(0)
-
 # 创建一个菜单
-menu = (pystray.MenuItem("Open GUI", open_gui), pystray.MenuItem("Exit", exit_program))
+menu = (pystray.MenuItem("打开配置", open_gui), pystray.MenuItem("退出", exit_program))
 icon.menu = menu
 
 # 设置托盘图标的图像
@@ -179,8 +172,9 @@ else:
 # 从MQTT配置中获取值并赋值给变量
 broker = mqtt_config['broker']
 topic1 = mqtt_config['topic1']
-topic2 = mqtt_config['topic2']
+topic2 = mqtt_config['topic2'] 
 topic3 = mqtt_config['topic3']
+app = mqtt_config['app']
 secret_id = mqtt_config['secret_id']
 port = mqtt_config['port']
 
@@ -204,6 +198,11 @@ mqttc.on_unsubscribe = on_unsubscribe
 mqttc.user_data_set([])
 mqttc._client_id = secret_id
 mqttc.connect(broker, port)
-mqttc.loop_forever()
+try:
+    mqttc.loop_forever()
+except KeyboardInterrupt:
+    print("Interrupt received, stopping...")
+    # 在这里添加任何需要的清理代码，例如断开MQTT客户端的连接
+    toast("收到中断信号\n执行停止")
+    exit_program()
 print(f"Received the following message: {mqttc.user_data_get()}")
-
