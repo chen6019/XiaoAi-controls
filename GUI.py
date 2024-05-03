@@ -14,6 +14,10 @@ def save_config():
     topic2 = topic2_entry.get()
     topic3 = topic3_entry.get()
     app = app_entry.get()
+    topic4 = topic4_entry.get()
+    app2 = app2_entry.get()
+    topic5 = topic5_entry.get()
+    app3 = app3_entry.get()
     secret_id = secret_id_entry.get()
     port = port_entry.get()
 
@@ -24,7 +28,7 @@ def save_config():
         messagebox.showerror("Error", "Port must be an integer")
         return
 
-    if not broker or not topic1 or not topic2 or not topic3 or not secret_id or not port:
+    if not broker or not topic1 or not topic2 or not topic3 or not topic4 or not topic5 or not secret_id or not port:
         messagebox.showerror("Error", "All fields must be filled")
         return
 
@@ -34,7 +38,10 @@ def save_config():
         'topic2': topic2,
         'topic3': topic3,
         'app': app,
-
+        'topic4': topic4,
+        'app2':app2,
+        'topic5': topic5,
+        'app3':app3,
         'secret_id': secret_id,
         'port': port
     }
@@ -42,7 +49,7 @@ def save_config():
     with open(config_path, 'w') as f:
         json.dump(mqtt_config, f)
 
-    messagebox.showinfo("Info", "Configuration saved successfully")
+    messagebox.showinfo("Ok", "Configuration saved successfully")
 
 # 获取APPDATA目录的路径
 appdata_path = os.path.join(os.path.expanduser('~'), 'AppData', 'Roaming', 'Ai-controls')
@@ -62,6 +69,10 @@ if not os.path.exists(config_path):
         'topic2': '',
         'topic3': '',
         'app': '',
+        'topic4': '',
+        'app2': '',
+        'topic5': '',
+        'app3': '',
         'secret_id': '',
         'port': ''
     }
@@ -78,6 +89,10 @@ topic1 = mqtt_config.get('topic1', '')
 topic2 = mqtt_config.get('topic2', '')
 topic3 = mqtt_config.get('topic3', '')
 app = mqtt_config.get('app', '')
+topic4 = mqtt_config.get('topic4', '')
+app2 = mqtt_config.get('app2', '')
+topic5 = mqtt_config.get('topic5', '')
+app3 = mqtt_config.get('app3', '')
 secret_id = mqtt_config.get('secret_id', '')
 port = mqtt_config.get('port', '')
 
@@ -115,6 +130,30 @@ app_label.pack(pady=5)
 app_entry = tk.Entry(root)
 app_entry.insert(0, app)  # 设置默认值
 app_entry.pack(pady=5)
+
+topic4_label = tk.Label(root, text="Topic 4（启动应用程序或者可执行文件）")
+topic4_label.pack(pady=5)
+topic4_entry = tk.Entry(root)
+topic4_entry.insert(0, topic4)  # 设置默认值
+topic4_entry.pack(pady=5)
+
+app2_label = tk.Label(root, text="应用程序或者可执行文件目录")
+app2_label.pack(pady=5)
+app2_entry = tk.Entry(root)
+app2_entry.insert(0, app2)  # 设置默认值
+app2_entry.pack(pady=5)
+
+topic5_label = tk.Label(root, text="Topic 5（服务）")
+topic5_label.pack(pady=5)
+topic5_entry = tk.Entry(root)
+topic5_entry.insert(0, topic5)  # 设置默认值
+topic5_entry.pack(pady=5)
+
+app3_label = tk.Label(root, text="服务名称")
+app3_label.pack(pady=5)
+app3_entry = tk.Entry(root)
+app3_entry.insert(0, app3)  # 设置默认值
+app3_entry.pack(pady=5)
 
 secret_id_label = tk.Label(root, text="Secret ID")
 secret_id_label.pack(pady=5)
