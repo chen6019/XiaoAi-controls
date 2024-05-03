@@ -3,13 +3,17 @@ import json
 import tkinter as tk
 from tkinter import messagebox
 import sys
+from pprint import pprint
 
-
+def open_config():
+    os.startfile(appdata_path)
 def on_closing():
     root.quit()
     sys.exit()
 def save_config():
     broker = broker_entry.get()
+    secret_id = secret_id_entry.get()
+    port = port_entry.get()
     topic1 = topic1_entry.get()
     topic2 = topic2_entry.get()
     topic3 = topic3_entry.get()
@@ -18,38 +22,47 @@ def save_config():
     app2 = app2_entry.get()
     topic5 = topic5_entry.get()
     app3 = app3_entry.get()
-    secret_id = secret_id_entry.get()
-    port = port_entry.get()
+
+    topic1_checked = topic1_checkbutton_var.get()
+    topic2_checked = topic2_checkbutton_var.get()
+    topic3_checked = topic3_checkbutton_var.get()
+    topic4_checked = topic4_checkbutton_var.get()
+    topic5_checked = topic5_checkbutton_var.get()
 
     # 尝试将port的值转换为整数
     try:
         port = int(port)
     except ValueError:
-        messagebox.showerror("Error", "Port must be an integer")
+        messagebox.showerror("Error", "端口必须为整数")
         return
 
     if not broker or not topic1 or not topic2 or not topic3 or not topic4 or not topic5 or not secret_id or not port:
-        messagebox.showerror("Error", "All fields must be filled")
+        messagebox.showerror("Error", "所有字段都必须填写")
         return
 
     mqtt_config = {
         'broker': broker,
+        'secret_id': secret_id,
+        'port': port,
         'topic1': topic1,
+        'topic1_checked': topic1_checked,
         'topic2': topic2,
+        'topic2_checked': topic2_checked,
         'topic3': topic3,
+        'topic3_checked': topic3_checked,
         'app': app,
         'topic4': topic4,
+        'topic4_checked': topic4_checked,
         'app2':app2,
         'topic5': topic5,
-        'app3':app3,
-        'secret_id': secret_id,
-        'port': port
+        'topic5_checked': topic5_checked,
+        'app3':app3
     }
-
+    
     with open(config_path, 'w') as f:
-        json.dump(mqtt_config, f)
+        json.dump(mqtt_config, f, indent=4)
 
-    messagebox.showinfo("Ok", "Configuration saved successfully")
+    messagebox.showinfo("Ok", "配置保存成功")
 
 # 获取APPDATA目录的路径
 appdata_path = os.path.join(os.path.expanduser('~'), 'AppData', 'Roaming', 'Ai-controls')
@@ -65,16 +78,21 @@ config_path = os.path.join(appdata_path, 'mqtt_config.json')
 if not os.path.exists(config_path):
     mqtt_config = {
         'broker': '',
+        'secret_id': '',
+        'port': '',
         'topic1': '',
+        'topic1_checked': 0,
         'topic2': '',
+        'topic2_checked': 0,
         'topic3': '',
+        'topic3_checked': 0,
         'app': '',
         'topic4': '',
+        'topic4_checked': 0,
         'app2': '',
         'topic5': '',
-        'app3': '',
-        'secret_id': '',
-        'port': ''
+        'topic5_checked': 0,
+        'app3': ''
     }
     with open(config_path, 'w') as f:
         json.dump(mqtt_config, f)
@@ -85,89 +103,113 @@ with open(config_path, 'r') as f:
 
 # 从MQTT配置中获取值并赋值给变量
 broker = mqtt_config.get('broker', '')
-topic1 = mqtt_config.get('topic1', '')
-topic2 = mqtt_config.get('topic2', '')
-topic3 = mqtt_config.get('topic3', '')
-app = mqtt_config.get('app', '')
-topic4 = mqtt_config.get('topic4', '')
-app2 = mqtt_config.get('app2', '')
-topic5 = mqtt_config.get('topic5', '')
-app3 = mqtt_config.get('app3', '')
 secret_id = mqtt_config.get('secret_id', '')
 port = mqtt_config.get('port', '')
-
+topic1 = mqtt_config.get('topic1', '')
+topic1_checked = mqtt_config.get('topic1_checked', 0)
+topic2 = mqtt_config.get('topic2', '')
+topic2_checked = mqtt_config.get('topic2_checked', 0)
+topic3 = mqtt_config.get('topic3', '')
+topic3_checked = mqtt_config.get('topic3_checked', 0)
+app = mqtt_config.get('app', '')
+topic4 = mqtt_config.get('topic4', '')
+topic4_checked = mqtt_config.get('topic4_checked', 0)
+app2 = mqtt_config.get('app2', '')
+topic5 = mqtt_config.get('topic5', '')
+topic5_checked = mqtt_config.get('topic5_checked', 0)
+app3 = mqtt_config.get('app3', '')
 
 root = tk.Tk()
 
+root.title("MQTT配置")
+
 root.protocol("WM_DELETE_WINDOW", on_closing)
 
-broker_label = tk.Label(root, text="Broker")
-broker_label.pack(pady=5)
+broker_label = tk.Label(root, text="Broker （IOT平台）")
+broker_label.grid(row=0, column=0, pady=5)
 broker_entry = tk.Entry(root)
 broker_entry.insert(0, broker)  # 设置默认值
-broker_entry.pack(pady=5)
+broker_entry.grid(row=0, column=1, pady=5, padx=10)
 
-topic1_label = tk.Label(root, text="Topic 1（电脑开关机）")
-topic1_label.pack(pady=5)
-topic1_entry = tk.Entry(root)
-topic1_entry.insert(0, topic1)  # 设置默认值
-topic1_entry.pack(pady=5)
-
-topic2_label = tk.Label(root, text="Topic 2（电脑屏幕亮度）")
-topic2_label.pack(pady=5)
-topic2_entry = tk.Entry(root)
-topic2_entry.insert(0, topic2)  # 设置默认值
-topic2_entry.pack(pady=5)
-
-topic3_label = tk.Label(root, text="Topic 3（启动应用程序或者可执行文件）")
-topic3_label.pack(pady=5)
-topic3_entry = tk.Entry(root)
-topic3_entry.insert(0, topic3)  # 设置默认值
-topic3_entry.pack(pady=5)
-
-app_label = tk.Label(root, text="应用程序或者可执行文件目录")
-app_label.pack(pady=5)
-app_entry = tk.Entry(root)
-app_entry.insert(0, app)  # 设置默认值
-app_entry.pack(pady=5)
-
-topic4_label = tk.Label(root, text="Topic 4（启动应用程序或者可执行文件）")
-topic4_label.pack(pady=5)
-topic4_entry = tk.Entry(root)
-topic4_entry.insert(0, topic4)  # 设置默认值
-topic4_entry.pack(pady=5)
-
-app2_label = tk.Label(root, text="应用程序或者可执行文件目录")
-app2_label.pack(pady=5)
-app2_entry = tk.Entry(root)
-app2_entry.insert(0, app2)  # 设置默认值
-app2_entry.pack(pady=5)
-
-topic5_label = tk.Label(root, text="Topic 5（服务（需要管理员权限））")
-topic5_label.pack(pady=5)
-topic5_entry = tk.Entry(root)
-topic5_entry.insert(0, topic5)  # 设置默认值
-topic5_entry.pack(pady=5)
-
-app3_label = tk.Label(root, text="服务名称")
-app3_label.pack(pady=5)
-app3_entry = tk.Entry(root)
-app3_entry.insert(0, app3)  # 设置默认值
-app3_entry.pack(pady=5)
-
-secret_id_label = tk.Label(root, text="key:")
-secret_id_label.pack(pady=5)
+secret_id_label = tk.Label(root, text="key（私钥）：")
+secret_id_label.grid(row=1, column=0, pady=5)
 secret_id_entry = tk.Entry(root)
 secret_id_entry.insert(0, secret_id)  # 设置默认值
-secret_id_entry.pack(pady=5)
+secret_id_entry.grid(row=1, column=1, pady=5, padx=10)
 
-port_label = tk.Label(root, text="Port")
-port_label.pack(pady=5)
+port_label = tk.Label(root, text="端口号 ：")
+port_label.grid(row=2, column=0, pady=5)
 port_entry = tk.Entry(root)
 port_entry.insert(0, port)  # 设置默认值
-port_entry.pack(pady=5)
+port_entry.grid(row=2, column=1, pady=5, padx=10)
 
-save_button = tk.Button(root, text="Save Configuration", command=save_config)
-save_button.pack(pady=5)
+topic1_label = tk.Label(root, text="主题 1（电脑开关机）：")
+topic1_label.grid(row=3, column=1, pady=5)
+topic1_entry = tk.Entry(root)
+topic1_entry.insert(0, topic1)  # 设置默认值
+topic1_entry.grid(row=3, column=2, pady=5, padx=10)
+topic1_checkbutton_var = tk.IntVar(value=topic1_checked)
+topic1_checkbutton = tk.Checkbutton(root, variable=topic1_checkbutton_var)
+topic1_checkbutton.grid(row=3, column=0)
+
+topic2_label = tk.Label(root, text="主题 2（电脑屏幕亮度）：")
+topic2_label.grid(row=4, column=1, pady=5)
+topic2_entry = tk.Entry(root)
+topic2_entry.insert(0, topic2)  # 设置默认值
+topic2_entry.grid(row=4, column=2, pady=5, padx=10)
+topic2_checkbutton_var = tk.IntVar(value=topic2_checked)
+topic2_checkbutton = tk.Checkbutton(root, variable=topic2_checkbutton_var)
+topic2_checkbutton.grid(row=4, column=0)
+
+topic3_label = tk.Label(root, text="主题 3（启动应用程序或者可执行文件）：")
+topic3_label.grid(row=5, column=1, pady=5)
+topic3_entry = tk.Entry(root)
+topic3_entry.insert(0, topic3)  # 设置默认值
+topic3_entry.grid(row=5, column=2, pady=5, padx=10)
+topic3_checkbutton_var = tk.IntVar(value=topic3_checked)
+topic3_checkbutton = tk.Checkbutton(root, variable=topic3_checkbutton_var)
+topic3_checkbutton.grid(row=5, column=0)
+
+app_label = tk.Label(root, text="应用程序或者可执行文件目录 ：")
+app_label.grid(row=6, column=1, pady=5)
+app_entry = tk.Entry(root)
+app_entry.insert(0, app)  # 设置默认值
+app_entry.grid(row=6, column=2, pady=5, padx=10)
+
+topic4_label = tk.Label(root, text="主题 4（启动应用程序或者可执行文件）：")
+topic4_label.grid(row=7, column=1, pady=5)
+topic4_entry = tk.Entry(root)
+topic4_entry.insert(0, topic4)  # 设置默认值
+topic4_entry.grid(row=7, column=2, pady=5, padx=10)
+topic4_checkbutton_var = tk.IntVar(value=topic4_checked)
+topic4_checkbutton = tk.Checkbutton(root, variable=topic4_checkbutton_var)
+topic4_checkbutton.grid(row=7, column=0)
+
+app2_label = tk.Label(root, text="应用程序或者可执行文件目录 ：")
+app2_label.grid(row=8, column=1, pady=5)
+app2_entry = tk.Entry(root)
+app2_entry.insert(0, app2)  # 设置默认值
+app2_entry.grid(row=8, column=2, pady=5, padx=10)
+
+topic5_label = tk.Label(root, text="主题 5（服务（需要管理员权限运行，否则无效））：")
+topic5_label.grid(row=9, column=1, pady=5)
+topic5_entry = tk.Entry(root)
+topic5_entry.insert(0, topic5)  # 设置默认值
+topic5_entry.grid(row=9, column=2, pady=5, padx=10)
+topic5_checkbutton_var = tk.IntVar(value=topic5_checked)
+topic5_checkbutton = tk.Checkbutton(root, variable=topic5_checkbutton_var)
+topic5_checkbutton.grid(row=9, column=0)
+
+app3_label = tk.Label(root, text="服务名称 ：")
+app3_label.grid(row=10, column=1, pady=5)
+app3_entry = tk.Entry(root)
+app3_entry.insert(0, app3)  # 设置默认值
+app3_entry.grid(row=10, column=2, pady=5, padx=10)
+
+open_button = tk.Button(root, text="打开配置文件夹", command=open_config)
+open_button.grid(row=11, column=1, pady=5)
+
+save_button = tk.Button(root, text="保存配置", command=save_config)
+save_button.grid(row=11, column=2, pady=5)
 
 root.mainloop()
