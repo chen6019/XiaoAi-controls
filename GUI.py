@@ -5,7 +5,6 @@ import tkinter as tk
 from tkinter import messagebox
 import sys
 import subprocess
-from turtle import title
 
 def TEST():
     save_config()
