@@ -1,10 +1,21 @@
+from cgi import test
 import os
 import json
 import tkinter as tk
 from tkinter import messagebox
 import sys
-from pprint import pprint
+import subprocess
+from turtle import title
 
+def TEST():
+    save_config()
+    if os.path.isfile("main.py"):
+        subprocess.Popen(["python", "main.py"])
+    elif os.path.isfile("Ai-controls.exe"):
+        subprocess.Popen(["Ai-controls.exe"])
+    else:
+        messagebox.showerror("Error","既没有找到 main.py 也没有找到Ai-controls.exe")
+    
 def open_config():
     os.startfile(appdata_path)
 def on_closing():
@@ -23,6 +34,7 @@ def save_config():
     topic5 = topic5_entry.get()
     app3 = app3_entry.get()
 
+    test = test_checkbutton_var.get()
     topic1_checked = topic1_checkbutton_var.get()
     topic2_checked = topic2_checkbutton_var.get()
     topic3_checked = topic3_checkbutton_var.get()
@@ -44,6 +56,7 @@ def save_config():
         'broker': broker,
         'secret_id': secret_id,
         'port': port,
+        'test': test,
         'topic1': topic1,
         'topic1_checked': topic1_checked,
         'topic2': topic2,
@@ -80,6 +93,7 @@ if not os.path.exists(config_path):
         'broker': '',
         'secret_id': '',
         'port': '',
+        'test': '',
         'topic1': '',
         'topic1_checked': 0,
         'topic2': '',
@@ -105,6 +119,7 @@ with open(config_path, 'r') as f:
 broker = mqtt_config.get('broker', '')
 secret_id = mqtt_config.get('secret_id', '')
 port = mqtt_config.get('port', '')
+test_checkbutton_var= mqtt_config.get('test', 0)
 topic1 = mqtt_config.get('topic1', '')
 topic1_checked = mqtt_config.get('topic1_checked', 0)
 topic2 = mqtt_config.get('topic2', '')
@@ -128,47 +143,48 @@ root.protocol("WM_DELETE_WINDOW", on_closing)
 broker_label = tk.Label(root, text="Broker （IOT平台）")
 broker_label.grid(row=0, column=0, pady=5)
 broker_entry = tk.Entry(root)
-broker_entry.insert(0, broker)  # 设置默认值
+broker_entry.insert(0, broker)  
 broker_entry.grid(row=0, column=1, pady=5, padx=10)
 
 secret_id_label = tk.Label(root, text="key（私钥）：")
 secret_id_label.grid(row=1, column=0, pady=5)
 secret_id_entry = tk.Entry(root)
-secret_id_entry.insert(0, secret_id)  # 设置默认值
+secret_id_entry.insert(0, secret_id)  
 secret_id_entry.grid(row=1, column=1, pady=5, padx=10)
 
 port_label = tk.Label(root, text="端口号 ：")
 port_label.grid(row=2, column=0, pady=5)
 port_entry = tk.Entry(root)
-port_entry.insert(0, port)  # 设置默认值
+port_entry.insert(0, port)  
 port_entry.grid(row=2, column=1, pady=5, padx=10)
 
-topic1_label = tk.Label(root, text="主题 1（电脑开关机）：")
-topic1_label.grid(row=3, column=1, pady=5)
+test_checkbutton_var = tk.IntVar(value=test_checkbutton_var)
+test_checkbutton = tk.Checkbutton(root, text="Test模式（不知道是什么就别开）", variable=test_checkbutton_var)
+test_checkbutton.grid(row=2, column=2, pady=5, padx=10)
+
+title_label = tk.Label(root, text="主题配置：勾选为启用，不勾选为禁用")
+title_label.grid(row=3, column=0, pady=5)
+
 topic1_entry = tk.Entry(root)
-topic1_entry.insert(0, topic1)  # 设置默认值
+topic1_entry.insert(0, topic1) 
 topic1_entry.grid(row=3, column=2, pady=5, padx=10)
 topic1_checkbutton_var = tk.IntVar(value=topic1_checked)
-topic1_checkbutton = tk.Checkbutton(root, variable=topic1_checkbutton_var)
-topic1_checkbutton.grid(row=3, column=0)
+topic1_checkbutton = tk.Checkbutton(root,text="主题 1（电脑开关机）：", variable=topic1_checkbutton_var)
+topic1_checkbutton.grid(row=3, column=1)
 
-topic2_label = tk.Label(root, text="主题 2（电脑屏幕亮度）：")
-topic2_label.grid(row=4, column=1, pady=5)
 topic2_entry = tk.Entry(root)
-topic2_entry.insert(0, topic2)  # 设置默认值
+topic2_entry.insert(0, topic2) 
 topic2_entry.grid(row=4, column=2, pady=5, padx=10)
 topic2_checkbutton_var = tk.IntVar(value=topic2_checked)
-topic2_checkbutton = tk.Checkbutton(root, variable=topic2_checkbutton_var)
-topic2_checkbutton.grid(row=4, column=0)
+topic2_checkbutton = tk.Checkbutton(root,text="主题 2（电脑屏幕亮度）：", variable=topic2_checkbutton_var)
+topic2_checkbutton.grid(row=4, column=1)
 
-topic3_label = tk.Label(root, text="主题 3（启动应用程序或者可执行文件）：")
-topic3_label.grid(row=5, column=1, pady=5)
 topic3_entry = tk.Entry(root)
-topic3_entry.insert(0, topic3)  # 设置默认值
+topic3_entry.insert(0, topic3) 
 topic3_entry.grid(row=5, column=2, pady=5, padx=10)
 topic3_checkbutton_var = tk.IntVar(value=topic3_checked)
-topic3_checkbutton = tk.Checkbutton(root, variable=topic3_checkbutton_var)
-topic3_checkbutton.grid(row=5, column=0)
+topic3_checkbutton = tk.Checkbutton(root,text="主题 3（启动应用程序或者可执行文件）：", variable=topic3_checkbutton_var)
+topic3_checkbutton.grid(row=5, column=1)
 
 app_label = tk.Label(root, text="应用程序或者可执行文件目录 ：")
 app_label.grid(row=6, column=1, pady=5)
@@ -176,14 +192,12 @@ app_entry = tk.Entry(root)
 app_entry.insert(0, app)  # 设置默认值
 app_entry.grid(row=6, column=2, pady=5, padx=10)
 
-topic4_label = tk.Label(root, text="主题 4（启动应用程序或者可执行文件）：")
-topic4_label.grid(row=7, column=1, pady=5)
 topic4_entry = tk.Entry(root)
-topic4_entry.insert(0, topic4)  # 设置默认值
+topic4_entry.insert(0, topic4) 
 topic4_entry.grid(row=7, column=2, pady=5, padx=10)
 topic4_checkbutton_var = tk.IntVar(value=topic4_checked)
-topic4_checkbutton = tk.Checkbutton(root, variable=topic4_checkbutton_var)
-topic4_checkbutton.grid(row=7, column=0)
+topic4_checkbutton = tk.Checkbutton(root,text="主题 4（启动应用程序或者可执行文件）：", variable=topic4_checkbutton_var)
+topic4_checkbutton.grid(row=7, column=1)
 
 app2_label = tk.Label(root, text="应用程序或者可执行文件目录 ：")
 app2_label.grid(row=8, column=1, pady=5)
@@ -191,14 +205,12 @@ app2_entry = tk.Entry(root)
 app2_entry.insert(0, app2)  # 设置默认值
 app2_entry.grid(row=8, column=2, pady=5, padx=10)
 
-topic5_label = tk.Label(root, text="主题 5（服务（需要管理员权限运行，否则无效））：")
-topic5_label.grid(row=9, column=1, pady=5)
 topic5_entry = tk.Entry(root)
-topic5_entry.insert(0, topic5)  # 设置默认值
+topic5_entry.insert(0, topic5) 
 topic5_entry.grid(row=9, column=2, pady=5, padx=10)
 topic5_checkbutton_var = tk.IntVar(value=topic5_checked)
-topic5_checkbutton = tk.Checkbutton(root, variable=topic5_checkbutton_var)
-topic5_checkbutton.grid(row=9, column=0)
+topic5_checkbutton = tk.Checkbutton(root,text="主题 5（服务（需要管理员权限运行，否则无效））：", variable=topic5_checkbutton_var)
+topic5_checkbutton.grid(row=9, column=1)
 
 app3_label = tk.Label(root, text="服务名称 ：")
 app3_label.grid(row=10, column=1, pady=5)
@@ -211,5 +223,8 @@ open_button.grid(row=11, column=1, pady=5)
 
 save_button = tk.Button(root, text="保存配置", command=save_config)
 save_button.grid(row=11, column=2, pady=5)
+
+save_button = tk.Button(root, text="测试", command=TEST)
+save_button.grid(row=11, column=0, pady=5)
 
 root.mainloop()

@@ -63,7 +63,7 @@ MQTT订阅成功时的回调函数。
 def on_subscribe(client, userdata, mid, reason_code_list, properties):
     for sub_result in reason_code_list:
         if isinstance(sub_result, int) and sub_result >= 128:
-            logging.error("订阅失败")
+            logging.error(f"订阅失败:{reason_code_list}")
         else:
             logging.info(f"使用代码订阅成功：{sub_result}")
 
@@ -178,11 +178,16 @@ def on_connect(client, userdata, flags, reason_code, properties):
     else:
         toast(f"MQTT成功连接至{broker}")  # 连接成功时的提示
         logging.info(f"连接到 {broker}")
-        client.subscribe(topic1)
-        client.subscribe(topic2)
-        client.subscribe(topic3)
-        client.subscribe(topic4)
-        client.subscribe(topic5)
+        if topic1:
+            client.subscribe(topic1)
+        if topic2:
+            client.subscribe(topic2)
+        if topic3:
+            client.subscribe(topic3)
+        if topic4:
+            client.subscribe(topic4)
+        if topic5:
+            client.subscribe(topic5)
 
 """
 打开GUI界面。
@@ -264,23 +269,78 @@ if not os.path.exists(config_path):
     messagebox.showerror("Error", "配置文件不存在\n请先打开GUI配置文件")
     logging.error('mqtt_config.json 文件不存在')
     icon.stop()
+    open_gui()
     sys.exit(0)
 else:
     with open(config_path, 'r') as f:
         mqtt_config = json.load(f)
 
-# 从配置文件中读取MQTT相关设置
-broker = mqtt_config.get('broker', ' ')
-topic1 = mqtt_config.get('topic1', ' ')
-topic2 = mqtt_config.get('topic2', ' ')
-topic3 = mqtt_config.get('topic3', ' ')
-app = mqtt_config.get('app', ' ')
-topic4 = mqtt_config.get('topic4', ' ')
-app2 = mqtt_config.get('app2', ' ')
-topic5 = mqtt_config.get('topic5', ' ')
-app3 = mqtt_config.get('app3', ' ')
-secret_id = mqtt_config.get('secret_id', ' ')
-port = mqtt_config.get('port', '')
+if mqtt_config['test'] == 1:
+    logging.info("开启测试模式:可以不启用任何主题")
+else:
+    if mqtt_config['topic1_checked'] == 0 and mqtt_config['topic2_checked'] == 0 and mqtt_config['topic3_checked'] == 0 and mqtt_config['topic4_checked'] == 0 and mqtt_config['topic5_checked'] == 0:
+        messagebox.showerror("Error", "主题不能一个都没有吧！\n（除了测试模式）")
+        icon.stop()
+        open_gui()
+        sys.exit(0)
+
+broker = mqtt_config.get('broker')
+secret_id = mqtt_config.get('secret_id')
+port = mqtt_config.get('port')
+
+topic1 = mqtt_config.get('topic1') if mqtt_config.get('topic1_checked') == 1 else None
+if mqtt_config.get('topic1_checked') == 1 and not topic1:
+    messagebox.showerror("Error", "主题1不能为空")
+    icon.stop()
+    open_gui()
+    sys.exit(0)
+# 如果主题1不为空，将其记录到日志中
+if topic1:
+    logging.info(f'主题"{topic1}"')
+
+topic2 = mqtt_config.get('topic2') if mqtt_config.get('topic2_checked') == 1 else None
+if mqtt_config.get('topic2_checked') == 1 and not topic2:
+    messagebox.showerror("Error", "主题2不能为空")
+    icon.stop()
+    open_gui()
+    sys.exit(0)
+# 如果主题2不为空，将其记录到日志中
+if topic2:
+    logging.info(f'主题"{topic2}"')
+
+topic3 = mqtt_config.get('topic3') if mqtt_config.get('topic3_checked') == 1 else None
+app = mqtt_config.get('app') if mqtt_config.get('topic3_checked') == 1 else None
+if mqtt_config.get('topic3_checked') == 1 and (not topic3 or not app):
+    messagebox.showerror("Error", "主题3和值不能为空")
+    icon.stop()
+    open_gui()
+    sys.exit(0)
+# 如果主题3不为空，将其记录到日志中
+if topic3:
+    logging.info(f'主题"{topic3}"，值："{app}"')
+
+topic4 = mqtt_config.get('topic4') if mqtt_config.get('topic4_checked') == 1 else None
+app2 = mqtt_config.get('app2') if mqtt_config.get('topic4_checked') == 1 else None
+if mqtt_config.get('topic4_checked') == 1 and (not topic4 or not app2):
+    messagebox.showerror("Error", "主题4和值不能为空")
+    icon.stop()
+    open_gui()
+    sys.exit(0)
+# 如果主题4不为空，将其记录到日志中
+if topic4:
+    logging.info(f'主题"{topic4}"，值："{app2}"')
+
+topic5 = mqtt_config.get('topic5') if mqtt_config.get('topic5_checked') == 1 else None
+app3 = mqtt_config.get('app3') if mqtt_config.get('topic5_checked') == 1 else None
+if mqtt_config.get('topic5_checked') == 1 and (not topic5 or not app3):
+    messagebox.showerror("Error", "主题5和值不能为空")
+    icon.stop()
+    open_gui()
+    sys.exit(0)
+# 如果主题5不为空，将其记录到日志中
+if topic5:
+    logging.info(f'主题"{topic5}"，值："{app3}"')
+
 
 # 初始化toast通知
 toaster = WindowsToaster('Python')
