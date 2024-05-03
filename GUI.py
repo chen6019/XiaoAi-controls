@@ -143,7 +143,7 @@ app2_entry = tk.Entry(root)
 app2_entry.insert(0, app2)  # 设置默认值
 app2_entry.pack(pady=5)
 
-topic5_label = tk.Label(root, text="Topic 5（服务）")
+topic5_label = tk.Label(root, text="Topic 5（服务（需要管理员权限））")
 topic5_label.pack(pady=5)
 topic5_entry = tk.Entry(root)
 topic5_entry.insert(0, topic5)  # 设置默认值
