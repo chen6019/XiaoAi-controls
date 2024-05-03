@@ -1,3 +1,39 @@
+# -*- coding: utf-8 -*-
+# 以下代码在2021年10月21日 python3.10环境下运行通过
+
+# import paho.mqtt.client as mqtt
+
+# HOST = "bemfa.com"
+# PORT = 9501
+# client_id = ""                       
+# #连接并订阅
+# def on_connect(client, userdata, flags, rc):
+#     print("Connected with result code "+str(rc))
+#     client.subscribe("led00202")         # 订阅消息
+
+# #消息接收
+# def on_message(client, userdata, msg):
+#     print("主题:"+msg.topic+" 消息:"+str(msg.payload.decode('utf-8')))
+
+# #订阅成功
+# def on_subscribe(client, userdata, mid, granted_qos):
+#     print("On Subscribed: qos = %d" % granted_qos)
+
+# # 失去连接
+# def on_disconnect(client, userdata, rc):
+#     if rc != 0:
+#         print("Unexpected disconnection %s" % rc)
+
+
+# client = mqtt.Client(client_id)
+# client.username_pw_set("userName", "passwd")
+# client.on_connect = on_connect
+# client.on_message = on_message
+# client.on_subscribe = on_subscribe
+# client.on_disconnect = on_disconnect
+# client.connect(HOST, PORT, 60)
+# client.loop_forever()
+# 这个为临时版本，将来可能会改成tcp连接的版本
 # 导入各种必要的模块
 from math import log
 import paho.mqtt.client as mqtt
@@ -364,6 +400,6 @@ try:
     mqttc.loop_forever()
 except KeyboardInterrupt:
     toast("收到中断信号\n程序停止")
-    logging.info("收到中断信号,程序停止")
+    logging.info("收到中断,程序停止")
     exit_program()
 logging.info(f"总共收到以下消息: {mqttc.user_data_get()}")
