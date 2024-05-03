@@ -4,33 +4,22 @@ import wmi
 from windows_toasts import Toast, WindowsToaster
 import os
 import json
+import logging
+from tkinter import messagebox
+import sys
+import pystray
+from PIL import Image
+import subprocess
+import threading
 
-# 获取APPDATA目录的路径
-appdata_path = os.path.join(os.path.expanduser('~'), 'AppData', 'Roaming', 'Ai-controls')
 
-# 创建mqtt_config.json文件的路径
-config_path = os.path.join(appdata_path, 'mqtt_config.json')
-
-# 从json文件中读取MQTT配置
-with open(config_path, 'r') as f:
-    mqtt_config = json.load(f)
-
-# 从MQTT配置中获取值并赋值给变量
-broker = mqtt_config['broker']
-topic1 = mqtt_config['topic1']
-topic2 = mqtt_config['topic2']
-topic3 = mqtt_config['topic3']
-secret_id = mqtt_config['secret_id']
-port = mqtt_config['port']
-
-# 初始化Windows通知
-toaster = WindowsToaster('Python')
-newToast = Toast()
-info = '加载中..'
-newToast.text_fields = [info]
-newToast.on_activated = lambda _: print('Toast clicked!')
-toaster.show_toast(newToast)
-
+# def on_closing():
+#     # 断开MQTT客户端的连接并停止循环
+#     mqttc.disconnect()
+#     mqttc.loop_stop()
+#     # 停止托盘图标并退出程序
+#     icon.stop()
+#     sys.exit(0)
 
 def toast(info):
     """
@@ -135,7 +124,73 @@ def on_connect(client, userdata, flags, reason_code, properties):
         client.subscribe(topic2) 
         client.subscribe(topic3)
 
+    
+    
+# 创建一个托盘图标
+icon = pystray.Icon("Ai-controls")
 
+# 创建一个图像
+image = Image.open("icon.png")  # 你需要提供一个图标文件
+# 创建一个菜单项来打开GUI.py
+def open_gui(icon, item):
+    subprocess.Popen(["python", "GUI.py"])
+# 创建一个菜单项来完全退出程序
+def exit_program(icon, item):
+    # 断开MQTT客户端的连接并停止循环
+    mqttc.disconnect()
+    mqttc.loop_stop()
+    # 停止托盘图标并退出程序
+    icon.stop()
+    sys.exit(0)
+
+# 创建一个菜单
+menu = (pystray.MenuItem("Open GUI", open_gui), pystray.MenuItem("Exit", exit_program))
+icon.menu = menu
+
+# 设置托盘图标的图像
+icon.icon = image
+
+# 创建一个新的线程来启动托盘图标
+threading.Thread(target=icon.run).start()
+
+# 获取APPDATA目录的路径
+appdata_path = os.path.join(os.path.expanduser('~'), 'AppData', 'Roaming', 'Ai-controls')
+
+# 创建log.txt文件的路径
+log_path = os.path.join(appdata_path, 'log.txt')
+
+# 设置日志配置
+logging.basicConfig(filename=log_path, level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+
+# 创建mqtt_config.json文件的路径
+config_path = os.path.join(appdata_path, 'mqtt_config.json')
+
+# 检查mqtt_config.json文件是否存在
+if not os.path.exists(config_path):
+    messagebox.showerror("Error", "配置文件不存在")
+    logging.error('mqtt_config.json 文件不存在')
+    icon.stop()
+    sys.exit(0)
+else:
+    # 从json文件中读取MQTT配置
+    with open(config_path, 'r') as f:
+        mqtt_config = json.load(f)
+
+# 从MQTT配置中获取值并赋值给变量
+broker = mqtt_config['broker']
+topic1 = mqtt_config['topic1']
+topic2 = mqtt_config['topic2']
+topic3 = mqtt_config['topic3']
+secret_id = mqtt_config['secret_id']
+port = mqtt_config['port']
+
+# 初始化Windows通知
+toaster = WindowsToaster('Python')
+newToast = Toast()
+info = '加载中..'
+newToast.text_fields = [info]
+newToast.on_activated = lambda _: print('Toast clicked!')
+toaster.show_toast(newToast)
 
 
 # 创建MQTT客户端并配置回调
