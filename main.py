@@ -1,4 +1,5 @@
 # 导入各种必要的模块
+from math import log
 import paho.mqtt.client as mqtt
 import os
 import wmi
@@ -62,9 +63,9 @@ MQTT订阅成功时的回调函数。
 def on_subscribe(client, userdata, mid, reason_code_list, properties):
     for sub_result in reason_code_list:
         if isinstance(sub_result, int) and sub_result >= 128:
-            print("Subscribe failed")
+            logging.error("订阅失败")
         else:
-            print(f"Subscription successful with code: {sub_result}")
+            logging.info(f"使用代码订阅成功：{sub_result}")
 
 """
 MQTT取消订阅时的回调函数。
@@ -79,9 +80,9 @@ MQTT取消订阅时的回调函数。
 
 def on_unsubscribe(client, userdata, mid, reason_code_list, properties):
     if len(reason_code_list) == 0 or not reason_code_list[0].is_failure:
-        print("Unsubscribe succeeded")
+        logging.info("退订成功")
     else:
-        print(f"Broker replied with failure: {reason_code_list[0]}")
+        logging.error(f"{broker} 回复失败: {reason_code_list[0]}")
     client.disconnect()
 
 """
@@ -95,7 +96,7 @@ def set_brightness(value):
     try:
         wmi.WMI(namespace='wmi').WmiMonitorBrightnessMethods()[0].WmiSetBrightness(value, 0)
     except Exception as e:
-        print(f"Failed to set brightness: {e}")
+        logging.error(f"无法设置亮度: {e}")
 
 """
 根据接收到的命令和主题来处理相应的操作。
@@ -125,7 +126,7 @@ def process_command(command, topic):
                 brightness = int(command[3:])
                 set_brightness(brightness)
             except ValueError:
-                print("Invalid brightness value")
+                logging.error("亮度值无效")
     elif topic == topic3:
         # 应用程序的启动和关闭
         if command == 'off':
@@ -156,7 +157,7 @@ MQTT接收到消息时的回调函数。
 def on_message(client, userdata, message):
     userdata.append(message.payload)
     command = message.payload.decode()
-    print(f"Received `{command}` from `{message.topic}` topic")
+    logging.info(f"收到 '{command}' 从 '{message.topic}' 主题")
     process_command(command, message.topic)
 
 """
@@ -173,10 +174,10 @@ MQTT连接时的回调函数。
 def on_connect(client, userdata, flags, reason_code, properties):
     if reason_code.is_failure:
         toast(f"连接MQTT失败: {reason_code}. 重新连接中...")  # 连接失败时的提示
-        print(f"Failed to connect: {reason_code}. loop_forever() will retry connection")
+        logging.error(f"连接失败: {reason_code}. loop_forever() 将重试连接")
     else:
         toast(f"MQTT成功连接至{broker}")  # 连接成功时的提示
-        print("Connected to", broker)
+        logging.info(f"连接到 {broker}")
         client.subscribe(topic1)
         client.subscribe(topic2)
         client.subscribe(topic3)
@@ -191,7 +192,12 @@ def on_connect(client, userdata, flags, reason_code, properties):
 """
 
 def open_gui():
-    subprocess.Popen(["python", "GUI.py"])
+    if os.path.isfile("GUI.py"):
+        subprocess.Popen(["python", "GUI.py"])
+    elif os.path.isfile("GUI.exe"):
+        subprocess.Popen(["GUI.exe"])
+    else:
+        logging.error("既没有找到 GUI.py 也没有找到GUI.exe")
 
 """
 退出程序。
@@ -201,10 +207,14 @@ def open_gui():
 """
 
 def exit_program():
-    mqttc.disconnect()
-    mqttc.loop_stop()
-    icon.stop()
-    sys.exit(0)
+    try:
+        mqttc.disconnect()
+        mqttc.loop_stop()
+        icon.stop()
+        logging.info("程序已停止")
+        sys.exit(0)
+    except SystemExit:
+        pass
 
 """
 判断当前程序是否以管理员权限运行。
@@ -230,9 +240,9 @@ def is_admin():
 def admin():
     def show_message():
         if is_admin():
-            messagebox.showerror("info","已经拥有管理员权限")
+            messagebox.showerror("信息","已经拥有管理员权限")
         else:
-            messagebox.showerror("error","没有管理员权限")
+            messagebox.showerror("错误","没有管理员权限")
     threading.Thread(target=show_message).start()
 
 # 初始化系统托盘图标和菜单
@@ -293,8 +303,7 @@ mqttc.connect(broker, port)
 try:
     mqttc.loop_forever()
 except KeyboardInterrupt:
-    print("Interrupt received, stopping...")
     toast("收到中断信号\n程序停止")
     logging.info("收到中断信号,程序停止")
     exit_program()
-print(f"Received the following message: {mqttc.user_data_get()}")
+logging.info(f"总共收到以下消息: {mqttc.user_data_get()}")
