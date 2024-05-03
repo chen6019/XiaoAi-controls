@@ -155,7 +155,7 @@ app3_entry = tk.Entry(root)
 app3_entry.insert(0, app3)  # 设置默认值
 app3_entry.pack(pady=5)
 
-secret_id_label = tk.Label(root, text="Secret ID")
+secret_id_label = tk.Label(root, text="key:")
 secret_id_label.pack(pady=5)
 secret_id_entry = tk.Entry(root)
 secret_id_entry.insert(0, secret_id)  # 设置默认值
