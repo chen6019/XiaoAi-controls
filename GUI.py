@@ -2,8 +2,12 @@ import os
 import json
 import tkinter as tk
 from tkinter import messagebox
+import sys
 
 
+def on_closing():
+    root.quit()
+    sys.exit()
 def save_config():
     broker = broker_entry.get()
     topic1 = topic1_entry.get()
@@ -74,6 +78,8 @@ port = mqtt_config['port']
 
 
 root = tk.Tk()
+
+root.protocol("WM_DELETE_WINDOW", on_closing)
 
 broker_label = tk.Label(root, text="Broker")
 broker_label.pack()
