@@ -1,3 +1,6 @@
+"""打包命令
+pyinstaller -F -n GUI --noconsole --icon=icon16.ico GUI.py
+"""
 import os
 import json
 import tkinter as tk
