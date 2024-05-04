@@ -34,6 +34,9 @@
 # client.connect(HOST, PORT, 60)
 # client.loop_forever()
 # 这个为临时版本，将来可能会改成tcp连接的版本，因为手机端无法得知操作结果
+"""打包指令：
+pyinstaller -F -n XiaoAi-controls --noconsole --hidden-import=paho-mqtt --hidden-import=wmi --hidden-import=win11toast --hidden-import=pystray --hidden-import=pillow --icon=icon.ico --add-data 'icon.ico;.' main.py
+"""
 # 导入各种必要的模块
 from math import log
 import paho.mqtt.client as mqtt
