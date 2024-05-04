@@ -16,6 +16,8 @@ import threading
 import subprocess
 import time
 import ctypes
+import atexit
+
 
 """
 执行系统命令，并在超时后终止命令。
@@ -114,7 +116,10 @@ def open_gui():
 """
 
 def exit_program():
+    global t
     try:
+        if t is not None:
+            t.cancel()
         tcp_client_socket.close()
         icon.stop()
         logging.info("程序已停止")
@@ -172,13 +177,18 @@ def connTCP():
             
         substr = f'cmd=1&uid={uid}&topic={topic}\r\n'
         tcp_client_socket.send(substr.encode("utf-8"))
+    except ConnectionAbortedError:
+        logging.error("连接被对方终止")
+        exit_program()
     except:
         time.sleep(2)
         connTCP()
+        
 
 
 #心跳
 def Ping():
+    global t
     # 发送心跳
     try:
         keeplive = 'ping\r\n'
@@ -190,6 +200,8 @@ def Ping():
     t = threading.Timer(30,Ping)
     t.start()
 
+# 全局变量
+t = None
 
 
 # 获取打包应用的根目录
@@ -275,6 +287,7 @@ if topic3:
 connTCP()
 Ping()
 
+atexit.register(exit_program)
 while True:
     # 接收服务器发送过来的数据
     recvData = tcp_client_socket.recv(1024)
@@ -283,3 +296,4 @@ while True:
     else:
         print("conn err")
         connTCP()
+        
