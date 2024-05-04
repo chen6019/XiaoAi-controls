@@ -1,8 +1,45 @@
+# -*- coding: utf-8 -*-
+# 以下代码在2021年10月21日 python3.10环境下运行通过
+
+# import paho.mqtt.client as mqtt
+
+# HOST = "bemfa.com"
+# PORT = 9501
+# client_id = ""                       
+# #连接并订阅
+# def on_connect(client, userdata, flags, rc):
+#     print("Connected with result code "+str(rc))
+#     client.subscribe("led00202")         # 订阅消息
+
+# #消息接收
+# def on_message(client, userdata, msg):
+#     print("主题:"+msg.topic+" 消息:"+str(msg.payload.decode('utf-8')))
+
+# #订阅成功
+# def on_subscribe(client, userdata, mid, granted_qos):
+#     print("On Subscribed: qos = %d" % granted_qos)
+
+# # 失去连接
+# def on_disconnect(client, userdata, rc):
+#     if rc != 0:
+#         print("Unexpected disconnection %s" % rc)
+
+
+# client = mqtt.Client(client_id)
+# client.username_pw_set("userName", "passwd")
+# client.on_connect = on_connect
+# client.on_message = on_message
+# client.on_subscribe = on_subscribe
+# client.on_disconnect = on_disconnect
+# client.connect(HOST, PORT, 60)
+# client.loop_forever()
+# 这个为临时版本，将来可能会改成tcp连接的版本，因为手机端无法得知操作结果
 """打包指令：
-pyinstaller -F -n XiaoAi-controls --noconsole --hidden-import=wmi --hidden-import=win11toast --hidden-import=pystray --hidden-import=pillow --icon=icon.ico --add-data 'icon.ico;.' main.py
+pyinstaller -F -n XiaoAi-controls --noconsole --hidden-import=paho-mqtt --hidden-import=wmi --hidden-import=win11toast --hidden-import=pystray --hidden-import=pillow --icon=icon.ico --add-data 'icon.ico;.' main.py
 """
 # 导入各种必要的模块
-import socket
+from math import log
+import paho.mqtt.client as mqtt
 import os
 import wmi
 from win11toast import notify
@@ -40,6 +77,42 @@ def execute_command(cmd, timeout=30):
             process.kill()
     return process.wait()
 
+
+"""
+MQTT订阅成功时的回调函数。
+
+参数:
+- client: MQTT客户端实例
+- userdata: 用户数据
+- mid: 消息ID
+- reason_code_list: 订阅结果的状态码列表
+- properties: 属性
+"""
+
+def on_subscribe(client, userdata, mid, reason_code_list, properties):
+    for sub_result in reason_code_list:
+        if isinstance(sub_result, int) and sub_result >= 128:
+            logging.error(f"订阅失败:{reason_code_list}")
+        else:
+            logging.info(f"使用代码订阅成功：{sub_result}")
+
+"""
+MQTT取消订阅时的回调函数。
+
+参数:
+- client: MQTT客户端实例
+- userdata: 用户数据
+- mid: 消息ID
+- reason_code_list: 取消订阅结果的状态码列表
+- properties: 属性
+"""
+
+def on_unsubscribe(client, userdata, mid, reason_code_list, properties):
+    if len(reason_code_list) == 0 or not reason_code_list[0].is_failure:
+        logging.info("退订成功")
+    else:
+        logging.error(f"{broker} 回复失败: {reason_code_list[0]}")
+    client.disconnect()
 
 """
 设置屏幕亮度。
@@ -89,7 +162,69 @@ def process_command(command, topic):
             subprocess.call(['taskkill', '/F', '/IM', app.split('\\')[-1]])
         elif command == 'on':
             subprocess.Popen(app)
+    elif topic == topic4:
+        if command == 'off':
+            subprocess.call(['taskkill', '/F', '/IM', app2.split('\\')[-1]])
+        elif command == 'on':
+            subprocess.Popen(app2)
+    elif topic == topic5:
+        # 服务的启动和停止
+        if command == 'off':
+            result = subprocess.run(["sc", "stop", app3], shell=True)
+            if result.returncode == 0:
+                notify(f"成功关闭 {app3}",icon=image_path)
+            else:
+                notify(f"关闭 {app3} 失败","可能是没有管理员权限",icon=image_path)
+        elif command == 'on':
+            result = subprocess.run(["sc", "start", app3], shell=True)
+            if result.returncode == 0:
+                notify(f"成功启动 {app3}",icon=image_path)
+            else:
+                notify(f"启动 {app3} 失败","可能是没有管理员权限",icon=image_path)
 
+"""
+MQTT接收到消息时的回调函数。
+
+参数:
+- client: MQTT客户端实例
+- userdata: 用户数据
+- message: 接收到的消息
+"""
+
+def on_message(client, userdata, message):
+    userdata.append(message.payload)
+    command = message.payload.decode()
+    logging.info(f"收到 '{command}' 从 '{message.topic}' 主题")
+    process_command(command, message.topic)
+
+"""
+MQTT连接时的回调函数。
+
+参数:
+- client: MQTT客户端实例
+- userdata: 用户数据
+- flags: 连接标志
+- reason_code: 连接结果的状态码
+- properties: 属性
+"""
+
+def on_connect(client, userdata, flags, reason_code, properties):
+    if reason_code.is_failure:
+        notify(f"连接MQTT失败: {reason_code}. 重新连接中...",icon=image_path)  # 连接失败时的提示
+        logging.error(f"连接失败: {reason_code}. loop_forever() 将重试连接")
+    else:
+        notify(f"MQTT成功连接至{broker}",icon=image_path)  # 连接成功时的提示
+        logging.info(f"连接到 {broker}")
+        if topic1:
+            client.subscribe(topic1)
+        if topic2:
+            client.subscribe(topic2)
+        if topic3:
+            client.subscribe(topic3)
+        if topic4:
+            client.subscribe(topic4)
+        if topic5:
+            client.subscribe(topic5)
 
 """
 打开GUI界面。
@@ -115,7 +250,8 @@ def open_gui():
 
 def exit_program():
     try:
-        tcp_client_socket.close()
+        mqttc.disconnect()
+        mqttc.loop_stop()
         icon.stop()
         logging.info("程序已停止")
         sys.exit(0)
@@ -150,48 +286,6 @@ def admin():
         else:
             messagebox.showerror("错误","没有管理员权限")
     threading.Thread(target=show_message).start()
-    
-
-def connTCP():
-    global tcp_client_socket
-    # 创建socket
-    tcp_client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    # IP 和端口
-    server_ip = broker
-    server_port = port
-    uid = secret_id
-    topics = [topic for topic in [topic1, topic2, topic3] if topic]
-    # 使用逗号连接主题
-    topic = ','.join(topics)
-    print(f'topic={topics}')
-    print(f'uid={uid}&topic={topic}')
-    try:
-        # 连接服务器
-        tcp_client_socket.connect((server_ip, server_port))
-        #发送订阅指令
-            
-        substr = f'cmd=1&uid={uid}&topic={topic}\r\n'
-        tcp_client_socket.send(substr.encode("utf-8"))
-    except:
-        time.sleep(2)
-        connTCP()
-
-
-#心跳
-def Ping():
-    # 发送心跳
-    try:
-        keeplive = 'ping\r\n'
-        tcp_client_socket.send(keeplive.encode("utf-8"))
-    except:
-        time.sleep(2)
-        connTCP()
-    #开启定时，30秒发送一次心跳
-    t = threading.Timer(30,Ping)
-    t.start()
-
-
-
 # 获取打包应用的根目录
 if getattr(sys, 'frozen', False):
     application_path = sys._MEIPASS
@@ -213,33 +307,33 @@ appdata_path = os.path.join(os.path.expanduser('~'), 'AppData', 'Roaming', 'Ai-c
 log_path = os.path.join(appdata_path, 'log.txt')
 logging.basicConfig(filename=log_path, level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
 
-config_path = os.path.join(appdata_path, 'TCP_config.json')
+config_path = os.path.join(appdata_path, 'mqtt_config.json')
 # 检查配置文件是否存在
 if not os.path.exists(config_path):
     messagebox.showerror("Error", "配置文件不存在\n请先打开GUI配置文件")
-    logging.error('TCP_config.json 文件不存在')
+    logging.error('mqtt_config.json 文件不存在')
     icon.stop()
     open_gui()
     sys.exit(0)
 else:
     with open(config_path, 'r') as f:
-        TCP_config = json.load(f)
+        mqtt_config = json.load(f)
 
-if TCP_config['test'] == 1:
+if mqtt_config['test'] == 1:
     logging.info("开启测试模式:可以不启用任何主题")
 else:
-    if TCP_config['topic1_checked'] == 0 and TCP_config['topic2_checked'] == 0 and TCP_config['topic3_checked'] == 0 and TCP_config['topic4_checked'] == 0 and TCP_config['topic5_checked'] == 0:
+    if mqtt_config['topic1_checked'] == 0 and mqtt_config['topic2_checked'] == 0 and mqtt_config['topic3_checked'] == 0 and mqtt_config['topic4_checked'] == 0 and mqtt_config['topic5_checked'] == 0:
         messagebox.showerror("Error", "主题不能一个都没有吧！\n（除了测试模式）")
         icon.stop()
         open_gui()
         sys.exit(0)
 
-broker = TCP_config.get('broker')
-secret_id = TCP_config.get('secret_id')
-port = TCP_config.get('port')
+broker = mqtt_config.get('broker')
+secret_id = mqtt_config.get('secret_id')
+port = mqtt_config.get('port')
 
-topic1 = TCP_config.get('topic1') if TCP_config.get('topic1_checked') == 1 else None
-if TCP_config.get('topic1_checked') == 1 and not topic1:
+topic1 = mqtt_config.get('topic1') if mqtt_config.get('topic1_checked') == 1 else None
+if mqtt_config.get('topic1_checked') == 1 and not topic1:
     messagebox.showerror("Error", "主题1不能为空")
     icon.stop()
     open_gui()
@@ -248,8 +342,8 @@ if TCP_config.get('topic1_checked') == 1 and not topic1:
 if topic1:
     logging.info(f'主题"{topic1}"')
 
-topic2 = TCP_config.get('topic2') if TCP_config.get('topic2_checked') == 1 else None
-if TCP_config.get('topic2_checked') == 1 and not topic2:
+topic2 = mqtt_config.get('topic2') if mqtt_config.get('topic2_checked') == 1 else None
+if mqtt_config.get('topic2_checked') == 1 and not topic2:
     messagebox.showerror("Error", "主题2不能为空")
     icon.stop()
     open_gui()
@@ -258,9 +352,9 @@ if TCP_config.get('topic2_checked') == 1 and not topic2:
 if topic2:
     logging.info(f'主题"{topic2}"')
 
-topic3 = TCP_config.get('topic3') if TCP_config.get('topic3_checked') == 1 else None
-app = TCP_config.get('app') if TCP_config.get('topic3_checked') == 1 else None
-if TCP_config.get('topic3_checked') == 1 and (not topic3 or not app):
+topic3 = mqtt_config.get('topic3') if mqtt_config.get('topic3_checked') == 1 else None
+app = mqtt_config.get('app') if mqtt_config.get('topic3_checked') == 1 else None
+if mqtt_config.get('topic3_checked') == 1 and (not topic3 or not app):
     messagebox.showerror("Error", "主题3和值不能为空")
     icon.stop()
     open_gui()
@@ -269,17 +363,43 @@ if TCP_config.get('topic3_checked') == 1 and (not topic3 or not app):
 if topic3:
     logging.info(f'主题"{topic3}"，值："{app}"')
 
+topic4 = mqtt_config.get('topic4') if mqtt_config.get('topic4_checked') == 1 else None
+app2 = mqtt_config.get('app2') if mqtt_config.get('topic4_checked') == 1 else None
+if mqtt_config.get('topic4_checked') == 1 and (not topic4 or not app2):
+    messagebox.showerror("Error", "主题4和值不能为空")
+    icon.stop()
+    open_gui()
+    sys.exit(0)
+# 如果主题4不为空，将其记录到日志中
+if topic4:
+    logging.info(f'主题"{topic4}"，值："{app2}"')
+
+topic5 = mqtt_config.get('topic5') if mqtt_config.get('topic5_checked') == 1 else None
+app3 = mqtt_config.get('app3') if mqtt_config.get('topic5_checked') == 1 else None
+if mqtt_config.get('topic5_checked') == 1 and (not topic5 or not app3):
+    messagebox.showerror("Error", "主题5和值不能为空")
+    icon.stop()
+    open_gui()
+    sys.exit(0)
+# 如果主题5不为空，将其记录到日志中
+if topic5:
+    logging.info(f'主题"{topic5}"，值："{app3}"')
 
 
+# 初始化MQTT客户端
+mqttc = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+mqttc.on_connect = on_connect
+mqttc.on_message = on_message
+mqttc.on_subscribe = on_subscribe
+mqttc.on_unsubscribe = on_unsubscribe
 
-connTCP()
-Ping()
-
-while True:
-    # 接收服务器发送过来的数据
-    recvData = tcp_client_socket.recv(1024)
-    if len(recvData) != 0:
-        print('recv:', recvData.decode('utf-8'))
-    else:
-        print("conn err")
-        connTCP()
+mqttc.user_data_set([])
+mqttc._client_id = secret_id
+mqttc.connect(broker, port)
+try:
+    mqttc.loop_forever()
+except KeyboardInterrupt:
+    notify("收到中断信号\n程序停止",icon=image_path)
+    logging.info("收到中断,程序停止")
+    exit_program()
+logging.info(f"总共收到以下消息: {mqttc.user_data_get()}")
