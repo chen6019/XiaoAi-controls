@@ -1,17 +1,15 @@
-from cgi import test
 import os
 import json
 import tkinter as tk
 from tkinter import messagebox
 import sys
 import subprocess
-
 def TEST():
     save_config()
     if os.path.isfile("main.py"):
         subprocess.Popen(["python", "main.py"])
-    elif os.path.isfile("Ai-controls.exe"):
-        subprocess.Popen(["Ai-controls.exe"])
+    elif os.path.isfile("XiaoAi-controls.exe"):
+        subprocess.Popen(["XiaoAi-controls.exe"])
     else:
         messagebox.showerror("Error","既没有找到 main.py 也没有找到Ai-controls.exe")
     
@@ -154,12 +152,12 @@ secret_id_entry.grid(row=1, column=1, pady=5, padx=10)
 port_label = tk.Label(root, text="端口号 ：")
 port_label.grid(row=2, column=0, pady=5)
 port_entry = tk.Entry(root)
-port_entry.insert(0, port)  
+port_entry.insert(0, port)
 port_entry.grid(row=2, column=1, pady=5, padx=10)
 
 test_checkbutton_var = tk.IntVar(value=test_checkbutton_var)
 test_checkbutton = tk.Checkbutton(root, text="Test模式（不知道是什么就别开）", variable=test_checkbutton_var)
-test_checkbutton.grid(row=2, column=2, pady=5, padx=10)
+test_checkbutton.grid(row=10, column=0, pady=5, padx=10)
 
 title_label = tk.Label(root, text="主题配置：勾选为启用，不勾选为禁用")
 title_label.grid(row=3, column=0, pady=5)
@@ -223,7 +221,7 @@ open_button.grid(row=11, column=1, pady=5)
 save_button = tk.Button(root, text="保存配置", command=save_config)
 save_button.grid(row=11, column=2, pady=5)
 
-save_button = tk.Button(root, text="测试", command=TEST)
+save_button = tk.Button(root, text="普通测试", command=TEST)
 save_button.grid(row=11, column=0, pady=5)
 
 root.mainloop()
