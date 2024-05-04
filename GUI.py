@@ -85,7 +85,7 @@ if not os.path.exists(appdata_path):
     os.makedirs(appdata_path)
 
 # 创建mqtt_config.json文件的路径
-config_path = os.path.join(appdata_path, 'mqtt_config.json')
+config_path = os.path.join(appdata_path, 'TCP_config.json')
 
 # 检查文件是否存在，如果不存在则创建文件
 if not os.path.exists(config_path):
@@ -93,7 +93,7 @@ if not os.path.exists(config_path):
         'broker': '',
         'secret_id': '',
         'port': '',
-        'test': '',
+        'test': 0,
         'topic1': '',
         'topic1_checked': 0,
         'topic2': '',
@@ -136,7 +136,7 @@ app3 = mqtt_config.get('app3', '')
 
 root = tk.Tk()
 
-root.title("MQTT配置")
+root.title("TCP配置")
 
 root.protocol("WM_DELETE_WINDOW", on_closing)
 
