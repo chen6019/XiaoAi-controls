@@ -33,13 +33,13 @@
 # client.on_disconnect = on_disconnect
 # client.connect(HOST, PORT, 60)
 # client.loop_forever()
-# 这个为临时版本，将来可能会改成tcp连接的版本
+# 这个为临时版本，将来可能会改成tcp连接的版本，因为手机端无法得知操作结果
 # 导入各种必要的模块
 from math import log
 import paho.mqtt.client as mqtt
 import os
 import wmi
-from windows_toasts import Toast, WindowsToaster
+from win11toast import notify
 import json
 import logging
 from tkinter import messagebox
@@ -74,16 +74,6 @@ def execute_command(cmd, timeout=30):
             process.kill()
     return process.wait()
 
-"""
-显示一个toast通知。
-
-参数:
-- info: 要显示在toast中的信息。
-"""
-
-def toast(info):
-    newToast.text_fields = [info]
-    toaster.show_toast(newToast)
 
 """
 MQTT订阅成功时的回调函数。
@@ -147,10 +137,10 @@ def process_command(command, topic):
     if topic == topic1:
         # 电脑开关机控制
         if command == 'on':
-            toast("电脑已经开着啦")
+            notify("电脑已经开着啦",icon=image_path)
         elif command == 'off':
             execute_command("shutdown -s -t 30")
-            toast("电脑将在30秒后关机")
+            notify("电脑将在30秒后关机",icon=image_path)
     elif topic == topic2:
         # 屏幕亮度控制
         if command == 'off' or command == '0':
@@ -177,9 +167,17 @@ def process_command(command, topic):
     elif topic == topic5:
         # 服务的启动和停止
         if command == 'off':
-            subprocess.run(["sc", "stop", app3], shell=True)
+            result = subprocess.run(["sc", "stop", app3], shell=True)
+            if result.returncode == 0:
+                notify(f"成功关闭 {app3}",icon=image_path)
+            else:
+                notify(f"关闭 {app3} 失败","可能是没有管理员权限",icon=image_path)
         elif command == 'on':
-            subprocess.run(["sc", "start", app3], shell=True)
+            result = subprocess.run(["sc", "start", app3], shell=True)
+            if result.returncode == 0:
+                notify(f"成功启动 {app3}",icon=image_path)
+            else:
+                notify(f"启动 {app3} 失败","可能是没有管理员权限",icon=image_path)
 
 """
 MQTT接收到消息时的回调函数。
@@ -209,10 +207,10 @@ MQTT连接时的回调函数。
 
 def on_connect(client, userdata, flags, reason_code, properties):
     if reason_code.is_failure:
-        toast(f"连接MQTT失败: {reason_code}. 重新连接中...")  # 连接失败时的提示
+        notify(f"连接MQTT失败: {reason_code}. 重新连接中...",icon=image_path)  # 连接失败时的提示
         logging.error(f"连接失败: {reason_code}. loop_forever() 将重试连接")
     else:
-        toast(f"MQTT成功连接至{broker}")  # 连接成功时的提示
+        notify(f"MQTT成功连接至{broker}",icon=image_path)  # 连接成功时的提示
         logging.info(f"连接到 {broker}")
         if topic1:
             client.subscribe(topic1)
@@ -285,10 +283,17 @@ def admin():
         else:
             messagebox.showerror("错误","没有管理员权限")
     threading.Thread(target=show_message).start()
+# 获取打包应用的根目录
+if getattr(sys, 'frozen', False):
+    application_path = sys._MEIPASS
+else:
+    application_path = os.path.dirname(os.path.abspath(__file__))
+
+image_path = os.path.join(application_path, 'icon.ico')
 
 # 初始化系统托盘图标和菜单
 icon = pystray.Icon("Ai-controls")
-image = Image.open("icon.png")
+image = Image.open(image_path)
 menu = (pystray.MenuItem("打开配置", open_gui), pystray.MenuItem("管理员权限查询",admin),pystray.MenuItem("退出", exit_program))
 icon.menu = menu
 icon.icon = image
@@ -378,14 +383,6 @@ if topic5:
     logging.info(f'主题"{topic5}"，值："{app3}"')
 
 
-# 初始化toast通知
-toaster = WindowsToaster('Python')
-newToast = Toast()
-info = '加载中..'
-newToast.text_fields = [info]
-newToast.on_activated = lambda _: print('Toast clicked!')
-toaster.show_toast(newToast)
-
 # 初始化MQTT客户端
 mqttc = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
 mqttc.on_connect = on_connect
@@ -399,7 +396,7 @@ mqttc.connect(broker, port)
 try:
     mqttc.loop_forever()
 except KeyboardInterrupt:
-    toast("收到中断信号\n程序停止")
+    notify("收到中断信号\n程序停止",icon=image_path)
     logging.info("收到中断,程序停止")
     exit_program()
 logging.info(f"总共收到以下消息: {mqttc.user_data_get()}")
