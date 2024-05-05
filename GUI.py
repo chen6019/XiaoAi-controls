@@ -1,8 +1,9 @@
 """打包命令
-pyinstaller -F -n GUI --noconsole --hidden-import=win11toast --hidden-import=pywin32 --icon=icon16.ico GUI.py
+pyinstaller -F -n GUI --noconsole --hidden-import=win11toast --hidden-import=pywin32 --icon=icon.ico GUI.py
 """
 import ctypes
 import os
+import shlex
 from win11toast import notify
 import json
 import tkinter as tk
@@ -101,9 +102,10 @@ def set_auto_start():
     else:
         messagebox.showerror("Error","既没有找到 main.py 也没有找到Ai-controls.exe")
         return(false)
-
+    # 引用 exe_path
+    quoted_exe_path = shlex.quote(exe_path)
     # 创建任务计划
-    result=subprocess.call(f'schtasks /Create /SC ONLOGON /TN "小爱控制" /TR "{exe_path}" /F', shell=True)
+    result=subprocess.call(f'schtasks /Create /SC ONLOGON /TN "小爱控制" /TR "{quoted_exe_path}" /F', shell=True)
     
     scheduler = win32com.client.Dispatch('Schedule.Service')
     scheduler.Connect()
