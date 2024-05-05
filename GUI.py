@@ -180,7 +180,7 @@ if not os.path.exists(config_path):
         'broker': '',
         'secret_id': '',
         'port': '',
-        'test': '',
+        'test': 0,
         'topic1': '',
         'topic1_checked': 0,
         'topic2': '',
