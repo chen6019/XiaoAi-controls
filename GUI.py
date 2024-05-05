@@ -1,12 +1,16 @@
 """打包命令
-pyinstaller -F -n GUI --noconsole --icon=icon16.ico GUI.py
+pyinstaller -F -n GUI --noconsole --hidden-import=win11toast --hidden-import=pywin32 --icon=icon16.ico GUI.py
 """
+import ctypes
 import os
+from win11toast import notify
 import json
 import tkinter as tk
 from tkinter import messagebox
 import sys
 import subprocess
+from sympy import false, im
+import win32com.client
 def TEST():
     save_config()
     if os.path.isfile("main.py"):
@@ -75,7 +79,90 @@ def save_config():
     with open(config_path, 'w') as f:
         json.dump(mqtt_config, f, indent=4)
 
-    messagebox.showinfo("Ok", "配置保存成功")
+    notify("Ok,配置保存成功")
+
+def check_task():
+    if check_task_exists("小爱控制"):
+        auto_start_button.config(text="关开机自启", command=remove_auto_start)
+    else:
+        auto_start_button.config(text="开机自启", command=set_auto_start)
+    auto_start_button.update_idletasks()
+
+def set_auto_start():
+    # 获取当前目录
+    current_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
+    
+    if os.path.isfile("main.py"):
+        # 构造文件路径
+        exe_path = os.path.join(current_dir, 'main.py')
+    elif os.path.isfile("XiaoAi-controls.exe"):
+        # 构造文件路径
+        exe_path = os.path.join(current_dir, 'XiaoAi-controls.exe')
+    else:
+        messagebox.showerror("Error","既没有找到 main.py 也没有找到Ai-controls.exe")
+        return(false)
+
+    # 创建任务计划
+    result=subprocess.call(f'schtasks /Create /SC ONLOGON /TN "小爱控制" /TR "{exe_path}" /F', shell=True)
+
+    scheduler = win32com.client.Dispatch('Schedule.Service')
+    scheduler.Connect()
+
+    root_folder = scheduler.GetFolder('\\')
+
+    task_definition = root_folder.GetTask('小爱控制').Definition
+
+    # 设置任务以最高权限运行
+    principal = task_definition.Principal
+    principal.RunLevel = 1
+    
+    settings = task_definition.Settings
+
+    settings.DisallowStartIfOnBatteries = False
+    settings.StopIfGoingOnBatteries = False
+
+    # 保存修改后的任务计划
+    root_folder.RegisterTaskDefinition('小爱控制', task_definition, 6, '', '', 3)
+    if result == 0:
+        login_info_label.config(text=f"创建开机自启动成功")
+    else:
+        login_info_label.config(text=f"创建开机自启动失败")
+    messagebox.showinfo("提示！","移动位置后要重新设置哦！！")
+    check_task()
+
+def Get_administrator_privileges():
+        save_config()
+        messagebox.showinfo("提示！","将以管理员权限重新运行！！\n已自动保存配置")
+        ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, f'"{__file__}" set_title', None, 0)
+        on_closing()
+
+def remove_auto_start():
+    # 弹出询问框，询问是否要删除任务
+    if messagebox.askyesno("确定？", "你确定要删除开机自启动任务吗？"):
+        delete_result = subprocess.call('schtasks /Delete /TN "小爱控制" /F', shell=True)
+    
+    if delete_result == 0:
+        login_info_label.config(text=f"关闭开机自启动成功")
+    else:
+        login_info_label.config(text=f"关闭开机自启动失败")
+    check_task()
+
+# 判断是否拥有管理员权限
+def is_admin():
+    try:
+        return ctypes.windll.shell32.IsUserAnAdmin()
+    except:
+        return False
+#检查是否有计划
+def check_task_exists(task_name):
+    scheduler = win32com.client.Dispatch('Schedule.Service')
+    scheduler.Connect()
+    root_folder = scheduler.GetFolder('\\')
+    for task in root_folder.GetTasks(0):
+        if task.Name == task_name:
+            return True
+    return False
+
 
 # 获取APPDATA目录的路径
 appdata_path = os.path.join(os.path.expanduser('~'), 'AppData', 'Roaming', 'Ai-controls')
@@ -136,7 +223,10 @@ app3 = mqtt_config.get('app3', '')
 
 root = tk.Tk()
 
-root.title("MQTT配置")
+if is_admin():
+    root.title("MQTT配置 - 管理员")
+else:
+    root.title("MQTT配置")
 
 root.protocol("WM_DELETE_WINDOW", on_closing)
 
@@ -145,6 +235,23 @@ broker_label.grid(row=0, column=0, pady=5)
 broker_entry = tk.Entry(root)
 broker_entry.insert(0, broker)  
 broker_entry.grid(row=0, column=1, pady=5, padx=10)
+
+login_info_label = tk.Label(root, font=("微软雅黑", 12),wraplength=370)
+login_info_label.grid(row=0, column=2, pady=5, padx=10)
+
+if is_admin():
+    login_info_label.config(text=f"当前拥有“管理员权限”请谨慎操作\n点击“开机自启”或“关闭开机自启”设置")
+else:
+    login_info_label.config(text=f"需要“管理员权限”才能设置开机自启\n点击“获取权限”按钮或“手动获取”权限")
+    
+auto_start_button = tk.Button(root, font=("微软雅黑", 14))
+auto_start_button.grid(row=1, column=2)
+
+
+if is_admin():
+    check_task()
+else:
+    auto_start_button.config(text="获取权限",command=Get_administrator_privileges)
 
 secret_id_label = tk.Label(root, text="key（私钥）：")
 secret_id_label.grid(row=1, column=0, pady=5)
