@@ -312,6 +312,9 @@ threading.Thread(target=icon.run).start()
 
 # 日志和配置文件路径处理
 appdata_path = os.path.join(os.path.expanduser('~'), 'AppData', 'Roaming', 'Ai-controls')
+# 确保目录存在
+os.makedirs(appdata_path, exist_ok=True)
+
 log_path = os.path.join(appdata_path, 'log.txt')
 logging.basicConfig(filename=log_path, level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
 
