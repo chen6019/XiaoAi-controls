@@ -38,7 +38,6 @@
 pyinstaller -F -n XiaoAi-controls --noconsole --hidden-import=paho-mqtt --hidden-import=wmi --hidden-import=win11toast --hidden-import=pystray --hidden-import=pillow --icon=icon.ico --add-data 'icon.ico;.' main.py
 """
 # 导入各种必要的模块
-from math import log
 import paho.mqtt.client as mqtt
 import os
 import wmi
@@ -236,9 +235,12 @@ def on_connect(client, userdata, flags, reason_code, properties):
 def open_gui():
     if os.path.isfile("GUI.py"):
         subprocess.Popen(["python", "GUI.py"])
+        notify("正在打开配置窗口...")
     elif os.path.isfile("GUI.exe"):
         subprocess.Popen(["GUI.exe"])
+        notify("正在打开配置窗口...")
     else:
+        notify("Error", "找不到GUI.py或GUI.exe",icon=image_path)
         logging.error("既没有找到 GUI.py 也没有找到GUI.exe")
 
 """
@@ -257,6 +259,12 @@ def exit_program():
         sys.exit(0)
     except SystemExit:
         pass
+
+# 文件过大时截断文件
+def truncate_large_file(file_path, max_size=1024*1024*20):
+    if os.path.getsize(file_path) > max_size:
+        with open(file_path, 'w') as f:
+            f.truncate(0)
 
 """
 判断当前程序是否以管理员权限运行。
@@ -306,6 +314,8 @@ threading.Thread(target=icon.run).start()
 appdata_path = os.path.join(os.path.expanduser('~'), 'AppData', 'Roaming', 'Ai-controls')
 log_path = os.path.join(appdata_path, 'log.txt')
 logging.basicConfig(filename=log_path, level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+
+truncate_large_file(log_path)
 
 config_path = os.path.join(appdata_path, 'mqtt_config.json')
 # 检查配置文件是否存在
