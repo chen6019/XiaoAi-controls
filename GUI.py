@@ -45,6 +45,9 @@ def save_config():
     topic4_checked = topic4_checkbutton_var.get()
     topic5_checked = topic5_checkbutton_var.get()
 
+    if not broker or not secret_id or not port:
+        messagebox.showerror("Error", "主要配置所有字段都必须填写")
+        return
     # 尝试将port的值转换为整数
     try:
         port = int(port)
@@ -52,9 +55,6 @@ def save_config():
         messagebox.showerror("Error", "端口必须为整数")
         return
 
-    if not broker or not topic1 or not topic2 or not topic3 or not topic4 or not topic5 or not secret_id or not port:
-        messagebox.showerror("Error", "所有字段都必须填写")
-        return
 
     mqtt_config = {
         'broker': broker,
