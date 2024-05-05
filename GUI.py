@@ -104,23 +104,26 @@ def set_auto_start():
 
     # 创建任务计划
     result=subprocess.call(f'schtasks /Create /SC ONLOGON /TN "小爱控制" /TR "{exe_path}" /F', shell=True)
-
+    
     scheduler = win32com.client.Dispatch('Schedule.Service')
     scheduler.Connect()
-
+    
     root_folder = scheduler.GetFolder('\\')
-
+    
     task_definition = root_folder.GetTask('小爱控制').Definition
-
+    
     # 设置任务以最高权限运行
     principal = task_definition.Principal
     principal.RunLevel = 1
     
     settings = task_definition.Settings
-
+    
     settings.DisallowStartIfOnBatteries = False
     settings.StopIfGoingOnBatteries = False
-
+    
+    # 关闭任务超时停止
+    settings.ExecutionTimeLimit = "PT0S"
+    
     # 保存修改后的任务计划
     root_folder.RegisterTaskDefinition('小爱控制', task_definition, 6, '', '', 3)
     if result == 0:

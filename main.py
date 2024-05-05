@@ -38,8 +38,10 @@
 pyinstaller -F -n XiaoAi-controls --noconsole --hidden-import=paho-mqtt --hidden-import=wmi --hidden-import=win11toast --hidden-import=pystray --hidden-import=pillow --icon=icon.ico --add-data 'icon.ico;.' main.py
 """
 # 导入各种必要的模块
+import io
 import paho.mqtt.client as mqtt
 import os
+import pkg_resources
 import wmi
 from win11toast import notify
 import json
@@ -142,7 +144,7 @@ def process_command(command, topic):
             ctypes.windll.user32.LockWorkStation()
         elif command == 'off':
             execute_command("shutdown -s -t 60")
-            notify("电脑将在60秒后关机",icon=image_path)
+            notify("电脑将在60秒后关机")
     elif topic == topic2:
         # 屏幕亮度控制
         if command == 'off' or command == '0':
@@ -171,15 +173,15 @@ def process_command(command, topic):
         if command == 'off':
             result = subprocess.run(["sc", "stop", app3], shell=True)
             if result.returncode == 0:
-                notify(f"成功关闭 {app3}",icon=image_path)
+                notify(f"成功关闭 {app3}")
             else:
-                notify(f"关闭 {app3} 失败","可能是没有管理员权限",icon=image_path)
+                notify(f"关闭 {app3} 失败","可能是没有管理员权限")
         elif command == 'on':
             result = subprocess.run(["sc", "start", app3], shell=True)
             if result.returncode == 0:
-                notify(f"成功启动 {app3}",icon=image_path)
+                notify(f"成功启动 {app3}")
             else:
-                notify(f"启动 {app3} 失败","可能是没有管理员权限",icon=image_path)
+                notify(f"启动 {app3} 失败","可能是没有管理员权限")
 
 """
 MQTT接收到消息时的回调函数。
@@ -209,10 +211,10 @@ MQTT连接时的回调函数。
 
 def on_connect(client, userdata, flags, reason_code, properties):
     if reason_code.is_failure:
-        notify(f"连接MQTT失败: {reason_code}. 重新连接中...",icon=image_path)  # 连接失败时的提示
+        notify(f"连接MQTT失败: {reason_code}. 重新连接中...")  # 连接失败时的提示
         logging.error(f"连接失败: {reason_code}. loop_forever() 将重试连接")
     else:
-        notify(f"MQTT成功连接至{broker}",icon=image_path)  # 连接成功时的提示
+        notify(f"MQTT成功连接至{broker}")  # 连接成功时的提示
         logging.info(f"连接到 {broker}")
         if topic1:
             client.subscribe(topic1)
@@ -240,8 +242,11 @@ def open_gui():
         subprocess.Popen(["GUI.exe"])
         notify("正在打开配置窗口...")
     else:
-        notify("Error", "找不到GUI.py或GUI.exe",icon=image_path)
-        logging.error("既没有找到 GUI.py 也没有找到GUI.exe")
+        def show_message():
+            current_path = os.getcwd()
+            messagebox.showerror("Error", f"找不到GUI.py或GUI.exe\n当前工作路径{current_path}")
+            logging.error(f"找不到GUI.py或GUI.exe\n当前工作路径{current_path}")
+        threading.Thread(target=show_message).start()
 
 """
 退出程序。
@@ -290,21 +295,30 @@ def is_admin():
 def admin():
     def show_message():
         if is_admin():
-            messagebox.showerror("信息","已经拥有管理员权限")
+            messagebox.showinfo("信息","已经拥有管理员权限")
         else:
             messagebox.showerror("错误","没有管理员权限")
     threading.Thread(target=show_message).start()
-# 获取打包应用的根目录
+
+# 获取应用程序的路径
 if getattr(sys, 'frozen', False):
-    application_path = sys._MEIPASS
+    application_path = os.path.dirname(sys.executable)
 else:
     application_path = os.path.dirname(os.path.abspath(__file__))
 
-image_path = os.path.join(application_path, 'icon.ico')
+# 改变当前的工作路径
+os.chdir(application_path)
+
+
+# 获取资源文件的路径
+resource_path = 'icon.ico'
+
+# 从资源文件中读取图像
+image_data = pkg_resources.resource_string(__name__, resource_path)
 
 # 初始化系统托盘图标和菜单
 icon = pystray.Icon("Ai-controls")
-image = Image.open(image_path)
+image = Image.open(io.BytesIO(image_data))
 menu = (pystray.MenuItem("打开配置", open_gui), pystray.MenuItem("管理员权限查询",admin),pystray.MenuItem("退出", exit_program))
 icon.menu = menu
 icon.icon = image
@@ -412,7 +426,7 @@ mqttc.connect(broker, port)
 try:
     mqttc.loop_forever()
 except KeyboardInterrupt:
-    notify("收到中断信号\n程序停止",icon=image_path)
+    notify("收到中断信号\n程序停止")
     logging.info("收到中断,程序停止")
     exit_program()
 logging.info(f"总共收到以下消息: {mqttc.user_data_get()}")
