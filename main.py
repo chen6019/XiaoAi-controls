@@ -139,10 +139,10 @@ def process_command(command, topic):
     if topic == topic1:
         # 电脑开关机控制
         if command == 'on':
-            notify("电脑已经开着啦",icon=image_path)
+            ctypes.windll.user32.LockWorkStation()
         elif command == 'off':
-            execute_command("shutdown -s -t 30")
-            notify("电脑将在30秒后关机",icon=image_path)
+            execute_command("shutdown -s -t 60")
+            notify("电脑将在60秒后关机",icon=image_path)
     elif topic == topic2:
         # 屏幕亮度控制
         if command == 'off' or command == '0':

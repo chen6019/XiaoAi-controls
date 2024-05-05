@@ -270,13 +270,13 @@ test_checkbutton = tk.Checkbutton(root, text="Test模式（不知道是什么就
 test_checkbutton.grid(row=10, column=0, pady=5, padx=10)
 
 title_label = tk.Label(root, text="主题配置：勾选为启用，不勾选为禁用")
-title_label.grid(row=3, column=0, pady=5)
+title_label.grid(row=2, column=2, pady=5)
 
 topic1_entry = tk.Entry(root)
 topic1_entry.insert(0, topic1) 
 topic1_entry.grid(row=3, column=2, pady=5, padx=10)
 topic1_checkbutton_var = tk.IntVar(value=topic1_checked)
-topic1_checkbutton = tk.Checkbutton(root,text="主题 1（电脑开关机）：", variable=topic1_checkbutton_var)
+topic1_checkbutton = tk.Checkbutton(root,text="主题 1（电脑开关机（注：开机操作为锁定电脑！））：", variable=topic1_checkbutton_var)
 topic1_checkbutton.grid(row=3, column=1)
 
 topic2_entry = tk.Entry(root)
