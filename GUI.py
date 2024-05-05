@@ -258,7 +258,7 @@ else:
 
 secret_id_label = tk.Label(root, text="key（私钥）：")
 secret_id_label.grid(row=1, column=0, pady=5)
-secret_id_entry = tk.Entry(root)
+secret_id_entry = tk.Entry(root,show="*")
 secret_id_entry.insert(0, secret_id)  
 secret_id_entry.grid(row=1, column=1, pady=5, padx=10)
 
