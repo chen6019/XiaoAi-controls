@@ -266,10 +266,10 @@ def exit_program():
         pass
 
 # 文件过大时截断文件
-def truncate_large_file(file_path, max_size=1024*1024*20):
+def truncate_large_file(file_path, max_size=1024*1024*50):
     if os.path.getsize(file_path) > max_size:
         with open(file_path, 'w') as f:
-            f.truncate(0)
+            pass
 
 """
 判断当前程序是否以管理员权限运行。
