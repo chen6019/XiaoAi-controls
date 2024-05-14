@@ -54,6 +54,7 @@ import threading
 import subprocess
 import time
 import ctypes
+import socket
 
 """
 执行系统命令，并在超时后终止命令。
@@ -422,7 +423,13 @@ mqttc.on_unsubscribe = on_unsubscribe
 
 mqttc.user_data_set([])
 mqttc._client_id = secret_id
-mqttc.connect(broker, port)
+try:
+    mqttc.connect(broker, port)
+except socket.timeout:
+    messagebox.showerror("Error", "连接到 MQTT 服务器超时，请检查网络连接或服务器地址，端口号！")
+    icon.stop()
+    open_gui()
+    sys.exit(0)
 try:
     mqttc.loop_forever()
 except KeyboardInterrupt:
