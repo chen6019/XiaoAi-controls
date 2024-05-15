@@ -242,7 +242,9 @@ def open_gui():
             current_path = os.getcwd()
             messagebox.showerror("Error", f"找不到GUI.py或GUI.exe\n当前工作路径{current_path}")
             logging.error(f"找不到GUI.py或GUI.exe\n当前工作路径{current_path}")
-        threading.Thread(target=show_message).start()
+        thread = threading.Thread(target=show_message)
+        thread.daemon = True
+        thread.start()
 
 """
 退出程序。
@@ -294,7 +296,9 @@ def admin():
             messagebox.showinfo("信息","已经拥有管理员权限")
         else:
             messagebox.showerror("错误","没有管理员权限")
-    threading.Thread(target=show_message).start()
+    thread2 = threading.Thread(target=show_message)
+    thread2.daemon = True
+    thread2.start()
 
 # 获取应用程序的路径
 if getattr(sys, 'frozen', False):
@@ -318,7 +322,9 @@ image = Image.open(io.BytesIO(image_data))
 menu = (pystray.MenuItem("打开配置", open_gui), pystray.MenuItem("管理员权限查询",admin),pystray.MenuItem("退出", exit_program))
 icon.menu = menu
 icon.icon = image
-threading.Thread(target=icon.run).start()
+icon_Thread=threading.Thread(target=icon.run)
+icon_Thread.daemon = True
+icon_Thread.start()
 
 # 日志和配置文件路径处理
 appdata_path = os.path.join(os.path.expanduser('~'), 'AppData', 'Roaming', 'Ai-controls')
