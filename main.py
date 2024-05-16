@@ -51,6 +51,15 @@ import time
 import ctypes
 import socket
 
+
+# 创建一个命名的互斥体
+mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "xacz_mutex")
+
+# 检查互斥体是否已经存在
+if ctypes.windll.kernel32.GetLastError() == 183:
+    messagebox.showerror("错误", "应用程序已在运行。")
+    sys.exit()
+
 """
 执行系统命令，并在超时后终止命令。
 
@@ -259,6 +268,8 @@ def exit_program():
         mqttc.loop_stop()
         icon.stop()
         logging.info("程序已停止")
+        # 释放互斥体
+        ctypes.windll.kernel32.ReleaseMutex(mutex)
         sys.exit(0)
     except SystemExit:
         pass
@@ -439,3 +450,5 @@ except KeyboardInterrupt:
     exit_program()
 logging.info(f"总共收到以下消息: {mqttc.user_data_get()}")
 
+# 释放互斥体
+ctypes.windll.kernel32.ReleaseMutex(mutex)

@@ -12,6 +12,15 @@ import sys
 import subprocess
 from sympy import false, im
 import win32com.client
+
+# 创建一个命名的互斥体
+mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "xagui_mutex")
+
+# 检查互斥体是否已经存在
+if ctypes.windll.kernel32.GetLastError() == 183:
+    messagebox.showerror("错误", "应用程序已在运行。")
+    sys.exit()
+
 def TEST():
     save_config()
     if os.path.isfile("main.py"):
@@ -25,6 +34,8 @@ def open_config():
     os.startfile(appdata_path)
 def on_closing():
     root.quit()
+    # 释放互斥体
+    ctypes.windll.kernel32.ReleaseMutex(mutex)
     sys.exit()
 def save_config():
     broker = broker_entry.get()
@@ -340,3 +351,5 @@ save_button = tk.Button(root, text="普通测试", command=TEST)
 save_button.grid(row=11, column=0, pady=5)
 
 root.mainloop()
+# 释放互斥体
+ctypes.windll.kernel32.ReleaseMutex(mutex)
