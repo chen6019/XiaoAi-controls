@@ -165,28 +165,28 @@ def process_command(command, topic):
     elif topic == topic3:
         # 应用程序的启动和关闭
         if command == 'off':
-            subprocess.call(['taskkill', '/F', '/IM', app.split('\\')[-1]])
+            subprocess.call(['taskkill', '/F', '/IM', directory1.split('\\')[-1]])
         elif command == 'on':
-            subprocess.Popen(app)
+            subprocess.Popen(directory1)
     elif topic == topic4:
         if command == 'off':
-            subprocess.call(['taskkill', '/F', '/IM', app2.split('\\')[-1]])
+            subprocess.call(['taskkill', '/F', '/IM', directory2.split('\\')[-1]])
         elif command == 'on':
-            subprocess.Popen(app2)
+            subprocess.Popen(directory2)
     elif topic == topic5:
         # 服务的启动和停止
         if command == 'off':
-            result = subprocess.run(["sc", "stop", app3], shell=True)
+            result = subprocess.run(["sc", "stop", directory3], shell=True)
             if result.returncode == 0:
-                notify(f"成功关闭 {app3}")
+                notify(f"成功关闭 {directory3}")
             else:
-                notify(f"关闭 {app3} 失败","可能是没有管理员权限")
+                notify(f"关闭 {directory3} 失败","可能是没有管理员权限")
         elif command == 'on':
-            result = subprocess.run(["sc", "start", app3], shell=True)
+            result = subprocess.run(["sc", "start", directory3], shell=True)
             if result.returncode == 0:
-                notify(f"成功启动 {app3}")
+                notify(f"成功启动 {directory3}")
             else:
-                notify(f"启动 {app3} 失败","可能是没有管理员权限")
+                notify(f"启动 {directory3} 失败","可能是没有管理员权限")
 
 """
 MQTT接收到消息时的回调函数。
@@ -393,37 +393,37 @@ if topic2:
     logging.info(f'主题"{topic2}"')
 
 topic3 = mqtt_config.get('topic3') if mqtt_config.get('topic3_checked') == 1 else None
-app = mqtt_config.get('app') if mqtt_config.get('topic3_checked') == 1 else None
-if mqtt_config.get('topic3_checked') == 1 and (not topic3 or not app):
+directory1 = mqtt_config.get('directory1') if mqtt_config.get('topic3_checked') == 1 else None
+if mqtt_config.get('topic3_checked') == 1 and (not topic3 or not directory1):
     messagebox.showerror("Error", "主题3和值不能为空")
     icon.stop()
     open_gui()
     sys.exit(0)
 # 如果主题3不为空，将其记录到日志中
 if topic3:
-    logging.info(f'主题"{topic3}"，值："{app}"')
+    logging.info(f'主题"{topic3}"，值："{directory1}"')
 
 topic4 = mqtt_config.get('topic4') if mqtt_config.get('topic4_checked') == 1 else None
-app2 = mqtt_config.get('app2') if mqtt_config.get('topic4_checked') == 1 else None
-if mqtt_config.get('topic4_checked') == 1 and (not topic4 or not app2):
+directory2 = mqtt_config.get('directory2') if mqtt_config.get('topic4_checked') == 1 else None
+if mqtt_config.get('topic4_checked') == 1 and (not topic4 or not directory2):
     messagebox.showerror("Error", "主题4和值不能为空")
     icon.stop()
     open_gui()
     sys.exit(0)
 # 如果主题4不为空，将其记录到日志中
 if topic4:
-    logging.info(f'主题"{topic4}"，值："{app2}"')
+    logging.info(f'主题"{topic4}"，值："{directory2}"')
 
 topic5 = mqtt_config.get('topic5') if mqtt_config.get('topic5_checked') == 1 else None
-app3 = mqtt_config.get('app3') if mqtt_config.get('topic5_checked') == 1 else None
-if mqtt_config.get('topic5_checked') == 1 and (not topic5 or not app3):
+directory3 = mqtt_config.get('directory3') if mqtt_config.get('topic5_checked') == 1 else None
+if mqtt_config.get('topic5_checked') == 1 and (not topic5 or not directory3):
     messagebox.showerror("Error", "主题5和值不能为空")
     icon.stop()
     open_gui()
     sys.exit(0)
 # 如果主题5不为空，将其记录到日志中
 if topic5:
-    logging.info(f'主题"{topic5}"，值："{app3}"')
+    logging.info(f'主题"{topic5}"，值："{directory3}"')
 
 
 # 初始化MQTT客户端
