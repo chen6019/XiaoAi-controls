@@ -10,7 +10,6 @@ import tkinter as tk
 from tkinter import messagebox
 import sys
 import subprocess
-from sympy import false, im
 import win32com.client
 
 # 创建一个命名的互斥体
@@ -44,11 +43,11 @@ def save_config():
     topic1 = topic1_entry.get()
     topic2 = topic2_entry.get()
     topic3 = topic3_entry.get()
-    app = app_entry.get()
+    directory1 = directory1_entry.get()
     topic4 = topic4_entry.get()
-    app2 = app2_entry.get()
+    directory2 = directory2_entry.get()
     topic5 = topic5_entry.get()
-    app3 = app3_entry.get()
+    directory3 = directory3_entry.get()
 
     test = test_checkbutton_var.get()
     topic1_checked = topic1_checkbutton_var.get()
@@ -79,13 +78,13 @@ def save_config():
         'topic2_checked': topic2_checked,
         'topic3': topic3,
         'topic3_checked': topic3_checked,
-        'app': app,
+        'directory1': directory1,
         'topic4': topic4,
         'topic4_checked': topic4_checked,
-        'app2':app2,
+        'directory2':directory2,
         'topic5': topic5,
         'topic5_checked': topic5_checked,
-        'app3':app3
+        'directory3':directory3
     }
     
     with open(config_path, 'w') as f:
@@ -112,7 +111,7 @@ def set_auto_start():
         exe_path = os.path.join(current_dir, 'XiaoAi-controls.exe')
     else:
         messagebox.showerror("Error","既没有找到 main.py 也没有找到Ai-controls.exe")
-        return(false)
+
     # 引用 exe_path
     quoted_exe_path = shlex.quote(exe_path)
     # 创建任务计划
@@ -203,13 +202,13 @@ if not os.path.exists(config_path):
         'topic2_checked': 0,
         'topic3': '',
         'topic3_checked': 0,
-        'app': '',
+        'directory1': '',
         'topic4': '',
         'topic4_checked': 0,
-        'app2': '',
+        'directory2': '',
         'topic5': '',
         'topic5_checked': 0,
-        'app3': ''
+        'directory3': ''
     }
     with open(config_path, 'w') as f:
         json.dump(mqtt_config, f)
@@ -229,13 +228,13 @@ topic2 = mqtt_config.get('topic2', '')
 topic2_checked = mqtt_config.get('topic2_checked', 0)
 topic3 = mqtt_config.get('topic3', '')
 topic3_checked = mqtt_config.get('topic3_checked', 0)
-app = mqtt_config.get('app', '')
+directory1 = mqtt_config.get('directory1', '')
 topic4 = mqtt_config.get('topic4', '')
 topic4_checked = mqtt_config.get('topic4_checked', 0)
-app2 = mqtt_config.get('app2', '')
+directory2 = mqtt_config.get('directory2', '')
 topic5 = mqtt_config.get('topic5', '')
 topic5_checked = mqtt_config.get('topic5_checked', 0)
-app3 = mqtt_config.get('app3', '')
+directory3 = mqtt_config.get('directory3', '')
 
 root = tk.Tk()
 
@@ -309,11 +308,11 @@ topic3_checkbutton_var = tk.IntVar(value=topic3_checked)
 topic3_checkbutton = tk.Checkbutton(root,text="主题 3（启动应用程序或者可执行文件）：", variable=topic3_checkbutton_var)
 topic3_checkbutton.grid(row=5, column=1)
 
-app_label = tk.Label(root, text="应用程序或者可执行文件目录 ：")
-app_label.grid(row=6, column=1, pady=5)
-app_entry = tk.Entry(root)
-app_entry.insert(0, app)  # 设置默认值
-app_entry.grid(row=6, column=2, pady=5, padx=10)
+directory1_label = tk.Label(root, text="应用程序或者可执行文件目录 ：")
+directory1_label.grid(row=6, column=1, pady=5)
+directory1_entry = tk.Entry(root)
+directory1_entry.insert(0, directory1)  # 设置默认值
+directory1_entry.grid(row=6, column=2, pady=5, padx=10)
 
 topic4_entry = tk.Entry(root)
 topic4_entry.insert(0, topic4) 
@@ -322,11 +321,11 @@ topic4_checkbutton_var = tk.IntVar(value=topic4_checked)
 topic4_checkbutton = tk.Checkbutton(root,text="主题 4（启动应用程序或者可执行文件）：", variable=topic4_checkbutton_var)
 topic4_checkbutton.grid(row=7, column=1)
 
-app2_label = tk.Label(root, text="应用程序或者可执行文件目录 ：")
-app2_label.grid(row=8, column=1, pady=5)
-app2_entry = tk.Entry(root)
-app2_entry.insert(0, app2)  # 设置默认值
-app2_entry.grid(row=8, column=2, pady=5, padx=10)
+directory2_label = tk.Label(root, text="应用程序或者可执行文件目录 ：")
+directory2_label.grid(row=8, column=1, pady=5)
+directory2_entry = tk.Entry(root)
+directory2_entry.insert(0, directory2)  # 设置默认值
+directory2_entry.grid(row=8, column=2, pady=5, padx=10)
 
 topic5_entry = tk.Entry(root)
 topic5_entry.insert(0, topic5) 
@@ -335,11 +334,11 @@ topic5_checkbutton_var = tk.IntVar(value=topic5_checked)
 topic5_checkbutton = tk.Checkbutton(root,text="主题 5（服务（需要管理员权限运行，否则无效））：", variable=topic5_checkbutton_var)
 topic5_checkbutton.grid(row=9, column=1)
 
-app3_label = tk.Label(root, text="服务名称 ：")
-app3_label.grid(row=10, column=1, pady=5)
-app3_entry = tk.Entry(root)
-app3_entry.insert(0, app3)  # 设置默认值
-app3_entry.grid(row=10, column=2, pady=5, padx=10)
+directory3_label = tk.Label(root, text="服务名称 ：")
+directory3_label.grid(row=10, column=1, pady=5)
+directory3_entry = tk.Entry(root)
+directory3_entry.insert(0, directory3)  # 设置默认值
+directory3_entry.grid(row=10, column=2, pady=5, padx=10)
 
 open_button = tk.Button(root, text="打开配置文件夹", command=open_config)
 open_button.grid(row=11, column=1, pady=5)
