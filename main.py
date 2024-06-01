@@ -30,7 +30,7 @@
  这个为临时版本，将来可能会改成tcp连接的版本，因为手机端无法得知操作结果
 
 打包指令：
-pyinstaller -F -n XiaoAi-controls --noconsole --hidden-import=paho-mqtt --hidden-import=wmi --hidden-import=win11toast --hidden-import=pystray --hidden-import=pillow --icon=icon.ico --add-data 'icon.ico;.' main.py
+pyinstaller -F -n XiaoAi-controls --noconsole --hidden-import=paho-mqtt --hidden-import=wmi --hidden-import=win11toast --hidden-import=pystray --hidden-import=pillow --hidden-import=pycaw --icon=icon.ico --add-data 'icon.ico;.' main.py
 """
 # 导入各种必要的模块
 import io
@@ -50,6 +50,9 @@ import subprocess
 import time
 import ctypes
 import socket
+from ctypes import cast, POINTER
+from comtypes import CLSCTX_ALL
+from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
 
 
 # 创建一个命名的互斥体
@@ -100,7 +103,8 @@ def on_subscribe(client, userdata, mid, reason_code_list, properties):
         if isinstance(sub_result, int) and sub_result >= 128:
             logging.error(f"订阅失败:{reason_code_list}")
         else:
-            logging.info(f"使用代码订阅成功：{sub_result}")
+            logging.info(f"使用代码发送订阅申请成功：{mid}")
+
 
 """
 MQTT取消订阅时的回调函数。
@@ -134,6 +138,22 @@ def set_brightness(value):
         logging.error(f"无法设置亮度: {e}")
 
 """
+设置音量。
+
+参数:
+- value: 音量值（0-100）
+"""
+
+def set_volume(value):
+    devices = AudioUtilities.GetSpeakers()
+    interface = devices.Activate(
+        IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
+    volume = cast(interface, POINTER(IAudioEndpointVolume))
+
+    # 控制音量在 0.0 - 1.0 之间
+    volume.SetMasterVolumeLevelScalar(value / 100, None)
+
+"""
 根据接收到的命令和主题来处理相应的操作。
 
 参数:
@@ -143,16 +163,16 @@ def set_brightness(value):
 
 def process_command(command, topic):
     # 根据主题和命令执行不同的操作
-    if topic == topic1:
+    if topic == Computer:
         # 电脑开关机控制
         if command == 'on':
             ctypes.windll.user32.LockWorkStation()
         elif command == 'off':
             execute_command("shutdown -s -t 60")
             notify("电脑将在60秒后关机")
-    elif topic == topic2:
+    elif topic == screen:
         # 屏幕亮度控制
-        if command == 'off' or command == '0':
+        if command == 'off' or command == '1' or command == 'pause':
             set_brightness(0)
         elif command == 'on':
             set_brightness(100)
@@ -162,31 +182,44 @@ def process_command(command, topic):
                 set_brightness(brightness)
             except ValueError:
                 logging.error("亮度值无效")
-    elif topic == topic3:
+    elif topic == volume:
+        # 音量控制
+        if command == 'off' or command == '1' or command == 'pause':
+            set_volume(0)
+        elif command == 'on':
+            set_volume(100)
+        else:
+            try:
+                volume_value = int(command[3:])
+                set_volume(volume_value)
+            except ValueError:
+                logging.error("音量值无效")
+    
+    elif topic == application1:
         # 应用程序的启动和关闭
         if command == 'off':
             subprocess.call(['taskkill', '/F', '/IM', directory1.split('\\')[-1]])
         elif command == 'on':
             subprocess.Popen(directory1)
-    elif topic == topic4:
+    elif topic == application2:
         if command == 'off':
             subprocess.call(['taskkill', '/F', '/IM', directory2.split('\\')[-1]])
         elif command == 'on':
             subprocess.Popen(directory2)
-    elif topic == topic5:
+    elif topic == serve1:
         # 服务的启动和停止
         if command == 'off':
-            result = subprocess.run(["sc", "stop", directory3], shell=True)
+            result = subprocess.run(["sc", "stop", serve1_name], shell=True)
             if result.returncode == 0:
-                notify(f"成功关闭 {directory3}")
+                notify(f"成功关闭 {serve1_name}")
             else:
-                notify(f"关闭 {directory3} 失败","可能是没有管理员权限")
+                notify(f"关闭 {serve1_name} 失败","可能是没有管理员权限")
         elif command == 'on':
-            result = subprocess.run(["sc", "start", directory3], shell=True)
+            result = subprocess.run(["sc", "start", serve1_name], shell=True)
             if result.returncode == 0:
-                notify(f"成功启动 {directory3}")
+                notify(f"成功启动 {serve1_name}")
             else:
-                notify(f"启动 {directory3} 失败","可能是没有管理员权限")
+                notify(f"启动 {serve1_name} 失败","可能是没有管理员权限")
 
 """
 MQTT接收到消息时的回调函数。
@@ -200,7 +233,7 @@ MQTT接收到消息时的回调函数。
 def on_message(client, userdata, message):
     userdata.append(message.payload)
     command = message.payload.decode()
-    logging.info(f"收到 '{command}' 从 '{message.topic}' 主题")
+    logging.info(f"收到 '{command}' 从 '{message.topic}' 主题收到 '{command}'")
     process_command(command, message.topic)
 
 """
@@ -221,16 +254,18 @@ def on_connect(client, userdata, flags, reason_code, properties):
     else:
         notify(f"MQTT成功连接至{broker}")  # 连接成功时的提示
         logging.info(f"连接到 {broker}")
-        if topic1:
-            client.subscribe(topic1)
-        if topic2:
-            client.subscribe(topic2)
-        if topic3:
-            client.subscribe(topic3)
-        if topic4:
-            client.subscribe(topic4)
-        if topic5:
-            client.subscribe(topic5)
+        if Computer:
+            client.subscribe(Computer)
+        if screen:
+            client.subscribe(screen)
+        if volume:
+            client.subscribe(volume)
+        if application1:
+            client.subscribe(application1)
+        if application2:
+            client.subscribe(application2)
+        if serve1:
+            client.subscribe(serve1)
 
 """
 打开GUI界面。
@@ -274,11 +309,35 @@ def exit_program():
     except SystemExit:
         pass
 
-# 文件过大时截断文件
+
+"""
+文件过大时截断文件。
+
+无参数
+无返回值
+"""
 def truncate_large_file(file_path, max_size=1024*1024*50):
     if os.path.getsize(file_path) > max_size:
         with open(file_path, 'w') as f:
             pass
+
+"""
+重新启动程序。
+
+无参数
+无返回值
+"""
+def restart_program():
+    try:
+        mqttc.disconnect()
+        mqttc.loop_stop()
+        icon.stop()
+        logging.info("程序已停止")
+        # 释放互斥体
+        ctypes.windll.kernel32.ReleaseMutex(mutex)
+        os.execl(sys.executable, sys.executable, *sys.argv)
+    except SystemExit:
+        pass
 
 """
 判断当前程序是否以管理员权限运行。
@@ -330,7 +389,7 @@ image_data = pkg_resources.resource_string(__name__, resource_path)
 # 初始化系统托盘图标和菜单
 icon = pystray.Icon("Ai-controls")
 image = Image.open(io.BytesIO(image_data))
-menu = (pystray.MenuItem("打开配置", open_gui), pystray.MenuItem("管理员权限查询",admin),pystray.MenuItem("退出", exit_program))
+menu = (pystray.MenuItem("打开配置", open_gui),pystray.MenuItem("重启程序",restart_program), pystray.MenuItem("管理员权限查询",admin),pystray.MenuItem("退出", exit_program))
 icon.menu = menu
 icon.icon = image
 icon_Thread=threading.Thread(target=icon.run)
@@ -362,7 +421,7 @@ else:
 if mqtt_config['test'] == 1:
     logging.info("开启测试模式:可以不启用任何主题")
 else:
-    if mqtt_config['topic1_checked'] == 0 and mqtt_config['topic2_checked'] == 0 and mqtt_config['topic3_checked'] == 0 and mqtt_config['topic4_checked'] == 0 and mqtt_config['topic5_checked'] == 0:
+    if mqtt_config['Computer_checked'] == 0 and mqtt_config['screen_checked'] == 0 and mqtt_config['volume_checked'] == 0 and mqtt_config['application1_checked'] == 0 and mqtt_config['application2_checked'] == 0 and mqtt_config['serve1_checked'] == 0:
         messagebox.showerror("Error", "主题不能一个都没有吧！\n（除了测试模式）")
         icon.stop()
         open_gui()
@@ -372,58 +431,68 @@ broker = mqtt_config.get('broker')
 secret_id = mqtt_config.get('secret_id')
 port = mqtt_config.get('port')
 
-topic1 = mqtt_config.get('topic1') if mqtt_config.get('topic1_checked') == 1 else None
-if mqtt_config.get('topic1_checked') == 1 and not topic1:
-    messagebox.showerror("Error", "主题1不能为空")
+Computer = mqtt_config.get('Computer') if mqtt_config.get('Computer_checked') == 1 else None
+if mqtt_config.get('Computer_checked') == 1 and not Computer:
+    messagebox.showerror("Error", "主题不能为空")
     icon.stop()
     open_gui()
     sys.exit(0)
-# 如果主题1不为空，将其记录到日志中
-if topic1:
-    logging.info(f'主题"{topic1}"')
+# 如果主题不为空，将其记录到日志中
+if Computer:
+    logging.info(f'主题"{Computer}"')
 
-topic2 = mqtt_config.get('topic2') if mqtt_config.get('topic2_checked') == 1 else None
-if mqtt_config.get('topic2_checked') == 1 and not topic2:
-    messagebox.showerror("Error", "主题2不能为空")
+screen = mqtt_config.get('screen') if mqtt_config.get('screen_checked') == 1 else None
+if mqtt_config.get('screen_checked') == 1 and not screen:
+    messagebox.showerror("Error", "主题不能为空")
     icon.stop()
     open_gui()
     sys.exit(0)
-# 如果主题2不为空，将其记录到日志中
-if topic2:
-    logging.info(f'主题"{topic2}"')
+# 如果主题不为空，将其记录到日志中
+if screen:
+    logging.info(f'主题"{screen}"')
 
-topic3 = mqtt_config.get('topic3') if mqtt_config.get('topic3_checked') == 1 else None
-directory1 = mqtt_config.get('directory1') if mqtt_config.get('topic3_checked') == 1 else None
-if mqtt_config.get('topic3_checked') == 1 and (not topic3 or not directory1):
-    messagebox.showerror("Error", "主题3和值不能为空")
+volume = mqtt_config.get('volume') if mqtt_config.get('volume_checked') == 1 else None
+if mqtt_config.get('volume_checked') == 1 and not volume:
+    messagebox.showerror("Error", "主题不能为空")
     icon.stop()
     open_gui()
     sys.exit(0)
-# 如果主题3不为空，将其记录到日志中
-if topic3:
-    logging.info(f'主题"{topic3}"，值："{directory1}"')
+# 如果主题不为空，将其记录到日志中
+if volume:
+    logging.info(f'主题"{volume}"')
 
-topic4 = mqtt_config.get('topic4') if mqtt_config.get('topic4_checked') == 1 else None
-directory2 = mqtt_config.get('directory2') if mqtt_config.get('topic4_checked') == 1 else None
-if mqtt_config.get('topic4_checked') == 1 and (not topic4 or not directory2):
-    messagebox.showerror("Error", "主题4和值不能为空")
+application1 = mqtt_config.get('application1') if mqtt_config.get('application1_checked') == 1 else None
+directory1 = mqtt_config.get('directory1') if mqtt_config.get('application1_checked') == 1 else None
+if mqtt_config.get('application1_checked') == 1 and (not application1 or not directory1):
+    messagebox.showerror("Error", "主题和值不能为空")
     icon.stop()
     open_gui()
     sys.exit(0)
-# 如果主题4不为空，将其记录到日志中
-if topic4:
-    logging.info(f'主题"{topic4}"，值："{directory2}"')
+# 如果主题不为空，将其记录到日志中
+if application1:
+    logging.info(f'主题"{application1}"，值："{directory1}"')
 
-topic5 = mqtt_config.get('topic5') if mqtt_config.get('topic5_checked') == 1 else None
-directory3 = mqtt_config.get('directory3') if mqtt_config.get('topic5_checked') == 1 else None
-if mqtt_config.get('topic5_checked') == 1 and (not topic5 or not directory3):
-    messagebox.showerror("Error", "主题5和值不能为空")
+application2 = mqtt_config.get('application2') if mqtt_config.get('application2_checked') == 1 else None
+directory2 = mqtt_config.get('directory2') if mqtt_config.get('application2_checked') == 1 else None
+if mqtt_config.get('application2_checked') == 1 and (not application2 or not directory2):
+    messagebox.showerror("Error", "主题和值不能为空")
     icon.stop()
     open_gui()
     sys.exit(0)
-# 如果主题5不为空，将其记录到日志中
-if topic5:
-    logging.info(f'主题"{topic5}"，值："{directory3}"')
+# 如果主题不为空，将其记录到日志中
+if application2:
+    logging.info(f'主题"{application2}"，值："{directory2}"')
+
+serve1 = mqtt_config.get('serve1') if mqtt_config.get('serve1_checked') == 1 else None
+serve1_name = mqtt_config.get('serve1_name') if mqtt_config.get('serve1_checked') == 1 else None
+if mqtt_config.get('serve1_checked') == 1 and (not serve1 or not serve1_name):
+    messagebox.showerror("Error", "主题和值不能为空")
+    icon.stop()
+    open_gui()
+    sys.exit(0)
+# 如果主题不为空，将其记录到日志中
+if serve1:
+    logging.info(f'主题"{serve1}"，值："{serve1_name}"')
 
 
 # 初始化MQTT客户端
