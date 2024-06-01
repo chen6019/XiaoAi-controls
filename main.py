@@ -233,7 +233,7 @@ MQTT接收到消息时的回调函数。
 def on_message(client, userdata, message):
     userdata.append(message.payload)
     command = message.payload.decode()
-    logging.info(f"收到 '{command}' 从 '{message.topic}' 主题收到 '{command}'")
+    logging.info(f"'{message.topic}' 主题收到 '{command}'")
     process_command(command, message.topic)
 
 """
