@@ -10,7 +10,6 @@ __pycache__/
 .Python
 build/
 develop-eggs/
-# dist/
 downloads/
 eggs/
 .eggs/
@@ -152,3 +151,6 @@ cython_debug/
 #.idea/
 tempCodeRunnerFile.py
 .vscode/settings.json
+dist/GUI.exe
+dist/XiaoAi-controls.exe
+dist/
