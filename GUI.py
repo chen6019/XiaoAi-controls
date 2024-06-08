@@ -255,9 +255,9 @@ serve1_name = mqtt_config.get('serve1_name', '')
 root = tk.Tk()
 
 if is_admin():
-    root.title("MQTT配置 - 管理员")
+    root.title("小爱控制 V1.0.0- 管理员")
 else:
-    root.title("MQTT配置")
+    root.title("小爱控制 V1.0.0")
 
 root.protocol("WM_DELETE_WINDOW", on_closing)
 # 主要配置0-10
