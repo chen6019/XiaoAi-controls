@@ -43,6 +43,7 @@ def save_config():
     Computer = Computer_entry.get()
     screen = screen_entry.get()
     volume = volume_entry.get()
+    sleep = sleep_entry.get()
     application1 = application1_entry.get()
     directory1 = directory1_entry.get()
     application2 = application2_entry.get()
@@ -54,6 +55,7 @@ def save_config():
     Computer_checked = Computer_checkbutton_var.get()
     screen_checked = screen_checkbutton_var.get()
     volume_checked = volume_checkbutton_var.get()
+    sleep_checked = sleep_checkbutton_var.get()
     application1_checked = application1_checkbutton_var.get()
     application2_checked = application2_checkbutton_var.get()
     serve1_checked = serve1_checkbutton_var.get()
@@ -80,6 +82,8 @@ def save_config():
         'screen_checked': screen_checked,
         'volume': volume,
         'volume_checked': volume_checked,
+        'sleep': sleep,
+        'sleep_checked':sleep_checked,
         'application1': application1,
         'application1_checked': application1_checked,
         'directory1': directory1,
@@ -206,6 +210,8 @@ if not os.path.exists(config_path):
         'screen_checked': 0,
         'volume': '',
         'volume_checked': 0,
+        'sleep': '',
+        'sleep_checked': 0,
         'application1': '',
         'application1_checked': 0,
         'directory1': '',
@@ -234,6 +240,8 @@ screen = mqtt_config.get('screen', '')
 screen_checked = mqtt_config.get('screen_checked', 0)
 volume = mqtt_config.get('volume', '')
 volume_checked = mqtt_config.get('volume_checked', 0)
+sleep = mqtt_config.get('sleep', '')
+sleep_checked = mqtt_config.get('sleep_checked', 0)
 application1 = mqtt_config.get('application1', '')
 application1_checked = mqtt_config.get('application1_checked', 0)
 directory1 = mqtt_config.get('directory1', '')
@@ -311,6 +319,13 @@ volume_entry.grid(row=13, column=2, pady=5, padx=10)
 volume_checkbutton_var = tk.IntVar(value=volume_checked)
 volume_checkbutton = tk.Checkbutton(root,text="电脑音量：", variable=volume_checkbutton_var)
 volume_checkbutton.grid(row=13, column=1)
+
+sleep_entry = tk.Entry(root)
+sleep_entry.insert(0, sleep) 
+sleep_entry.grid(row=14, column=2, pady=5, padx=10)
+sleep_checkbutton_var = tk.IntVar(value=sleep_checked)
+sleep_checkbutton = tk.Checkbutton(root,text="睡眠模式：", variable=sleep_checkbutton_var)
+sleep_checkbutton.grid(row=14, column=1)
 
 #应用配置31-60 
 application1_entry = tk.Entry(root)

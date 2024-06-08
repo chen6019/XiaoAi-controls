@@ -172,7 +172,7 @@ def process_command(command, topic):
             notify("电脑将在60秒后关机")
     elif topic == screen:
         # 屏幕亮度控制
-        if command == 'off' or command == '1' or command == 'pause':
+        if command == 'off' or command == '1':
             set_brightness(0)
         elif command == 'on':
             set_brightness(100)
@@ -184,7 +184,7 @@ def process_command(command, topic):
                 logging.error("亮度值无效")
     elif topic == volume:
         # 音量控制
-        if command == 'off' or command == '1' or command == 'pause':
+        if command == 'off' or command == '1':
             set_volume(0)
         elif command == 'on':
             set_volume(100)
@@ -194,6 +194,11 @@ def process_command(command, topic):
                 set_volume(volume_value)
             except ValueError:
                 logging.error("音量值无效")
+    elif topic == sleep:
+        if command == 'off':
+            notify("当前还没有进入睡眠模式哦！")
+        elif command == 'on':
+            execute_command("rundll32.exe powrprof.dll,SetSuspendState 0,1,0")
     
     elif topic == application1:
         # 应用程序的启动和关闭
@@ -260,6 +265,8 @@ def on_connect(client, userdata, flags, reason_code, properties):
             client.subscribe(screen)
         if volume:
             client.subscribe(volume)
+        if sleep:
+            client.subscribe(sleep)
         if application1:
             client.subscribe(application1)
         if application2:
@@ -421,7 +428,7 @@ else:
 if mqtt_config['test'] == 1:
     logging.info("开启测试模式:可以不启用任何主题")
 else:
-    if mqtt_config['Computer_checked'] == 0 and mqtt_config['screen_checked'] == 0 and mqtt_config['volume_checked'] == 0 and mqtt_config['application1_checked'] == 0 and mqtt_config['application2_checked'] == 0 and mqtt_config['serve1_checked'] == 0:
+    if mqtt_config['Computer_checked'] == 0 and mqtt_config['screen_checked'] == 0 and mqtt_config['volume_checked'] == 0 and mqtt_config['sleep_checked'] == 0 and mqtt_config['application1_checked'] == 0 and mqtt_config['application2_checked'] == 0 and mqtt_config['serve1_checked'] == 0:
         messagebox.showerror("Error", "主题不能一个都没有吧！\n（除了测试模式）")
         icon.stop()
         open_gui()
@@ -460,6 +467,16 @@ if mqtt_config.get('volume_checked') == 1 and not volume:
 # 如果主题不为空，将其记录到日志中
 if volume:
     logging.info(f'主题"{volume}"')
+    
+sleep = mqtt_config.get('sleep') if mqtt_config.get('sleep_checked') == 1 else None
+if mqtt_config.get('sleep_checked') == 1 and not sleep:
+    messagebox.showerror("Error", "主题不能为空")
+    icon.stop()
+    open_gui()
+    sys.exit(0)
+# 如果主题不为空，将其记录到日志中
+if sleep:
+    logging.info(f'主题"{sleep}"')
 
 application1 = mqtt_config.get('application1') if mqtt_config.get('application1_checked') == 1 else None
 directory1 = mqtt_config.get('directory1') if mqtt_config.get('application1_checked') == 1 else None
