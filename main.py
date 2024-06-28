@@ -528,6 +528,11 @@ except socket.timeout:
     icon.stop()
     open_gui()
     sys.exit(0)
+except socket.gaierror:
+    messagebox.showerror("Error", "无法解析 MQTT 服务器地址，请重试或检查服务器地址是否正确！")
+    icon.stop()
+    open_gui()
+    sys.exit(0)
 try:
     mqttc.loop_forever()
 except KeyboardInterrupt:
