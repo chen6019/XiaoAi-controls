@@ -394,7 +394,7 @@ resource_path = 'icon.ico'
 image_data = pkg_resources.resource_string(__name__, resource_path)
 
 # 初始化系统托盘图标和菜单
-icon = pystray.Icon("Ai-controls", title="小爱控制 V1.0.0")
+icon = pystray.Icon("Ai-controls", title="小爱控制 V1.0.1")
 image = Image.open(io.BytesIO(image_data))
 menu = (pystray.MenuItem("打开配置", open_gui),pystray.MenuItem("重启程序",restart_program), pystray.MenuItem("管理员权限查询",admin),pystray.MenuItem("退出", exit_program))
 icon.menu = menu
