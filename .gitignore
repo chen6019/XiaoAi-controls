@@ -6,6 +6,7 @@ __pycache__/
 # C extensions
 *.so
 
+
 # Distribution / packaging
 .Python
 build/
@@ -154,3 +155,5 @@ tempCodeRunnerFile.py
 dist/GUI.exe
 dist/XiaoAi-controls.exe
 dist/
+.gitignore
+.gitattributes
