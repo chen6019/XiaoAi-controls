@@ -11,8 +11,7 @@ from tkinter import messagebox
 import sys
 import subprocess
 import win32com.client
-#这里是修改了一行，是蓝色提示
-#这里是修改的内容，新添加了一行，是绿色提示，删除是红色提示
+ 
 # 创建一个命名的互斥体
 mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "xagui_mutex")
 
