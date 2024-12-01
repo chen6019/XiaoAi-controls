@@ -147,9 +147,9 @@ def set_auto_start():
     # 保存修改后的任务计划
     root_folder.RegisterTaskDefinition('小爱控制', task_definition, 6, '', '', 3)
     if result == 0:
-        login_info_label.config(text=f"创建开机自启动成功")
+        login_info_label.config(text="创建开机自启动成功")
     else:
-        login_info_label.config(text=f"创建开机自启动失败")
+        login_info_label.config(text="创建开机自启动失败")
     messagebox.showinfo("提示！","移动位置后要重新设置哦！！")
     check_task()
 
@@ -165,16 +165,16 @@ def remove_auto_start():
         delete_result = subprocess.call('schtasks /Delete /TN "小爱控制" /F', shell=True)
     
     if delete_result == 0:
-        login_info_label.config(text=f"关闭开机自启动成功")
+        login_info_label.config(text="关闭开机自启动成功")
     else:
-        login_info_label.config(text=f"关闭开机自启动失败")
+        login_info_label.config(text="关闭开机自启动失败")
     check_task()
 
 # 判断是否拥有管理员权限
 def is_admin():
     try:
         return ctypes.windll.shell32.IsUserAnAdmin()
-    except:
+    except Exception:
         return False
 #检查是否有计划
 def check_task_exists(task_name):
@@ -271,9 +271,9 @@ login_info_label = tk.Label(root, font=("微软雅黑", 12),wraplength=370)
 login_info_label.grid(row=0, column=2, pady=5, padx=10)
 
 if is_admin():
-    login_info_label.config(text=f"当前拥有“管理员权限”请谨慎操作\n点击“开机自启”或“关闭开机自启”设置")
+    login_info_label.config(text="当前拥有“管理员权限”请谨慎操作\n点击“开机自启”或“关闭开机自启”设置")
 else:
-    login_info_label.config(text=f"需要“管理员权限”才能设置开机自启\n点击“获取权限”按钮或“手动获取”权限")
+    login_info_label.config(text="需要“管理员权限”才能设置开机自启\n点击“获取权限”按钮或“手动获取”权限")
     
 auto_start_button = tk.Button(root, font=("微软雅黑", 14))
 auto_start_button.grid(row=1, column=2)
