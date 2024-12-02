@@ -44,65 +44,19 @@ def on_closing():
 
 
 def save_config():
-    broker = broker_entry.get()
-    secret_id = secret_id_entry.get()
-    port = port_entry.get()
-    Computer = Computer_entry.get()
-    screen = screen_entry.get()
-    volume = volume_entry.get()
-    sleep = sleep_entry.get()
-    application1 = application1_entry.get()
-    directory1 = directory1_entry.get()
-    application2 = application2_entry.get()
-    directory2 = directory2_entry.get()
-    serve1 = serve1_entry.get()
-    serve1_name = serve1_name_entry.get()
-
-    test = test_checkbutton_var.get()
-    Computer_checked = Computer_checkbutton_var.get()
-    screen_checked = screen_checkbutton_var.get()
-    volume_checked = volume_checkbutton_var.get()
-    sleep_checked = sleep_checkbutton_var.get()
-    application1_checked = application1_checkbutton_var.get()
-    application2_checked = application2_checkbutton_var.get()
-    serve1_checked = serve1_checkbutton_var.get()
-
-    if not broker or not secret_id or not port:
-        messagebox.showerror("Error", "主要配置所有字段都必须填写")
-        return
-    # 尝试将port的值转换为整数
-    try:
-        port = int(port)
-    except ValueError:
-        messagebox.showerror("Error", "端口必须为整数")
-        return
-    except Exception:
-        messagebox.showerror("Error", "未知错误")
-        return
-
     mqtt_config = {
-        "broker": broker,
-        "secret_id": secret_id,
-        "port": port,
-        "test": test,
-        "Computer": Computer,
-        "Computer_checked": Computer_checked,
-        "screen": screen,
-        "screen_checked": screen_checked,
-        "volume": volume,
-        "volume_checked": volume_checked,
-        "sleep": sleep,
-        "sleep_checked": sleep_checked,
-        "application1": application1,
-        "application1_checked": application1_checked,
-        "directory1": directory1,
-        "application2": application2,
-        "application2_checked": application2_checked,
-        "directory2": directory2,
-        "serve1": serve1,
-        "serve1_checked": serve1_checked,
-        "serve1_name": serve1_name,
+        "broker": broker_entry.get(),
+        "secret_id": secret_id_entry.get(),
+        "port": port_entry.get(),
+        "test_test": test_checkbutton_var.get(),
     }
+    for i in range(len(topics)):
+        topic = topics[i].get()
+        checked = checkbuttons_vars[i].get()
+        nickname = nicknames[i].get()
+        mqtt_config[topic] = value
+        mqtt_config[f"{topic}_checked"] = checked
+        mqtt_config[f"{topic}_nickname"] = nickname
 
     with open(config_path, "w") as f:
         json.dump(mqtt_config, f, indent=4)
@@ -237,15 +191,6 @@ if not os.path.exists(config_path):
         "volume_checked": 0,
         "sleep": "",
         "sleep_checked": 0,
-        "application1": "",
-        "application1_checked": 0,
-        "directory1": "",
-        "application2": "",
-        "application2_checked": 0,
-        "directory2": "",
-        "serve1": "",
-        "serve1_checked": 0,
-        "serve1_name": "",
     }
     with open(config_path, "w") as f:
         json.dump(mqtt_config, f)
@@ -258,7 +203,23 @@ with open(config_path, "r") as f:
 broker = mqtt_config.get("broker", "")
 secret_id = mqtt_config.get("secret_id", "")
 port = mqtt_config.get("port", "")
-test_checkbutton_var = mqtt_config.get("test", 0)
+test_checkbutton_var = mqtt_config.get("test_test", 0)
+
+# 内置主题
+builtin_topics = ["Computer", "screen", "volume", "sleep"]
+
+# 动态主题
+dynamic_topics = {}
+for key, value in mqtt_config.items():
+    if key.endswith("_checked") and key.replace("_checked", "") not in builtin_topics:
+        topic = key.replace("_checked", "")
+        dynamic_topics[topic] = {
+            "checked": value,
+            "value": mqtt_config.get(topic, ""),
+            "nickname": mqtt_config.get(f"{topic}_nickname", ""),
+        }
+
+# 内置主题赋值
 Computer = mqtt_config.get("Computer", "")
 Computer_checked = mqtt_config.get("Computer_checked", 0)
 screen = mqtt_config.get("screen", "")
@@ -267,15 +228,12 @@ volume = mqtt_config.get("volume", "")
 volume_checked = mqtt_config.get("volume_checked", 0)
 sleep = mqtt_config.get("sleep", "")
 sleep_checked = mqtt_config.get("sleep_checked", 0)
-application1 = mqtt_config.get("application1", "")
-application1_checked = mqtt_config.get("application1_checked", 0)
-directory1 = mqtt_config.get("directory1", "")
-application2 = mqtt_config.get("application2", "")
-application2_checked = mqtt_config.get("application2_checked", 0)
-directory2 = mqtt_config.get("directory2", "")
-serve1 = mqtt_config.get("serve1", "")
-serve1_checked = mqtt_config.get("serve1_checked", 0)
-serve1_name = mqtt_config.get("serve1_name", "")
+
+# 动态主题赋值
+for topic, config in dynamic_topics.items():
+    globals()[topic] = config["value"]
+    globals()[f"{topic}_checked"] = config["checked"]
+    globals()[f"{topic}_nickname"] = config["nickname"]
 
 root = tk.Tk()
 
@@ -327,91 +285,53 @@ port_entry.grid(row=2, column=1, pady=5, padx=10)
 
 title_label = tk.Label(root, text="主题配置：勾选为启用，不勾选为禁用")
 title_label.grid(row=2, column=2, pady=5)
-# 主题配置11-30
-Computer_entry = tk.Entry(root)
-Computer_entry.insert(0, Computer)
-Computer_entry.grid(row=11, column=2, pady=5, padx=10)
-Computer_checkbutton_var = tk.IntVar(value=Computer_checked)
-Computer_checkbutton = tk.Checkbutton(
-    root, text="电脑开关机（注：开机操作为锁定！）：", variable=Computer_checkbutton_var
-)
-Computer_checkbutton.grid(row=11, column=1)
 
-screen_entry = tk.Entry(root)
-screen_entry.insert(0, screen)
-screen_entry.grid(row=12, column=2, pady=5, padx=10)
-screen_checkbutton_var = tk.IntVar(value=screen_checked)
-screen_checkbutton = tk.Checkbutton(
-    root, text="电脑屏幕亮度：", variable=screen_checkbutton_var
-)
-screen_checkbutton.grid(row=12, column=1)
+topics = []
+checkbuttons_vars = []
+values = []
+nicknames = []
 
-volume_entry = tk.Entry(root)
-volume_entry.insert(0, volume)
-volume_entry.grid(row=13, column=2, pady=5, padx=10)
-volume_checkbutton_var = tk.IntVar(value=volume_checked)
-volume_checkbutton = tk.Checkbutton(
-    root, text="电脑音量：", variable=volume_checkbutton_var
-)
-volume_checkbutton.grid(row=13, column=1)
 
-sleep_entry = tk.Entry(root)
-sleep_entry.insert(0, sleep)
-sleep_entry.grid(row=14, column=2, pady=5, padx=10)
-sleep_checkbutton_var = tk.IntVar(value=sleep_checked)
-sleep_checkbutton = tk.Checkbutton(
-    root, text="睡眠模式：", variable=sleep_checkbutton_var
-)
-sleep_checkbutton.grid(row=14, column=1)
+def add_topic(is_builtin=False):
+    row = len(topics) + 11
+    topic_var = tk.StringVar()
+    checkbutton_var = tk.IntVar()
+    value_var = tk.StringVar()
+    nickname_var = tk.StringVar()
 
-# 应用配置31-60
-application1_entry = tk.Entry(root)
-application1_entry.insert(0, application1)
-application1_entry.grid(row=20, column=2, pady=5, padx=10)
-application1_checkbutton_var = tk.IntVar(value=application1_checked)
-application1_checkbutton = tk.Checkbutton(
-    root, text="启动应用程序或者可执行文件：", variable=application1_checkbutton_var
-)
-application1_checkbutton.grid(row=20, column=1)
+    checkbutton = tk.Checkbutton(root, variable=checkbutton_var)
+    checkbutton.grid(row=row, column=0)
+    nickname_entry = tk.Entry(
+        root, textvariable=nickname_var, state="readonly" if is_builtin else "normal"
+    )
+    nickname_entry.grid(row=row, column=1, pady=5, padx=10)
+    if not is_builtin:
+        topic_entry = tk.Entry(root, textvariable=topic_var)
+        topic_entry.grid(row=row, column=2, pady=5, padx=10)
+    value_entry = tk.Entry(root, textvariable=value_var)
+    value_entry.grid(row=row, column=3, pady=5, padx=10)
 
-directory1_label = tk.Label(root, text="文件目录:")
-directory1_label.grid(row=21, column=1, pady=5)
-directory1_entry = tk.Entry(root)
-directory1_entry.insert(0, directory1)  # 设置默认值
-directory1_entry.grid(row=21, column=2, pady=5, padx=10)
+    topics.append(topic_var)
+    checkbuttons_vars.append(checkbutton_var)
+    values.append(value_var)
+    nicknames.append(nickname_var)
 
-application2_entry = tk.Entry(root)
-application2_entry.insert(0, application2)
-application2_entry.grid(row=22, column=2, pady=5, padx=10)
-application2_checkbutton_var = tk.IntVar(value=application2_checked)
-application2_checkbutton = tk.Checkbutton(
-    root, text="启动应用程序或者可执行文件：", variable=application2_checkbutton_var
-)
-application2_checkbutton.grid(row=22, column=1)
 
-directory2_label = tk.Label(root, text="文件目录:")
-directory2_label.grid(row=23, column=1, pady=5)
-directory2_entry = tk.Entry(root)
-directory2_entry.insert(0, directory2)  # 设置默认值
-directory2_entry.grid(row=23, column=2, pady=5, padx=10)
+add_topic_button = tk.Button(root, text="添加主题", command=add_topic)
+add_topic_button.grid(row=10, column=0, pady=5)
 
-# 服务配置61-80
-serve1_entry = tk.Entry(root)
-serve1_entry.insert(0, serve1)
-serve1_entry.grid(row=61, column=2, pady=5, padx=10)
-serve1_checkbutton_var = tk.IntVar(value=serve1_checked)
-serve1_checkbutton = tk.Checkbutton(
-    root, text="服务（需要管理员权限运行，否则无效）：", variable=serve1_checkbutton_var
-)
-serve1_checkbutton.grid(row=61, column=1)
+# 从配置文件中读取现有的主题和值
+for key, value in mqtt_config.items():
+    if key.endswith("_checked"):
+        topic = key.replace("_checked", "")
+        is_builtin = topic in builtin_topics
+        add_topic(is_builtin)
+        topics[-1].set(topic)
+        checkbuttons_vars[-1].set(value)
+        values[-1].set(mqtt_config.get(topic, ""))
+        nicknames[-1].set(mqtt_config.get(f"{topic}_nickname", ""))
 
-serve1_name_label = tk.Label(root, text="服务名称 ：")
-serve1_name_label.grid(row=62, column=1, pady=5)
-serve1_name_entry = tk.Entry(root)
-serve1_name_entry.insert(0, serve1_name)  # 设置默认值
-serve1_name_entry.grid(row=62, column=2, pady=5, padx=10)
-
-# 功能配置81-100
+# 功能按钮
 test_checkbutton_var = tk.IntVar(value=test_checkbutton_var)
 test_checkbutton = tk.Checkbutton(
     root, text="Test模式（不知道是什么就别开）", variable=test_checkbutton_var
@@ -419,13 +339,13 @@ test_checkbutton = tk.Checkbutton(
 test_checkbutton.grid(row=81, column=0, pady=5, padx=10)
 
 open_button = tk.Button(root, text="打开配置文件夹", command=open_config)
-open_button.grid(row=90, column=1, pady=5)
+open_button.grid(row=90, column=0, pady=5)
 
 save_button = tk.Button(root, text="保存配置", command=save_config)
-save_button.grid(row=90, column=2, pady=5)
+save_button.grid(row=90, column=1, pady=5)
 
 save_button = tk.Button(root, text="普通测试", command=TEST)
-save_button.grid(row=90, column=0, pady=5)
+save_button.grid(row=90, column=2, pady=5)
 
 root.mainloop()
 # 释放互斥体
