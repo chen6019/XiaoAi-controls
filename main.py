@@ -4,9 +4,9 @@ pip install paho-mqtt wmi win11toast pillow pystray comtypes pycaw
 pip install --upgrade setuptools
 
 注意:
-python 13 使用虚拟环境需要将 C:\Program Files\Python313\tcl\tcl8.6 和 C:\Program Files\Python313\tcl\tk8.6 两个文件夹
+python 13 使用虚拟环境需要将 C:\\Program Files\\Python313\\tcl\\tcl8.6 和 C:\\Program Files\\Python313\\tcl\\tk8.6 两个文件夹
 复制到
-C:\Program Files\Python313\Lib 文件夹下
+C:\\Program Files\\Python313\\Lib 文件夹下
 否则报错: _tkinter.TclError: Can't find a usable init.tcl
 
 打包指令：
@@ -154,14 +154,15 @@ def set_volume(value):
 
 def process_command(command, topic):
     # 根据主题和命令执行不同的操作
-    if topic == Computer:
+    logging.info(f"处理命令: {command} 主题: {topic}")
+    if topic == "Computer":
         # 电脑开关机控制
         if command == "on":
             ctypes.windll.user32.LockWorkStation()
         elif command == "off":
             execute_command("shutdown -s -t 60")
             notify("电脑将在60秒后关机")
-    elif topic == screen:
+    elif topic == "screen":
         # 屏幕亮度控制
         if command == "off" or command == "1":
             set_brightness(0)
@@ -173,7 +174,7 @@ def process_command(command, topic):
                 set_brightness(brightness)
             except ValueError:
                 logging.error("亮度值无效")
-    elif topic == volume:
+    elif topic == "volume":
         # 音量控制
         if command == "off" or command == "1":
             set_volume(0)
@@ -185,37 +186,36 @@ def process_command(command, topic):
                 set_volume(volume_value)
             except ValueError:
                 logging.error("音量值无效")
-    elif topic == sleep:
+    elif topic == "sleep":
         if command == "off":
             notify("当前还没有进入睡眠模式哦！")
         elif command == "on":
             execute_command("rundll32.exe powrprof.dll,SetSuspendState 0,1,0")
 
-    elif topic == application1:
+    elif topic.startswith("application"):
         # 应用程序的启动和关闭
+        app_index = topic.replace("application", "")
+        directory = mqtt_config.get(f"directory{app_index}")
         if command == "off":
-            subprocess.call(["taskkill", "/F", "/IM", directory1.split("\\")[-1]])
+            subprocess.call(["taskkill", "/F", "/IM", directory.split("\\")[-1]])
         elif command == "on":
-            subprocess.Popen(directory1)
-    elif topic == application2:
-        if command == "off":
-            subprocess.call(["taskkill", "/F", "/IM", directory2.split("\\")[-1]])
-        elif command == "on":
-            subprocess.Popen(directory2)
-    elif topic == serve1:
+            subprocess.Popen(directory)
+    elif topic.startswith("serve"):
         # 服务的启动和停止
+        serve_index = topic.replace("serve", "")
+        serve_name = mqtt_config.get(f"serve{serve_index}_name")
         if command == "off":
-            result = subprocess.run(["sc", "stop", serve1_name], shell=True)
+            result = subprocess.run(["sc", "stop", serve_name], shell=True)
             if result.returncode == 0:
-                notify(f"成功关闭 {serve1_name}")
+                notify(f"成功关闭 {serve_name}")
             else:
-                notify(f"关闭 {serve1_name} 失败", "可能是没有管理员权限")
+                notify(f"关闭 {serve_name} 失败", "可能是没有管理员权限")
         elif command == "on":
-            result = subprocess.run(["sc", "start", serve1_name], shell=True)
+            result = subprocess.run(["sc", "start", serve_name], shell=True)
             if result.returncode == 0:
-                notify(f"成功启动 {serve1_name}")
+                notify(f"成功启动 {serve_name}")
             else:
-                notify(f"启动 {serve1_name} 失败", "可能是没有管理员权限")
+                notify(f"启动 {serve_name} 失败", "可能是没有管理员权限")
 
 
 """
@@ -254,20 +254,13 @@ def on_connect(client, userdata, flags, reason_code, properties):
     else:
         notify(f"MQTT成功连接至{broker}")  # 连接成功时的提示
         logging.info(f"连接到 {broker}")
-        if Computer:
-            client.subscribe(Computer)
-        if screen:
-            client.subscribe(screen)
-        if volume:
-            client.subscribe(volume)
-        if sleep:
-            client.subscribe(sleep)
-        if application1:
-            client.subscribe(application1)
-        if application2:
-            client.subscribe(application2)
-        if serve1:
-            client.subscribe(serve1)
+        for key, value in mqtt_config.items():
+            if key.endswith("_checked") and value == 1:
+                topic_key = key.replace("_checked", "")
+                topic = mqtt_config.get(topic_key)
+                if topic:
+                    client.subscribe(topic)
+                    logging.info(f'订阅主题: "{topic}" (昵称: "{mqtt_config.get(f"{topic_key}_nickname", "")}")')
 
 
 """
@@ -280,7 +273,7 @@ def on_connect(client, userdata, flags, reason_code, properties):
 
 def open_gui():
     if os.path.isfile("GUI.py"):
-        subprocess.Popen(["python", "GUI.py"])
+        subprocess.Popen([".venv\\Scripts\\python.exe", "GUI.py"])
         notify("正在打开配置窗口...")
     elif os.path.isfile("GUI.exe"):
         subprocess.Popen(["GUI.exe"])
@@ -470,7 +463,7 @@ else:
 
 broker = mqtt_config.get("broker")
 secret_id = mqtt_config.get("secret_id")
-port = mqtt_config.get("port")
+port = int(mqtt_config.get("port"))
 
 Computer = (
     mqtt_config.get("Computer") if mqtt_config.get("Computer_checked") == 1 else None
