@@ -153,16 +153,16 @@ def set_volume(value):
 
 
 def process_command(command, topic):
-    # 根据主题和命令执行不同的操作
     logging.info(f"处理命令: {command} 主题: {topic}")
-    if topic == "Computer":
+    # 根据主题和命令执行不同的操作
+    if topic == Computer:
         # 电脑开关机控制
         if command == "on":
             ctypes.windll.user32.LockWorkStation()
         elif command == "off":
             execute_command("shutdown -s -t 60")
             notify("电脑将在60秒后关机")
-    elif topic == "screen":
+    elif topic == screen:
         # 屏幕亮度控制
         if command == "off" or command == "1":
             set_brightness(0)
@@ -174,7 +174,7 @@ def process_command(command, topic):
                 set_brightness(brightness)
             except ValueError:
                 logging.error("亮度值无效")
-    elif topic == "volume":
+    elif topic == volume:
         # 音量控制
         if command == "off" or command == "1":
             set_volume(0)
@@ -186,36 +186,37 @@ def process_command(command, topic):
                 set_volume(volume_value)
             except ValueError:
                 logging.error("音量值无效")
-    elif topic == "sleep":
+    elif topic == sleep:
         if command == "off":
             notify("当前还没有进入睡眠模式哦！")
         elif command == "on":
             execute_command("rundll32.exe powrprof.dll,SetSuspendState 0,1,0")
 
-    elif topic.startswith("application"):
+    elif topic == application1:
         # 应用程序的启动和关闭
-        app_index = topic.replace("application", "")
-        directory = mqtt_config.get(f"directory{app_index}")
         if command == "off":
-            subprocess.call(["taskkill", "/F", "/IM", directory.split("\\")[-1]])
+            subprocess.call(["taskkill", "/F", "/IM", directory1.split("\\")[-1]])
         elif command == "on":
-            subprocess.Popen(directory)
-    elif topic.startswith("serve"):
+            subprocess.Popen(directory1)
+    elif topic == application2:
+        if command == "off":
+            subprocess.call(["taskkill", "/F", "/IM", directory2.split("\\")[-1]])
+        elif command == "on":
+            subprocess.Popen(directory2)
+    elif topic == serve1:
         # 服务的启动和停止
-        serve_index = topic.replace("serve", "")
-        serve_name = mqtt_config.get(f"serve{serve_index}_name")
         if command == "off":
-            result = subprocess.run(["sc", "stop", serve_name], shell=True)
+            result = subprocess.run(["sc", "stop", serve1_name], shell=True)
             if result.returncode == 0:
-                notify(f"成功关闭 {serve_name}")
+                notify(f"成功关闭 {serve1_name}")
             else:
-                notify(f"关闭 {serve_name} 失败", "可能是没有管理员权限")
+                notify(f"关闭 {serve1_name} 失败", "可能是没有管理员权限")
         elif command == "on":
-            result = subprocess.run(["sc", "start", serve_name], shell=True)
+            result = subprocess.run(["sc", "start", serve1_name], shell=True)
             if result.returncode == 0:
-                notify(f"成功启动 {serve_name}")
+                notify(f"成功启动 {serve1_name}")
             else:
-                notify(f"启动 {serve_name} 失败", "可能是没有管理员权限")
+                notify(f"启动 {serve1_name} 失败", "可能是没有管理员权限")
 
 
 """
