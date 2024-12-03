@@ -178,10 +178,15 @@ def modify_custom_theme():
         theme_window.destroy()
 
     def delete_theme():
-        custom_themes.pop(index)
-        custom_theme_list.delete(index)
-        theme_window.destroy()
-
+        # 将删除确认弹窗与主窗口绑定在一起
+        if messagebox.askyesno("确认删除", "确定要删除这个自定义主题吗？", parent=theme_window):
+            custom_themes.pop(index)
+            custom_theme_list.delete(index)
+            theme_window.destroy()
+        else:
+            # 取消删除时保持修改窗口在顶层
+            theme_window.lift()
+    
     tk.Button(theme_window, text="保存", command=save_theme).grid(row=5, column=0)
     tk.Button(theme_window, text="删除", command=delete_theme).grid(row=5, column=1)
 
