@@ -8,6 +8,9 @@ from tkinter import messagebox, filedialog
 import json
 import ctypes
 import sys
+import shlex
+import subprocess
+import win32com.client
 
 # 获取用户的 AppData\Roaming 目录
 appdata_dir = os.path.join(os.getenv("APPDATA"), "Ai-controls")
@@ -21,7 +24,7 @@ config_file_path = os.path.join(appdata_dir, "config.json")
 
 # 创建主窗口
 root = tk.Tk()
-root.title("配置修改")
+root.title("小爱控制V1.2.0")
 
 # 创建一个命名的互斥体
 mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "xagui_test_mutex")
@@ -31,8 +34,26 @@ if ctypes.windll.kernel32.GetLastError() == 183:
     messagebox.showerror("错误", "应用程序已在运行。")
     sys.exit()
 
+
+# 判断是否拥有管理员权限
+def is_admin():
+    try:
+        return ctypes.windll.shell32.IsUserAnAdmin()
+    except Exception:
+        return False
+
+
+# 获取管理员权限
+def get_administrator_privileges():
+    messagebox.showinfo("提示！", "将以管理员权限重新运行！！")
+    ctypes.windll.shell32.ShellExecuteW(
+        None, "runas", sys.executable, f'"{__file__}"', None, 0
+    )
+    sys.exit()
+
+
 # 设置窗口初始大小
-root.geometry("580x580")
+root.geometry("550x590")
 
 
 # 设置窗口居中
@@ -73,8 +94,106 @@ port_entry.grid(row=2, column=1, sticky="w")
 port_entry.insert(0, str(config.get("port", "")))
 
 test_var = tk.IntVar(value=config.get("test", 0))
-test_check = tk.Checkbutton(system_frame, text="test 模式开关", variable=test_var)
-test_check.grid(row=3, columnspan=2)
+test_check = tk.Checkbutton(system_frame, text="test 模式", variable=test_var)
+test_check.grid(row=3, column=0, columnspan=2)
+
+
+# 检查任务计划是否存在
+def check_task_exists(task_name):
+    scheduler = win32com.client.Dispatch("Schedule.Service")
+    scheduler.Connect()
+    root_folder = scheduler.GetFolder("\\")
+    for task in root_folder.GetTasks(0):
+        if task.Name == task_name:
+            return True
+    return False
+
+
+# 设置开机自启动
+def set_auto_start():
+    exe_path = os.path.join(
+        os.path.dirname(os.path.abspath(sys.argv[0])), "XiaoAi-controls.exe"
+    )
+
+    # 检查文件是否存在
+    if not os.path.exists(exe_path):
+        messagebox.showerror("错误", "未找到 XiaoAi-controls.exe 文件\n请检查文件是否存在")
+        return
+
+    quoted_exe_path = shlex.quote(exe_path)
+    result = subprocess.call(
+        f'schtasks /Create /SC ONLOGON /TN "小爱控制" /TR "{quoted_exe_path}" /F',
+        shell=True,
+    )
+
+    scheduler = win32com.client.Dispatch("Schedule.Service")
+    scheduler.Connect()
+    root_folder = scheduler.GetFolder("\\")
+    task_definition = root_folder.GetTask("小爱控制").Definition
+
+    principal = task_definition.Principal
+    principal.RunLevel = 1
+
+    settings = task_definition.Settings
+    settings.DisallowStartIfOnBatteries = False
+    settings.StopIfGoingOnBatteries = False
+    settings.ExecutionTimeLimit = "PT0S"
+
+    root_folder.RegisterTaskDefinition("小爱控制", task_definition, 6, "", "", 3)
+    if result == 0:
+        messagebox.showinfo("提示", "创建开机自启动成功")
+        messagebox.showinfo("提示！", "移动位置后要重新设置哦！！")
+        check_task()
+    else:
+        messagebox.showerror("错误", "创建开机自启动失败")
+        check_task()
+
+
+# 移除开机自启动
+def remove_auto_start():
+    if messagebox.askyesno("确定？", "你确定要删除开机自启动任务吗？"):
+        delete_result = subprocess.call(
+            'schtasks /Delete /TN "小爱控制" /F', shell=True
+        )
+        if delete_result == 0:
+            messagebox.showinfo("提示", "关闭开机自启动成功")
+            check_task()
+        else:
+            messagebox.showerror("错误", "关闭开机自启动失败")
+            check_task()
+
+
+# 检查是否有计划任务并更新按钮状态
+def check_task():
+    if check_task_exists("小爱控制"):
+        auto_start_button.config(text="关闭开机自启", command=remove_auto_start)
+    else:
+        auto_start_button.config(text="设置开机自启", command=set_auto_start)
+    auto_start_button.update_idletasks()
+
+
+
+# 添加设置开机自启动按钮上面的提示
+auto_start_label = tk.Label(
+    system_frame,
+    text="管理员才能设置开机自启",
+)
+auto_start_label.grid(row=0, column=2)
+auto_start_label1 = tk.Label(
+    system_frame,
+    text="点击“获取权限”或“手动获取”",
+)
+auto_start_label1.grid(row=1, column=2, padx=25)
+
+# 添加设置开机自启动按钮
+auto_start_button = tk.Button(system_frame, text="", command=set_auto_start)
+auto_start_button.grid(row=2, column=2)
+
+if is_admin():
+    check_task()
+    root.title("小爱控制V1.2.0(管理员)")
+else:
+    auto_start_button.config(text="获取权限", command=get_administrator_privileges)
 
 # 主题配置部分
 theme_frame = tk.LabelFrame(root, text="主题配置")
@@ -370,7 +489,14 @@ def generate_config():
     messagebox.showinfo("提示", "配置文件已保存")
 
 
-tk.Button(root, text="保存配置文件", command=generate_config).pack(pady=10)
+# 打开配置文件夹的函数
+def open_config_folder():
+    os.startfile(appdata_dir)
+
+
+# 添加按钮到框架中
+tk.Button(text="打开配置文件夹", command=open_config_folder).pack(side=tk.LEFT, padx=20)
+tk.Button(text="保存配置文件", command=generate_config).pack(side=tk.LEFT, padx=20)
 
 # 调用加载自定义主题的函数
 load_custom_themes()
