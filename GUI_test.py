@@ -78,6 +78,13 @@ tk.Button(theme_frame, text="修改", command=lambda: modify_custom_theme()).gri
     row=5, column=3, sticky="e"
 )
 
+# 鼠标双击事件处理程序
+def on_double_click(event):
+    modify_custom_theme()
+
+# 绑定鼠标双击事件到自定义主题列表
+custom_theme_list.bind("<Double-Button-1>", on_double_click)
+
 # 如果配置中有自定义主题，加载它们
 def load_custom_themes():
     app_index = 1
