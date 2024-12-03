@@ -1,18 +1,42 @@
-# 导入必要的库
+import os
 import tkinter as tk
 from tkinter import messagebox, filedialog
 import json
-import os
+
+# 获取用户的 AppData\Roaming 目录
+appdata_dir = os.path.join(os.getenv("APPDATA"), "Ai-controls")
+
+# 如果目录不存在则创建
+if not os.path.exists(appdata_dir):
+    os.makedirs(appdata_dir)
+
+# 配置文件路径
+config_file_path = os.path.join(appdata_dir, "config.json")
 
 # 创建主窗口
 root = tk.Tk()
 root.title("配置修改")
 
+# 设置窗口初始大小
+root.geometry("580x580")
+
+
+# 设置窗口居中
+def center_window(window):
+    window.update_idletasks()
+    width = window.winfo_width()
+    height = window.winfo_height()
+    x = (window.winfo_screenwidth() // 2) - (width // 2)
+    y = (window.winfo_screenheight() // 2) - (height // 2)
+    window.geometry(f"{width}x{height}+{x}+{y}")
+
+
+center_window(root)
+
 # 尝试读取配置文件
-config_file = "config.json"
 config = {}
-if os.path.exists(config_file):
-    with open(config_file, "r", encoding="utf-8") as f:
+if os.path.exists(config_file_path):
+    with open(config_file_path, "r", encoding="utf-8") as f:
         config = json.load(f)
 
 # 系统配置部分
@@ -44,13 +68,34 @@ theme_frame.pack(padx=10, pady=5, fill="x")
 
 # 内置主题
 builtin_themes = [
-    {"nickname": "计算机", "key": "Computer", "name_var": tk.StringVar(), "checked": tk.IntVar()},
-    {"nickname": "屏幕", "key": "screen", "name_var": tk.StringVar(), "checked": tk.IntVar()},
-    {"nickname": "音量", "key": "volume", "name_var": tk.StringVar(), "checked": tk.IntVar()},
-    {"nickname": "休眠", "key": "sleep", "name_var": tk.StringVar(), "checked": tk.IntVar()},
+    {
+        "nickname": "计算机",
+        "key": "Computer",
+        "name_var": tk.StringVar(),
+        "checked": tk.IntVar(),
+    },
+    {
+        "nickname": "屏幕",
+        "key": "screen",
+        "name_var": tk.StringVar(),
+        "checked": tk.IntVar(),
+    },
+    {
+        "nickname": "音量",
+        "key": "volume",
+        "name_var": tk.StringVar(),
+        "checked": tk.IntVar(),
+    },
+    {
+        "nickname": "休眠",
+        "key": "sleep",
+        "name_var": tk.StringVar(),
+        "checked": tk.IntVar(),
+    },
 ]
 
 tk.Label(theme_frame, text="内置主题").grid(row=0, column=0, sticky="w", columnspan=2)
+tk.Label(theme_frame, text="主题").grid(row=0, column=2, sticky="w")
 tk.Label(theme_frame, text="自定义主题").grid(row=0, column=3, sticky="w")
 
 for idx, theme in enumerate(builtin_themes):
@@ -58,12 +103,12 @@ for idx, theme in enumerate(builtin_themes):
     theme["name_var"].set(config.get(theme_key, ""))
     theme["checked"].set(config.get(f"{theme_key}_checked", 0))
 
-    tk.Checkbutton(
-        theme_frame,
-        text=theme["nickname"],
-        variable=theme["checked"]
-    ).grid(row=idx+1, column=0, sticky="w", columnspan=2)
-    tk.Entry(theme_frame, textvariable=theme["name_var"]).grid(row=idx+1, column=2, sticky="w")
+    tk.Checkbutton(theme_frame, text=theme["nickname"], variable=theme["checked"]).grid(
+        row=idx + 1, column=0, sticky="w", columnspan=2
+    )
+    tk.Entry(theme_frame, textvariable=theme["name_var"]).grid(
+        row=idx + 1, column=2, sticky="w"
+    )
 
 # 自定义主题列表
 custom_themes = []
@@ -73,23 +118,27 @@ custom_theme_list = tk.Listbox(theme_frame)
 custom_theme_list.grid(row=1, column=3, rowspan=4, padx=10)
 
 # 添加和修改按钮
-tk.Button(theme_frame, text="添加", command=lambda: add_custom_theme(config)).grid(row=5, column=3, sticky="w")
+tk.Button(theme_frame, text="添加", command=lambda: add_custom_theme(config)).grid(
+    row=5, column=3, sticky="w"
+)
 tk.Button(theme_frame, text="修改", command=lambda: modify_custom_theme()).grid(
     row=5, column=3, sticky="e"
 )
+
 
 # 鼠标双击事件处理程序
 def on_double_click(event):
     modify_custom_theme()
 
+
 # 绑定鼠标双击事件到自定义主题列表
 custom_theme_list.bind("<Double-Button-1>", on_double_click)
+
 
 # 如果配置中有自定义主题，加载它们
 def load_custom_themes():
     app_index = 1
     serve_index = 1
-    # 加载程序类型的自定义主题
     while True:
         app_key = f"application{app_index}"
         if app_key in config:
@@ -108,7 +157,6 @@ def load_custom_themes():
             app_index += 1
         else:
             break
-    # 加载服务类型的自定义主题
     while True:
         serve_key = f"serve{serve_index}"
         if serve_key in config:
@@ -128,6 +176,7 @@ def load_custom_themes():
         else:
             break
 
+
 # 修改自定义主题的函数
 def modify_custom_theme():
     selected = custom_theme_list.curselection()
@@ -143,11 +192,15 @@ def modify_custom_theme():
 
     tk.Label(theme_window, text="主题类型：").grid(row=0, column=0, sticky="e")
     theme_type_var = tk.StringVar(value=theme["type"])
-    tk.OptionMenu(theme_window, theme_type_var, "程序", "服务").grid(row=0, column=1, sticky="w")
+    tk.OptionMenu(theme_window, theme_type_var, "程序", "服务").grid(
+        row=0, column=1, sticky="w"
+    )
 
     tk.Label(theme_window, text="主题开关状态：").grid(row=1, column=0, sticky="e")
     theme_checked_var = tk.IntVar(value=theme["checked"])
-    tk.Checkbutton(theme_window, variable=theme_checked_var).grid(row=1, column=1, sticky="w")
+    tk.Checkbutton(theme_window, variable=theme_checked_var).grid(
+        row=1, column=1, sticky="w"
+    )
 
     tk.Label(theme_window, text="主题昵称：").grid(row=2, column=0, sticky="e")
     theme_nickname_entry = tk.Entry(theme_window)
@@ -169,7 +222,9 @@ def modify_custom_theme():
         theme_value_entry.delete(0, tk.END)
         theme_value_entry.insert(0, file_path)
 
-    tk.Button(theme_window, text="选择文件", command=select_file).grid(row=4, column=2, sticky="w")
+    tk.Button(theme_window, text="选择文件", command=select_file).grid(
+        row=4, column=2, sticky="w"
+    )
 
     def save_theme():
         theme["type"] = theme_type_var.get()
@@ -185,17 +240,20 @@ def modify_custom_theme():
         theme_window.destroy()
 
     def delete_theme():
-        # 将删除确认弹窗与主窗口绑定在一起
-        if messagebox.askyesno("确认删除", "确定要删除这个自定义主题吗？", parent=theme_window):
+        if messagebox.askyesno(
+            "确认删除", "确定要删除这个自定义主题吗？", parent=theme_window
+        ):
             custom_themes.pop(index)
             custom_theme_list.delete(index)
             theme_window.destroy()
         else:
-            # 取消删除时保持修改窗口在顶层
             theme_window.lift()
-    
+
     tk.Button(theme_window, text="保存", command=save_theme).grid(row=5, column=0)
     tk.Button(theme_window, text="删除", command=delete_theme).grid(row=5, column=1)
+
+    center_window(theme_window)
+
 
 # 添加自定义主题的函数中，也要更新显示
 def add_custom_theme(config):
@@ -204,11 +262,15 @@ def add_custom_theme(config):
 
     tk.Label(theme_window, text="主题类型：").grid(row=0, column=0, sticky="e")
     theme_type_var = tk.StringVar(value="程序")
-    tk.OptionMenu(theme_window, theme_type_var, "程序", "服务").grid(row=0, column=1, sticky="w")
+    tk.OptionMenu(theme_window, theme_type_var, "程序", "服务").grid(
+        row=0, column=1, sticky="w"
+    )
 
     tk.Label(theme_window, text="主题开关状态：").grid(row=1, column=0, sticky="e")
     theme_checked_var = tk.IntVar()
-    tk.Checkbutton(theme_window, variable=theme_checked_var).grid(row=1, column=1, sticky="w")
+    tk.Checkbutton(theme_window, variable=theme_checked_var).grid(
+        row=1, column=1, sticky="w"
+    )
 
     tk.Label(theme_window, text="主题昵称：").grid(row=2, column=0, sticky="e")
     theme_nickname_entry = tk.Entry(theme_window)
@@ -227,7 +289,9 @@ def add_custom_theme(config):
         theme_value_entry.delete(0, tk.END)
         theme_value_entry.insert(0, file_path)
 
-    tk.Button(theme_window, text="选择文件", command=select_file).grid(row=4, column=2, sticky="w")
+    tk.Button(theme_window, text="选择文件", command=select_file).grid(
+        row=4, column=2, sticky="w"
+    )
 
     def save_theme():
         theme = {
@@ -244,11 +308,13 @@ def add_custom_theme(config):
         custom_theme_list.insert(tk.END, item_text)
         theme_window.destroy()
 
-    tk.Button(theme_window, text="保存", command=save_theme).grid(row=5, column=0, columnspan=2)
+    tk.Button(theme_window, text="保存", command=save_theme).grid(
+        row=5, column=0, columnspan=2
+    )
 
-# 调用加载自定义主题的函数
-load_custom_themes()
-# 生成配置文件
+    center_window(theme_window)
+
+
 def generate_config():
     config = {
         "broker": website_entry.get(),
@@ -284,10 +350,15 @@ def generate_config():
             serve_index += 1
 
     # 保存为 JSON 文件
-    with open("config.json", "w", encoding="utf-8") as f:
+    with open(config_file_path, "w", encoding="utf-8") as f:
         json.dump(config, f, ensure_ascii=False, indent=4)
 
     messagebox.showinfo("提示", "配置文件已保存")
 
+
 tk.Button(root, text="保存配置文件", command=generate_config).pack(pady=10)
+
+# 调用加载自定义主题的函数
+load_custom_themes()
+
 root.mainloop()
