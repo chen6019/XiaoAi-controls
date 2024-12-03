@@ -6,6 +6,8 @@ import os
 import tkinter as tk
 from tkinter import messagebox, filedialog
 import json
+import ctypes
+import sys
 
 # 获取用户的 AppData\Roaming 目录
 appdata_dir = os.path.join(os.getenv("APPDATA"), "Ai-controls")
@@ -20,6 +22,14 @@ config_file_path = os.path.join(appdata_dir, "config.json")
 # 创建主窗口
 root = tk.Tk()
 root.title("配置修改")
+
+# 创建一个命名的互斥体
+mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "xagui_test_mutex")
+
+# 检查互斥体是否已经存在
+if ctypes.windll.kernel32.GetLastError() == 183:
+    messagebox.showerror("错误", "应用程序已在运行。")
+    sys.exit()
 
 # 设置窗口初始大小
 root.geometry("580x580")
@@ -366,6 +376,9 @@ tk.Button(root, text="保存配置文件", command=generate_config).pack(pady=10
 load_custom_themes()
 
 root.mainloop()
+
+# 释放互斥体
+ctypes.windll.kernel32.ReleaseMutex(mutex)
 
 """
 GUI程序用来生成配置文件(用于Windows系统)
