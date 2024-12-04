@@ -36,13 +36,13 @@ from comtypes import CLSCTX_ALL
 from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
 
 
-# 创建一个命名的互斥体
-mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "xacz_mutex")
+# # 创建一个命名的互斥体
+# mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "xacz_mutex")
 
-# 检查互斥体是否已经存在
-if ctypes.windll.kernel32.GetLastError() == 183:
-    messagebox.showerror("错误", "应用程序已在运行。")
-    sys.exit()
+# # 检查互斥体是否已经存在
+# if ctypes.windll.kernel32.GetLastError() == 183:
+#     messagebox.showerror("错误", "应用程序已在运行。")
+#     sys.exit()
 
 """
 执行系统命令，并在超时后终止命令。
@@ -191,32 +191,31 @@ def process_command(command, topic):
             notify("当前还没有进入睡眠模式哦！")
         elif command == "on":
             execute_command("rundll32.exe powrprof.dll,SetSuspendState 0,1,0")
-
-    elif topic == application1:
-        # 应用程序的启动和关闭
-        if command == "off":
-            subprocess.call(["taskkill", "/F", "/IM", directory1.split("\\")[-1]])
-        elif command == "on":
-            subprocess.Popen(directory1)
-    elif topic == application2:
-        if command == "off":
-            subprocess.call(["taskkill", "/F", "/IM", directory2.split("\\")[-1]])
-        elif command == "on":
-            subprocess.Popen(directory2)
-    elif topic == serve1:
-        # 服务的启动和停止
-        if command == "off":
-            result = subprocess.run(["sc", "stop", serve1_name], shell=True)
-            if result.returncode == 0:
-                notify(f"成功关闭 {serve1_name}")
-            else:
-                notify(f"关闭 {serve1_name} 失败", "可能是没有管理员权限")
-        elif command == "on":
-            result = subprocess.run(["sc", "start", serve1_name], shell=True)
-            if result.returncode == 0:
-                notify(f"成功启动 {serve1_name}")
-            else:
-                notify(f"启动 {serve1_name} 失败", "可能是没有管理员权限")
+    else:
+        for application, directory in applications:
+            if topic == application:
+                if command == "off":
+                    subprocess.call(
+                        ["taskkill", "/F", "/IM", directory.split("\\")[-1]]
+                    )
+                elif command == "on":
+                    subprocess.Popen(directory)
+                return
+        for serve, serve_name in serves:
+            if topic == serve:
+                if command == "off":
+                    result = subprocess.run(["sc", "stop", serve_name], shell=True)
+                    if result.returncode == 0:
+                        notify(f"成功关闭 {serve_name}")
+                    else:
+                        notify(f"关闭 {serve_name} 失败", "可能是没有管理员权限")
+                elif command == "on":
+                    result = subprocess.run(["sc", "start", serve_name], shell=True)
+                    if result.returncode == 0:
+                        notify(f"成功启动 {serve_name}")
+                    else:
+                        notify(f"启动 {serve_name} 失败", "可能是没有管理员权限")
+                return
 
 
 """
@@ -261,7 +260,7 @@ def on_connect(client, userdata, flags, reason_code, properties):
                 topic = mqtt_config.get(topic_key)
                 if topic:
                     client.subscribe(topic)
-                    logging.info(f'订阅主题: "{topic}" (昵称: "{mqtt_config.get(f"{topic_key}_nickname", "")}")')
+                    logging.info(f'订阅主题: "{topic}"')
 
 
 """
@@ -293,6 +292,15 @@ def open_gui():
         thread.start()
 
 
+# 停止托盘图标线程的函数
+def stop_icon_thread():
+    if icon:
+        icon.stop()
+        logging.info("托盘图标已停止")
+    else:
+        logging.error("托盘图标不存在")
+
+
 """
 退出程序。
 
@@ -303,13 +311,12 @@ def open_gui():
 
 def exit_program():
     try:
-        mqttc.disconnect()
         mqttc.loop_stop()
-        icon.stop()
-        logging.info("程序已停止")
+        stop_icon_thread()
         # 释放互斥体
-        ctypes.windll.kernel32.ReleaseMutex(mutex)
-        sys.exit(0)
+        # ctypes.windll.kernel32.ReleaseMutex(mutex)
+        mqttc.disconnect()
+        logging.info("程序已停止")
     except SystemExit:
         pass
 
@@ -338,13 +345,20 @@ def truncate_large_file(file_path, max_size=1024 * 1024 * 50):
 
 def restart_program():
     try:
-        mqttc.disconnect()
         mqttc.loop_stop()
-        icon.stop()
-        logging.info("程序已停止")
+        stop_icon_thread()
         # 释放互斥体
-        ctypes.windll.kernel32.ReleaseMutex(mutex)
-        os.execl(sys.executable, sys.executable, *sys.argv)
+        # ctypes.windll.kernel32.ReleaseMutex(mutex)
+        if not is_admin():
+            logging.info("以管理员权限重新启动程序")
+            mqttc.disconnect()
+            ctypes.windll.shell32.ShellExecuteW(
+                None, "runas", sys.executable, f'"{__file__}"', None, 1
+            )
+        else:
+            logging.info("重新启动程序")
+            mqttc.disconnect()
+            os.execl(sys.executable, sys.executable, *sys.argv)
     except SystemExit:
         pass
 
@@ -402,7 +416,7 @@ resource_path = "icon.ico"
 image_data = pkg_resources.resource_string(__name__, resource_path)
 
 # 初始化系统托盘图标和菜单
-icon = pystray.Icon("Ai-controls", title="小爱控制 V1.0.1")
+icon = pystray.Icon("Ai-controls", title="小爱控制 V1.1.0")
 image = Image.open(io.BytesIO(image_data))
 menu = (
     pystray.MenuItem("打开配置", open_gui),
@@ -442,20 +456,24 @@ if not os.path.exists(config_path):
     open_gui()
     sys.exit(0)
 else:
-    with open(config_path, "r") as f:
+    with open(config_path, "r", encoding="utf-8") as f:
         mqtt_config = json.load(f)
 
 if mqtt_config["test"] == 1:
     logging.info("开启测试模式:可以不启用任何主题")
 else:
     if (
-        mqtt_config["Computer_checked"] == 0
-        and mqtt_config["screen_checked"] == 0
-        and mqtt_config["volume_checked"] == 0
-        and mqtt_config["sleep_checked"] == 0
-        and mqtt_config["application1_checked"] == 0
-        and mqtt_config["application2_checked"] == 0
-        and mqtt_config["serve1_checked"] == 0
+        all(
+            mqtt_config.get(f"{key}_checked") == 0
+            for key in ["Computer", "screen", "volume", "sleep"]
+        )
+        and all(
+            mqtt_config.get(f"application{index}_checked") == 0
+            for index in range(1, 100)
+        )
+        and all(
+            mqtt_config.get(f"serve{index}_checked") == 0 for index in range(1, 100)
+        )
     ):
         messagebox.showerror("Error", "主题不能一个都没有吧！\n（除了测试模式）")
         icon.stop()
@@ -466,103 +484,45 @@ broker = mqtt_config.get("broker")
 secret_id = mqtt_config.get("secret_id")
 port = int(mqtt_config.get("port"))
 
-Computer = (
-    mqtt_config.get("Computer") if mqtt_config.get("Computer_checked") == 1 else None
-)
-if mqtt_config.get("Computer_checked") == 1 and not Computer:
-    messagebox.showerror("Error", "主题不能为空")
-    icon.stop()
-    open_gui()
-    sys.exit(0)
-# 如果主题不为空，将其记录到日志中
-if Computer:
-    logging.info(f'主题"{Computer}"')
 
-screen = mqtt_config.get("screen") if mqtt_config.get("screen_checked") == 1 else None
-if mqtt_config.get("screen_checked") == 1 and not screen:
-    messagebox.showerror("Error", "主题不能为空")
-    icon.stop()
-    open_gui()
-    sys.exit(0)
-# 如果主题不为空，将其记录到日志中
-if screen:
-    logging.info(f'主题"{screen}"')
+# 动态加载主题
+def load_theme(key):
+    return mqtt_config.get(key) if mqtt_config.get(f"{key}_checked") == 1 else None
 
-volume = mqtt_config.get("volume") if mqtt_config.get("volume_checked") == 1 else None
-if mqtt_config.get("volume_checked") == 1 and not volume:
-    messagebox.showerror("Error", "主题不能为空")
-    icon.stop()
-    open_gui()
-    sys.exit(0)
-# 如果主题不为空，将其记录到日志中
-if volume:
-    logging.info(f'主题"{volume}"')
 
-sleep = mqtt_config.get("sleep") if mqtt_config.get("sleep_checked") == 1 else None
-if mqtt_config.get("sleep_checked") == 1 and not sleep:
-    messagebox.showerror("Error", "主题不能为空")
-    icon.stop()
-    open_gui()
-    sys.exit(0)
-# 如果主题不为空，将其记录到日志中
-if sleep:
-    logging.info(f'主题"{sleep}"')
+Computer = load_theme("Computer")
+screen = load_theme("screen")
+volume = load_theme("volume")
+sleep = load_theme("sleep")
 
-application1 = (
-    mqtt_config.get("application1")
-    if mqtt_config.get("application1_checked") == 1
-    else None
-)
-directory1 = (
-    mqtt_config.get("directory1")
-    if mqtt_config.get("application1_checked") == 1
-    else None
-)
-if mqtt_config.get("application1_checked") == 1 and (
-    not application1 or not directory1
-):
-    messagebox.showerror("Error", "主题和值不能为空")
-    icon.stop()
-    open_gui()
-    sys.exit(0)
-# 如果主题不为空，将其记录到日志中
-if application1:
-    logging.info(f'主题"{application1}"，值："{directory1}"')
+applications = []
+for i in range(1, 100):
+    app_key = f"application{i}"
+    directory_key = f"application{i}_directory{i}"
+    application = load_theme(app_key)
+    directory = mqtt_config.get(directory_key) if application else None
+    if application:
+        applications.append((application, directory))
 
-application2 = (
-    mqtt_config.get("application2")
-    if mqtt_config.get("application2_checked") == 1
-    else None
-)
-directory2 = (
-    mqtt_config.get("directory2")
-    if mqtt_config.get("application2_checked") == 1
-    else None
-)
-if mqtt_config.get("application2_checked") == 1 and (
-    not application2 or not directory2
-):
-    messagebox.showerror("Error", "主题和值不能为空")
-    icon.stop()
-    open_gui()
-    sys.exit(0)
-# 如果主题不为空，将其记录到日志中
-if application2:
-    logging.info(f'主题"{application2}"，值："{directory2}"')
+serves = []
+for i in range(1, 100):
+    serve_key = f"serve{i}"
+    serve_name_key = f"serve{i}_value"
+    serve = load_theme(serve_key)
+    serve_name = mqtt_config.get(serve_name_key) if serve else None
+    if serve:
+        serves.append((serve, serve_name))
 
-serve1 = mqtt_config.get("serve1") if mqtt_config.get("serve1_checked") == 1 else None
-serve1_name = (
-    mqtt_config.get("serve1_name") if mqtt_config.get("serve1_checked") == 1 else None
-)
-if mqtt_config.get("serve1_checked") == 1 and (not serve1 or not serve1_name):
-    messagebox.showerror("Error", "主题和值不能为空")
-    icon.stop()
-    open_gui()
-    sys.exit(0)
 # 如果主题不为空，将其记录到日志中
-if serve1:
-    logging.info(f'主题"{serve1}"，值："{serve1_name}"')
+for key in ["Computer", "screen", "volume", "sleep"]:
+    if mqtt_config.get(key):
+        logging.info(f'主题"{mqtt_config.get(key)}"')
 
+for application, directory in applications:
+    logging.info(f'主题"{application}"，值："{directory}"')
+
+for serve, serve_name in serves:
+    logging.info(f'主题"{serve}"，值："{serve_name}"')
 
 # 初始化MQTT客户端
 mqttc = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
@@ -596,6 +556,6 @@ except KeyboardInterrupt:
     logging.info("收到中断,程序停止")
     exit_program()
 logging.info(f"总共收到以下消息: {mqttc.user_data_get()}")
-
+sys.exit()
 # 释放互斥体
-ctypes.windll.kernel32.ReleaseMutex(mutex)
+# ctypes.windll.kernel32.ReleaseMutex(mutex)
