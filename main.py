@@ -9,8 +9,7 @@ python 13 使用虚拟环境需要将 C:\\Program Files\\Python313\\tcl\\tcl8.6 
 C:\\Program Files\\Python313\\Lib 文件夹下
 否则报错: _tkinter.TclError: Can't find a usable init.tcl
 
-打包指令：
-pyinstaller -F -n XiaoAi-controls --noconsole --hidden-import=paho-mqtt --hidden-import=wmi --hidden-import=win11toast --hidden-import=pystray --hidden-import=pillow --hidden-import=pycaw --icon=icon.ico --add-data 'icon.ico;.' main.py
+
 """
 
 # 导入各种必要的模块
@@ -142,6 +141,14 @@ def set_volume(value):
     volume.SetMasterVolumeLevelScalar(value / 100, None)
 
 
+def notify_in_thread(message):
+    def notify_message():
+        notify(message)
+    
+    thread = threading.Thread(target=notify_message)
+    thread.daemon = True
+    thread.start()
+
 """
 根据接收到的命令和主题来处理相应的操作。
 
@@ -160,7 +167,7 @@ def process_command(command, topic):
             ctypes.windll.user32.LockWorkStation()
         elif command == "off":
             execute_command("shutdown -s -t 60")
-            notify("电脑将在60秒后关机")
+            notify_in_thread("电脑将在60秒后关机")
     elif topic == screen:
         # 屏幕亮度控制
         if command == "off" or command == "1":
@@ -187,7 +194,7 @@ def process_command(command, topic):
                 logging.error("音量值无效")
     elif topic == sleep:
         if command == "off":
-            notify("当前还没有进入睡眠模式哦！")
+            notify_in_thread("当前还没有进入睡眠模式哦！")
         elif command == "on":
             execute_command("rundll32.exe powrprof.dll,SetSuspendState 0,1,0")
     else:
@@ -205,15 +212,15 @@ def process_command(command, topic):
                 if command == "off":
                     result = subprocess.run(["sc", "stop", serve_name], shell=True)
                     if result.returncode == 0:
-                        notify(f"成功关闭 {serve_name}")
+                        notify_in_thread(f"成功关闭 {serve_name}")
                     else:
-                        notify(f"关闭 {serve_name} 失败", "可能是没有管理员权限")
+                        notify_in_thread(f"关闭 {serve_name} 失败", "可能是没有管理员权限")
                 elif command == "on":
                     result = subprocess.run(["sc", "start", serve_name], shell=True)
                     if result.returncode == 0:
-                        notify(f"成功启动 {serve_name}")
+                        notify_in_thread(f"成功启动 {serve_name}")
                     else:
-                        notify(f"启动 {serve_name} 失败", "可能是没有管理员权限")
+                        notify_in_thread(f"启动 {serve_name} 失败", "可能是没有管理员权限")
                 return
 
 
@@ -248,10 +255,10 @@ MQTT连接时的回调函数。
 
 def on_connect(client, userdata, flags, reason_code, properties):
     if reason_code.is_failure:
-        notify(f"连接MQTT失败: {reason_code}. 重新连接中...")  # 连接失败时的提示
+        notify_in_thread(f"连接MQTT失败: {reason_code}. 重新连接中...")  # 连接失败时的提示
         logging.error(f"连接失败: {reason_code}. loop_forever() 将重试连接")
     else:
-        notify(f"MQTT成功连接至{broker}")  # 连接成功时的提示
+        notify_in_thread(f"MQTT成功连接至{broker}")  # 连接成功时的提示
         logging.info(f"连接到 {broker}")
         for key, value in mqtt_config.items():
             if key.endswith("_checked") and value == 1:
@@ -273,10 +280,10 @@ def on_connect(client, userdata, flags, reason_code, properties):
 def open_gui():
     if os.path.isfile("GUI.py"):
         subprocess.Popen([".venv\\Scripts\\python.exe", "GUI.py"])
-        notify("正在打开配置窗口...")
+        notify_in_thread("正在打开配置窗口...")
     elif os.path.isfile("GUI.exe"):
         subprocess.Popen(["GUI.exe"])
-        notify("正在打开配置窗口...")
+        notify_in_thread("正在打开配置窗口...")
     else:
 
         def show_message():
@@ -301,14 +308,14 @@ def open_gui():
 
 def exit_program():
     try:
-        mqttc.disconnect()
         mqttc.loop_stop()
         icon.stop()
-        logging.info("程序已停止")
+        mqttc.disconnect()
     except Exception as e:
         logging.error(f"程序停止时出错: {e}")
     finally:
         # 释放互斥体
+        logging.info("程序已停止")
         ctypes.windll.kernel32.ReleaseMutex(mutex)
         sys.exit(0)
 
@@ -338,14 +345,14 @@ def truncate_large_file(file_path, max_size=1024 * 1024 * 50):
 def restart_program():
     try:
         mqttc.loop_stop()
-        mqttc.disconnect()
         icon.stop()
-        logging.info("程序已停止") 
+        mqttc.disconnect()
     except Exception as e:
         logging.error(f"程序重启时出错: {e}")
     finally:
         # 释放互斥体
         ctypes.windll.kernel32.ReleaseMutex(mutex)
+        logging.info("重新启动程序")
         os.execl(sys.executable, sys.executable, *sys.argv)
 
 
@@ -398,9 +405,10 @@ os.chdir(application_path)
 # 获取资源文件的路径
 def resource_path(relative_path):
     """获取资源文件的绝对路径"""
-    if getattr(sys, "frozen", False):
+    try:
+        # PyInstaller 创建临时文件夹
         base_path = sys._MEIPASS
-    else:
+    except Exception:
         base_path = os.path.abspath(".")
     return os.path.join(base_path, relative_path)
 
@@ -549,7 +557,7 @@ except socket.gaierror:
 try:
     mqttc.loop_forever()
 except KeyboardInterrupt:
-    notify("收到中断信号\n程序停止")
+    notify_in_thread("收到中断信号\n程序停止")
     logging.info("收到中断,程序停止")
     exit_program()
 logging.info(f"总共收到以下消息: {mqttc.user_data_get()}")
