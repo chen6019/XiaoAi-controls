@@ -144,10 +144,11 @@ def set_volume(value):
 def notify_in_thread(message):
     def notify_message():
         notify(message)
-    
+
     thread = threading.Thread(target=notify_message)
     thread.daemon = True
     thread.start()
+
 
 """
 根据接收到的命令和主题来处理相应的操作。
@@ -214,13 +215,17 @@ def process_command(command, topic):
                     if result.returncode == 0:
                         notify_in_thread(f"成功关闭 {serve_name}")
                     else:
-                        notify_in_thread(f"关闭 {serve_name} 失败", "可能是没有管理员权限")
+                        notify_in_thread(
+                            f"关闭 {serve_name} 失败", "可能是没有管理员权限"
+                        )
                 elif command == "on":
                     result = subprocess.run(["sc", "start", serve_name], shell=True)
                     if result.returncode == 0:
                         notify_in_thread(f"成功启动 {serve_name}")
                     else:
-                        notify_in_thread(f"启动 {serve_name} 失败", "可能是没有管理员权限")
+                        notify_in_thread(
+                            f"启动 {serve_name} 失败", "可能是没有管理员权限"
+                        )
                 return
 
 
@@ -255,7 +260,9 @@ MQTT连接时的回调函数。
 
 def on_connect(client, userdata, flags, reason_code, properties):
     if reason_code.is_failure:
-        notify_in_thread(f"连接MQTT失败: {reason_code}. 重新连接中...")  # 连接失败时的提示
+        notify_in_thread(
+            f"连接MQTT失败: {reason_code}. 重新连接中..."
+        )  # 连接失败时的提示
         logging.error(f"连接失败: {reason_code}. loop_forever() 将重试连接")
     else:
         notify_in_thread(f"MQTT成功连接至{broker}")  # 连接成功时的提示
@@ -387,6 +394,7 @@ def admin():
             messagebox.showinfo("信息", "已经拥有管理员权限")
         else:
             messagebox.showerror("错误", "没有管理员权限")
+
     thread2 = threading.Thread(target=show_message)
     thread2.daemon = True
     thread2.start()
