@@ -316,7 +316,7 @@ def exit_program():
     finally:
         # 释放互斥体
         logging.info("程序已停止")
-        ctypes.windll.kernel32.ReleaseMutex(mutex)
+        # ctypes.windll.kernel32.ReleaseMutex(mutex)
         sys.exit(0)
 
 
