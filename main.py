@@ -204,9 +204,15 @@ def process_command(command, topic):
         for application, directory in applications:
             if topic == application:
                 if command == "off":
-                    subprocess.call(
-                        ["taskkill", "/F", "/IM", directory.split("\\")[-1]]
+                    process_name = os.path.basename(directory)
+                    print(f"Trying to kill process: {process_name}")
+                    result = subprocess.run(
+                        ["taskkill", "/F", "/IM", process_name],
+                        capture_output=True,
+                        text=True
                     )
+                    print(result.stdout)
+                    print(result.stderr)
                 elif command == "on":
                     subprocess.Popen(directory)
                 return
