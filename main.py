@@ -209,7 +209,7 @@ def process_command(command, topic):
                     result = subprocess.run(
                         ["taskkill", "/F", "/IM", process_name],
                         capture_output=True,
-                        text=True
+                        text=True,
                     )
                     print(result.stdout)
                     print(result.stderr)
@@ -223,17 +223,13 @@ def process_command(command, topic):
                     if result.returncode == 0:
                         notify_in_thread(f"成功关闭 {serve_name}")
                     else:
-                        notify_in_thread(
-                            f"关闭 {serve_name} 失败", "可能是没有管理员权限"
-                        )
+                        notify_in_thread(f"关闭 {serve_name} 失败")
                 elif command == "on":
                     result = subprocess.run(["sc", "start", serve_name], shell=True)
                     if result.returncode == 0:
                         notify_in_thread(f"成功启动 {serve_name}")
                     else:
-                        notify_in_thread(
-                            f"启动 {serve_name} 失败", "可能是没有管理员权限"
-                        )
+                        notify_in_thread(f"启动 {serve_name} 失败")
                 return
 
 
