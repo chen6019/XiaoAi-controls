@@ -334,26 +334,27 @@ def truncate_large_file(file_path, max_size=1024 * 1024 * 50):
             pass
 
 
-"""
-重新启动程序。
+# """
+# 重新启动程序。
 
-无参数
-无返回值
-"""
+# 无参数
+# 无返回值
+# """
 
 
-def restart_program():
-    try:
-        mqttc.loop_stop()
-        icon.stop()
-        mqttc.disconnect()
-    except Exception as e:
-        logging.error(f"程序重启时出错: {e}")
-    finally:
-        # 释放互斥体
-        ctypes.windll.kernel32.ReleaseMutex(mutex)
-        logging.info("重新启动程序")
-        os.execl(sys.executable, sys.executable, *sys.argv)
+# def restart_program():
+#     try:
+#         mqttc.loop_stop()
+#         icon.stop()
+#         mqttc.disconnect()
+#     except Exception as e:
+#         logging.error(f"程序重启时出错: {e}")
+#     finally:
+#         logging.info("重新启动程序")
+#         subprocess.Popen([sys.executable] + sys.argv)
+#         # 释放互斥体
+#         ctypes.windll.kernel32.ReleaseMutex(mutex)
+#         sys.exit(0)
 
 
 """
@@ -386,7 +387,6 @@ def admin():
             messagebox.showinfo("信息", "已经拥有管理员权限")
         else:
             messagebox.showerror("错误", "没有管理员权限")
-
     thread2 = threading.Thread(target=show_message)
     thread2.daemon = True
     thread2.start()
@@ -425,7 +425,7 @@ icon = pystray.Icon("Ai-controls", title="小爱控制 V1.1.0")
 image = Image.open(io.BytesIO(image_data))
 menu = (
     pystray.MenuItem("打开配置", open_gui),
-    pystray.MenuItem("重启程序", restart_program),
+    # pystray.MenuItem("重启程序", restart_program),
     pystray.MenuItem("管理员权限查询", admin),
     pystray.MenuItem("退出", exit_program),
 )
