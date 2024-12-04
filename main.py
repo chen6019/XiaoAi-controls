@@ -182,6 +182,7 @@ def process_command(command, topic):
                 brightness = int(command[3:])
                 set_brightness(brightness)
             except ValueError:
+                notify_in_thread("亮度值无效")
                 logging.error("亮度值无效")
     elif topic == volume:
         # 音量控制
@@ -194,6 +195,7 @@ def process_command(command, topic):
                 volume_value = int(command[3:])
                 set_volume(volume_value)
             except ValueError:
+                notify_in_thread("音量值无效")
                 logging.error("音量值无效")
     elif topic == sleep:
         if command == "off":
