@@ -433,11 +433,11 @@ logging.basicConfig(
 
 truncate_large_file(log_path)
 
-config_path = os.path.join(appdata_path, "mqtt_config.json")
+config_path = os.path.join(appdata_path, "config.json")
 # 检查配置文件是否存在
 if not os.path.exists(config_path):
     messagebox.showerror("Error", "配置文件不存在\n请先打开GUI配置文件")
-    logging.error("mqtt_config.json 文件不存在")
+    logging.error("config.json 文件不存在")
     icon.stop()
     open_gui()
     sys.exit(0)
