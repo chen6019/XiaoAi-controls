@@ -9,6 +9,8 @@ python 13 使用虚拟环境需要将 C:\\Program Files\\Python313\\tcl\\tcl8.6 
 C:\\Program Files\\Python313\\Lib 文件夹下
 否则报错: _tkinter.TclError: Can't find a usable init.tcl
 
+打包指令:
+pyinstaller --onefile -n XiaoAi-controls --windowed --icon=icon.ico --add-data "icon.ico;."  main.py
 
 """
 
