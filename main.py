@@ -17,7 +17,6 @@ pyinstaller -F -n XiaoAi-controls --noconsole --hidden-import=paho-mqtt --hidden
 import io
 import paho.mqtt.client as mqtt
 import os
-import pkg_resources
 import wmi
 from win11toast import notify
 import json
@@ -408,12 +407,22 @@ else:
 # 改变当前的工作路径
 os.chdir(application_path)
 
-
 # 获取资源文件的路径
-resource_path = "icon.ico"
+def resource_path(relative_path):
+    """获取资源文件的绝对路径"""
+    if getattr(sys, "frozen", False):
+        base_path = sys._MEIPASS
+    else:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
+
+icon_path = resource_path("icon.ico")
 
 # 从资源文件中读取图像
-image_data = pkg_resources.resource_string(__name__, resource_path)
+with open(icon_path, "rb") as f:
+    image_data = f.read()
+
 
 # 初始化系统托盘图标和菜单
 icon = pystray.Icon("Ai-controls", title="小爱控制 V1.1.0")
