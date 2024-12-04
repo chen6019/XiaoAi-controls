@@ -51,6 +51,7 @@ def get_administrator_privileges():
     )
     sys.exit()
 
+
 # 设置窗口居中
 def center_window(window):
     window.update_idletasks()
@@ -59,6 +60,7 @@ def center_window(window):
     x = (window.winfo_screenwidth() // 2) - (width // 2)
     y = (window.winfo_screenheight() // 2) - (height // 2)
     window.geometry(f"{width}x{height}+{x}+{y}")
+
 
 # 尝试读取配置文件
 config = {}
@@ -245,8 +247,8 @@ custom_themes = []
 custom_theme_list = tk.Listbox(theme_frame)
 custom_theme_list.grid(row=1, column=3, rowspan=4, pady=10)
 
-#添加提示
-tk.Label(theme_frame, text="双击即可修改").grid(row=5, column=3,pady=15)
+# 添加提示
+tk.Label(theme_frame, text="双击即可修改").grid(row=5, column=3, pady=15)
 # 添加和修改按钮
 tk.Button(theme_frame, text="添加", command=lambda: add_custom_theme(config)).grid(
     row=5, column=3, sticky="w"
@@ -321,12 +323,8 @@ def modify_custom_theme():
     theme_window.title("修改自定义主题")
 
     tk.Label(theme_window, text="类型：").grid(row=0, column=0, sticky="e")
-    tk.Label(theme_window, text="服务类型需要").grid(
-        row=0, column=1, sticky="e"
-    )
-    tk.Label(theme_window, text="管理员权限").grid(
-        row=0, column=2, sticky="w"
-    )
+    tk.Label(theme_window, text="服务类型需要").grid(row=0, column=1, sticky="e")
+    tk.Label(theme_window, text="管理员权限").grid(row=0, column=2, sticky="w")
     theme_type_var = tk.StringVar(value=theme["type"])
     tk.OptionMenu(theme_window, theme_type_var, "程序", "服务").grid(
         row=0, column=1, sticky="w"
@@ -359,7 +357,7 @@ def modify_custom_theme():
         theme_value_entry.insert(0, file_path)
 
     tk.Button(theme_window, text="选择文件", command=select_file).grid(
-        row=4, column=2, sticky="w",padx=15
+        row=4, column=2, sticky="w", padx=15
     )
 
     def save_theme():
@@ -385,7 +383,9 @@ def modify_custom_theme():
         else:
             theme_window.lift()
 
-    tk.Button(theme_window, text="保存", command=save_theme).grid(row=5, column=0,pady=15,padx=15)
+    tk.Button(theme_window, text="保存", command=save_theme).grid(
+        row=5, column=0, pady=15, padx=15
+    )
     tk.Button(theme_window, text="删除", command=delete_theme).grid(row=5, column=1)
 
     center_window(theme_window)
@@ -428,7 +428,7 @@ def add_custom_theme(config):
         theme_value_entry.insert(0, file_path)
 
     tk.Button(theme_window, text="选择文件", command=select_file).grid(
-        row=4, column=2, sticky="w",padx=15
+        row=4, column=2, sticky="w", padx=15
     )
 
     def save_theme():
@@ -500,7 +500,9 @@ def open_config_folder():
 
 
 # 添加按钮到框架中
-tk.Button(text="打开配置文件夹", command=open_config_folder).pack(side=tk.LEFT, padx=20,pady=15)
+tk.Button(text="打开配置文件夹", command=open_config_folder).pack(
+    side=tk.LEFT, padx=20, pady=15
+)
 tk.Button(text="保存配置文件", command=generate_config).pack(side=tk.LEFT, padx=20)
 
 # 设置窗口居中
