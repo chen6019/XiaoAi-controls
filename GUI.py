@@ -24,7 +24,7 @@ config_file_path = os.path.join(appdata_dir, "config.json")
 
 # 创建主窗口
 root = tk.Tk()
-root.title("小爱控制V1.2.0")
+root.title("小爱控制V1.1.0")
 
 # 创建一个命名的互斥体
 mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "xagui_test_mutex")
@@ -186,7 +186,7 @@ auto_start_button.grid(row=2, column=2)
 
 if is_admin():
     check_task()
-    root.title("小爱控制V1.2.0(管理员)")
+    root.title("小爱控制V1.1.0(管理员)")
 else:
     auto_start_button.config(text="获取权限", command=get_administrator_privileges)
 
