@@ -35,13 +35,13 @@ from comtypes import CLSCTX_ALL
 from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
 
 
-# # 创建一个命名的互斥体
-# mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "xacz_mutex")
+# 创建一个命名的互斥体
+mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "xacz_mutex")
 
-# # 检查互斥体是否已经存在
-# if ctypes.windll.kernel32.GetLastError() == 183:
-#     messagebox.showerror("错误", "应用程序已在运行。")
-#     sys.exit()
+# 检查互斥体是否已经存在
+if ctypes.windll.kernel32.GetLastError() == 183:
+    messagebox.showerror("错误", "应用程序已在运行。")
+    sys.exit()
 
 """
 执行系统命令，并在超时后终止命令。
@@ -291,15 +291,6 @@ def open_gui():
         thread.start()
 
 
-# 停止托盘图标线程的函数
-def stop_icon_thread():
-    if icon:
-        icon.stop()
-        logging.info("托盘图标已停止")
-    else:
-        logging.error("托盘图标不存在")
-
-
 """
 退出程序。
 
@@ -310,14 +301,16 @@ def stop_icon_thread():
 
 def exit_program():
     try:
-        mqttc.loop_stop()
-        stop_icon_thread()
-        # 释放互斥体
-        # ctypes.windll.kernel32.ReleaseMutex(mutex)
         mqttc.disconnect()
+        mqttc.loop_stop()
+        icon.stop()
         logging.info("程序已停止")
-    except SystemExit:
-        pass
+    except Exception as e:
+        logging.error(f"程序停止时出错: {e}")
+    finally:
+        # 释放互斥体
+        ctypes.windll.kernel32.ReleaseMutex(mutex)
+        sys.exit(0)
 
 
 """
@@ -345,21 +338,15 @@ def truncate_large_file(file_path, max_size=1024 * 1024 * 50):
 def restart_program():
     try:
         mqttc.loop_stop()
-        stop_icon_thread()
+        mqttc.disconnect()
+        icon.stop()
+        logging.info("程序已停止") 
+    except Exception as e:
+        logging.error(f"程序重启时出错: {e}")
+    finally:
         # 释放互斥体
-        # ctypes.windll.kernel32.ReleaseMutex(mutex)
-        if not is_admin():
-            logging.info("以管理员权限重新启动程序")
-            mqttc.disconnect()
-            ctypes.windll.shell32.ShellExecuteW(
-                None, "runas", sys.executable, f'"{__file__}"', None, 1
-            )
-        else:
-            logging.info("重新启动程序")
-            mqttc.disconnect()
-            os.execl(sys.executable, sys.executable, *sys.argv)
-    except SystemExit:
-        pass
+        ctypes.windll.kernel32.ReleaseMutex(mutex)
+        os.execl(sys.executable, sys.executable, *sys.argv)
 
 
 """
@@ -406,6 +393,7 @@ else:
 
 # 改变当前的工作路径
 os.chdir(application_path)
+
 
 # 获取资源文件的路径
 def resource_path(relative_path):
@@ -565,6 +553,5 @@ except KeyboardInterrupt:
     logging.info("收到中断,程序停止")
     exit_program()
 logging.info(f"总共收到以下消息: {mqttc.user_data_get()}")
-sys.exit()
 # 释放互斥体
-# ctypes.windll.kernel32.ReleaseMutex(mutex)
+ctypes.windll.kernel32.ReleaseMutex(mutex)
