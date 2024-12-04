@@ -577,3 +577,4 @@ except KeyboardInterrupt:
 logging.info(f"总共收到以下消息: {mqttc.user_data_get()}")
 # 释放互斥体
 ctypes.windll.kernel32.ReleaseMutex(mutex)
+
