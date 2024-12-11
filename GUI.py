@@ -183,6 +183,7 @@ def modify_custom_theme():
 
     theme_window = tk.Toplevel(root)
     theme_window.title("修改自定义主题")
+    theme_window.resizable(False, False)  # 禁用窗口大小调整
 
     tk.Label(theme_window, text="类型：").grid(row=0, column=0, sticky="e")
     tk.Label(theme_window, text="服务类型需要").grid(row=0, column=1, sticky="e")
@@ -257,6 +258,7 @@ def modify_custom_theme():
 def add_custom_theme(config):
     theme_window = tk.Toplevel(root)
     theme_window.title("添加自定义主题")
+    theme_window.resizable(False, False)  # 禁用窗口大小调整
 
     tk.Label(theme_window, text="类型：").grid(row=0, column=0, sticky="e")
     tk.Label(theme_window, text="服务类型需要").grid(row=0, column=1, sticky="e")
@@ -381,46 +383,62 @@ if os.path.exists(config_file_path):
 root = tk.Tk()
 root.title("小爱控制V1.1.0")
 
+# 设置窗口最小值
+root.wm_minsize(600, 600)  # 将宽度设置为600，高度设置为600
+
+# 设置根窗口的行列权重
+root.rowconfigure(0, weight=1)
+root.rowconfigure(1, weight=1)
+root.rowconfigure(2, weight=0)
+root.columnconfigure(0, weight=1)
+
 # 系统配置部分
 system_frame = tk.LabelFrame(root, text="系统配置")
-system_frame.pack(padx=10, pady=5, fill="x")
+system_frame.grid(row=0, column=0, padx=10, pady=5, sticky="nsew")
+
+# 使用 grid 布局，并设置权重
+system_frame.grid(row=0, column=0, sticky="nsew")
+for i in range(4):
+    system_frame.rowconfigure(i, weight=1)
+for j in range(3):
+    system_frame.columnconfigure(j, weight=1)
 
 tk.Label(system_frame, text="网站：").grid(row=0, column=0, sticky="e")
 website_entry = tk.Entry(system_frame)
-website_entry.grid(row=0, column=1, sticky="w")
+website_entry.grid(row=0, column=1, sticky="ew")
 website_entry.insert(0, config.get("broker", ""))
 
 tk.Label(system_frame, text="密钥：").grid(row=1, column=0, sticky="e")
 secret_entry = tk.Entry(system_frame)
-secret_entry.grid(row=1, column=1, sticky="w")
+secret_entry.grid(row=1, column=1, sticky="ew")
 secret_entry.insert(0, config.get("secret_id", ""))
 
 tk.Label(system_frame, text="端口：").grid(row=2, column=0, sticky="e")
 port_entry = tk.Entry(system_frame)
-port_entry.grid(row=2, column=1, sticky="w")
+port_entry.grid(row=2, column=1, sticky="ew")
 port_entry.insert(0, str(config.get("port", "")))
 
 test_var = tk.IntVar(value=config.get("test", 0))
-test_check = tk.Checkbutton(system_frame, text="test 模式", variable=test_var)
-test_check.grid(row=3, column=0, columnspan=2)
-
+test_check = tk.Checkbutton(system_frame, text="test", variable=test_var)
+test_check.grid(row=3, column=0, columnspan=2, sticky="w")
 
 # 添加设置开机自启动按钮上面的提示
 auto_start_label = tk.Label(
     system_frame,
-    text="管理员才能设置开机自启",
+    text="需要管理员权限才能设置",
 )
-auto_start_label.grid(row=0, column=2)
+auto_start_label.grid(row=0, column=2, sticky="n")
 auto_start_label1 = tk.Label(
     system_frame,
-    text="点击“获取权限”或“手动获取”",
+    text="开机自启和服务类型主题",
 )
-auto_start_label1.grid(row=1, column=2, padx=25)
+auto_start_label1.grid(row=1, column=2, sticky="n")
 
 # 添加设置开机自启动按钮
 auto_start_button = tk.Button(system_frame, text="", command=set_auto_start)
-auto_start_button.grid(row=2, column=2)
+auto_start_button.grid(row=2, column=2,  sticky="n")
 
+# 程序标题栏
 if is_admin():
     check_task()
     root.title("小爱控制V1.1.0(管理员)")
@@ -429,7 +447,14 @@ else:
 
 # 主题配置部分
 theme_frame = tk.LabelFrame(root, text="主题配置")
-theme_frame.pack(padx=10, pady=5, fill="x")
+theme_frame.grid(row=1, column=0, padx=10, pady=5, sticky="nsew")
+
+# 使用 grid 布局，并设置权重
+theme_frame.grid(row=1, column=0, sticky="nsew")
+for i in range(6):
+    theme_frame.rowconfigure(i, weight=1)
+for j in range(4):
+    theme_frame.columnconfigure(j, weight=1)
 
 # 内置主题
 builtin_themes = [
@@ -474,7 +499,7 @@ for idx, theme in enumerate(builtin_themes):
         row=idx + 1, column=0, sticky="w", columnspan=2
     )
     tk.Entry(theme_frame, textvariable=theme["name_var"]).grid(
-        row=idx + 1, column=2, sticky="w"
+        row=idx + 1, column=2, sticky="ew"
     )
 
 # 自定义主题列表
@@ -482,10 +507,10 @@ custom_themes = []
 
 # 自定义主题列表组件
 custom_theme_list = tk.Listbox(theme_frame)
-custom_theme_list.grid(row=1, column=3, rowspan=4, pady=10)
+custom_theme_list.grid(row=1, column=3, rowspan=4, pady=10, sticky="nsew")
 
 # 添加提示
-tk.Label(theme_frame, text="双击即可修改").grid(row=5, column=3, pady=15)
+tk.Label(theme_frame, text="双击即可修改").grid(row=5, column=3, pady=15, sticky="n")
 # 添加和修改按钮
 tk.Button(theme_frame, text="添加", command=lambda: add_custom_theme(config)).grid(
     row=5, column=3, sticky="w"
@@ -498,10 +523,24 @@ tk.Button(theme_frame, text="修改", command=lambda: modify_custom_theme()).gri
 custom_theme_list.bind("<Double-Button-1>", on_double_click)
 
 # 添加按钮到框架中
-tk.Button(text="打开配置文件夹", command=open_config_folder).pack(
-    side=tk.LEFT, padx=20, pady=15
+button_frame = tk.Frame(root)
+button_frame.grid(row=2, column=0, pady=15, sticky="ew")
+button_frame.grid_rowconfigure(0, weight=1)
+button_frame.grid_columnconfigure(0, weight=1)
+button_frame.grid_columnconfigure(1, weight=1)
+
+tk.Button(button_frame, text="打开配置文件夹", command=open_config_folder).grid(
+    row=0, column=0, padx=20, sticky="e"
 )
-tk.Button(text="保存配置文件", command=generate_config).pack(side=tk.LEFT, padx=20)
+tk.Button(button_frame, text="保存配置文件", command=generate_config).grid(
+    row=0, column=1, padx=20, sticky="w"
+)
+
+# 设置窗口在窗口大小变化时，框架自动扩展
+root.rowconfigure(0, weight=1)
+root.rowconfigure(1, weight=1)
+root.rowconfigure(2, weight=0)
+root.columnconfigure(0, weight=1)
 
 # 设置窗口居中
 center_window(root)
