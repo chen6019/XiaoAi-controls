@@ -13,7 +13,7 @@ import subprocess
 import win32com.client
 
 # 创建一个命名的互斥体
-mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "XiaoAi-controls")
+mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "XiaoAi-controls-GUI")
 
 # 检查互斥体是否已经存在
 if ctypes.windll.kernel32.GetLastError() == 183:
@@ -323,6 +323,7 @@ def generate_config():
         "broker": website_entry.get(),
         "secret_id": secret_entry.get(),
         "port": int(port_entry.get()),
+        "test": test_var.get(),
     }
 
     # 内置主题配置
@@ -418,6 +419,10 @@ port_entry = tk.Entry(system_frame)
 port_entry.grid(row=2, column=1, sticky="ew")
 port_entry.insert(0, str(config.get("port", "")))
 
+test_var = tk.IntVar(value=config.get("test", 0))
+test_check = tk.Checkbutton(system_frame, text="test", variable=test_var)
+test_check.grid(row=3, column=0, columnspan=2, sticky="w")
+
 # 添加设置开机自启动按钮上面的提示
 auto_start_label = tk.Label(
     system_frame,
@@ -440,6 +445,8 @@ if is_admin():
     root.title("小爱控制V1.1.0(管理员)")
 else:
     auto_start_button.config(text="获取权限", command=get_administrator_privileges)
+    # 隐藏test
+    test_check.grid_remove()
 
 # 主题配置部分
 theme_frame = tk.LabelFrame(root, text="主题配置")
