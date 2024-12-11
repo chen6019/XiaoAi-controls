@@ -381,17 +381,6 @@ def admin():
     thread2.daemon = True
     thread2.start()
 
-
-# 获取应用程序的路径
-if getattr(sys, "frozen", False):
-    application_path = os.path.dirname(sys.executable)
-else:
-    application_path = os.path.dirname(os.path.abspath(__file__))
-
-# 改变当前的工作路径
-os.chdir(application_path)
-
-
 # 获取资源文件的路径
 def resource_path(relative_path):
     """获取资源文件的绝对路径"""
@@ -402,6 +391,14 @@ def resource_path(relative_path):
         base_path = os.path.abspath(".")
     return os.path.join(base_path, relative_path)
 
+# 获取应用程序的路径
+if getattr(sys, "frozen", False):
+    application_path = os.path.dirname(sys.executable)
+else:
+    application_path = os.path.dirname(os.path.abspath(__file__))
+
+# 改变当前的工作路径
+os.chdir(application_path)
 
 icon_path = resource_path("icon.ico")
 
