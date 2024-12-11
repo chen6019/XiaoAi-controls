@@ -37,7 +37,7 @@ from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
 
 
 # 创建一个命名的互斥体
-mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "xacz_mutex")
+mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "XiaoAi-controls-main")
 
 # 检查互斥体是否已经存在
 if ctypes.windll.kernel32.GetLastError() == 183:
@@ -273,10 +273,10 @@ def on_connect(client, userdata, flags, reason_code, properties):
     else:
         notify_in_thread(f"MQTT成功连接至{broker}")  # 连接成功时的提示
         logging.info(f"连接到 {broker}")
-        for key, value in mqtt_config.items():
+        for key, value in config.items():
             if key.endswith("_checked") and value == 1:
                 topic_key = key.replace("_checked", "")
-                topic = mqtt_config.get(topic_key)
+                topic = config.get(topic_key)
                 if topic:
                     client.subscribe(topic)
                     logging.info(f'订阅主题: "{topic}"')
@@ -298,7 +298,6 @@ def open_gui():
         subprocess.Popen(["GUI.exe"])
         notify_in_thread("正在打开配置窗口...")
     else:
-
         def show_message():
             current_path = os.getcwd()
             messagebox.showerror(
@@ -345,29 +344,6 @@ def truncate_large_file(file_path, max_size=1024 * 1024 * 50):
     if os.path.getsize(file_path) > max_size:
         with open(file_path, "w"):
             pass
-
-
-# """
-# 重新启动程序。
-
-# 无参数
-# 无返回值
-# """
-
-
-# def restart_program():
-#     try:
-#         mqttc.loop_stop()
-#         icon.stop()
-#         mqttc.disconnect()
-#     except Exception as e:
-#         logging.error(f"程序重启时出错: {e}")
-#     finally:
-#         logging.info("重新启动程序")
-#         subprocess.Popen([sys.executable] + sys.argv)
-#         # 释放互斥体
-#         ctypes.windll.kernel32.ReleaseMutex(mutex)
-#         sys.exit(0)
 
 
 """
@@ -439,7 +415,6 @@ icon = pystray.Icon("Ai-controls", title="小爱控制 V1.1.0")
 image = Image.open(io.BytesIO(image_data))
 menu = (
     pystray.MenuItem("打开配置", open_gui),
-    # pystray.MenuItem("重启程序", restart_program),
     pystray.MenuItem("管理员权限查询", admin),
     pystray.MenuItem("退出", exit_program),
 )
@@ -467,6 +442,7 @@ logging.basicConfig(
 truncate_large_file(log_path)
 
 config_path = os.path.join(appdata_path, "config.json")
+
 # 检查配置文件是否存在
 if not os.path.exists(config_path):
     messagebox.showerror("Error", "配置文件不存在\n请先打开GUI配置文件")
@@ -476,37 +452,48 @@ if not os.path.exists(config_path):
     sys.exit(0)
 else:
     with open(config_path, "r", encoding="utf-8") as f:
-        mqtt_config = json.load(f)
+        config = json.load(f)
 
-if mqtt_config["test"] == 1:
+if config["test"] == 1:
     logging.info("开启测试模式:可以不启用任何主题")
 else:
+    # logging.info("开始检查主题配置")
+    # for key in ["Computer", "screen", "volume", "sleep"]:
+    #     logging.info(f"{key}_checked: {config.get(f'{key}_checked', 0)}")
+    
+    # for index in range(1, 100):
+    #     logging.info(f"application{index}_checked: {config.get(f'application{index}_checked', 0)}")
+    #     logging.info(f"serve{index}_checked: {config.get(f'serve{index}_checked', 0)}")
+    # logging.info("检查主题配置结束")
     if (
         all(
-            mqtt_config.get(f"{key}_checked") == 0
+            config.get(f"{key}_checked", 0) == 0
             for key in ["Computer", "screen", "volume", "sleep"]
         )
         and all(
-            mqtt_config.get(f"application{index}_checked") == 0
+            config.get(f"application{index}_checked", 0) == 0
             for index in range(1, 100)
         )
         and all(
-            mqtt_config.get(f"serve{index}_checked") == 0 for index in range(1, 100)
+            config.get(f"serve{index}_checked", 0) == 0 for index in range(1, 100)
         )
     ):
+        logging.info("没有启用任何主题，显示错误信息")
         messagebox.showerror("Error", "主题不能一个都没有吧！\n（除了测试模式）")
         icon.stop()
         open_gui()
         sys.exit(0)
+    else:
+        logging.info("至少有一个主题被启用")
 
-broker = mqtt_config.get("broker")
-secret_id = mqtt_config.get("secret_id")
-port = int(mqtt_config.get("port"))
+broker = config.get("broker")
+secret_id = config.get("secret_id")
+port = int(config.get("port"))
 
 
 # 动态加载主题
 def load_theme(key):
-    return mqtt_config.get(key) if mqtt_config.get(f"{key}_checked") == 1 else None
+    return config.get(key) if config.get(f"{key}_checked") == 1 else None
 
 
 Computer = load_theme("Computer")
@@ -519,7 +506,7 @@ for i in range(1, 100):
     app_key = f"application{i}"
     directory_key = f"application{i}_directory{i}"
     application = load_theme(app_key)
-    directory = mqtt_config.get(directory_key) if application else None
+    directory = config.get(directory_key) if application else None
     if application:
         applications.append((application, directory))
 
@@ -528,14 +515,14 @@ for i in range(1, 100):
     serve_key = f"serve{i}"
     serve_name_key = f"serve{i}_value"
     serve = load_theme(serve_key)
-    serve_name = mqtt_config.get(serve_name_key) if serve else None
+    serve_name = config.get(serve_name_key) if serve else None
     if serve:
         serves.append((serve, serve_name))
 
 # 如果主题不为空，将其记录到日志中
 for key in ["Computer", "screen", "volume", "sleep"]:
-    if mqtt_config.get(key):
-        logging.info(f'主题"{mqtt_config.get(key)}"')
+    if config.get(key):
+        logging.info(f'主题"{config.get(key)}"')
 
 for application, directory in applications:
     logging.info(f'主题"{application}"，值："{directory}"')
@@ -575,6 +562,7 @@ except KeyboardInterrupt:
     logging.info("收到中断,程序停止")
     exit_program()
 logging.info(f"总共收到以下消息: {mqttc.user_data_get()}")
+
 # 释放互斥体
 ctypes.windll.kernel32.ReleaseMutex(mutex)
 
