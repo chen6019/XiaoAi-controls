@@ -13,7 +13,7 @@ import subprocess
 import win32com.client
 
 # 创建一个命名的互斥体
-mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "xagui_test_mutex")
+mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "XiaoAi-controls")
 
 # 检查互斥体是否已经存在
 if ctypes.windll.kernel32.GetLastError() == 183:
@@ -204,7 +204,7 @@ def modify_custom_theme():
     theme_nickname_entry.insert(0, theme["nickname"])
     theme_nickname_entry.grid(row=2, column=1, sticky="w")
 
-    tk.Label(theme_window, text="名称：").grid(row=3, column=0, sticky="e")
+    tk.Label(theme_window, text="主题：").grid(row=3, column=0, sticky="e")
     theme_name_entry = tk.Entry(theme_window)
     theme_name_entry.insert(0, theme["name"])
     theme_name_entry.grid(row=3, column=1, sticky="w")
@@ -278,7 +278,7 @@ def add_custom_theme(config):
     theme_nickname_entry = tk.Entry(theme_window)
     theme_nickname_entry.grid(row=2, column=1, sticky="w")
 
-    tk.Label(theme_window, text="名称：").grid(row=3, column=0, sticky="e")
+    tk.Label(theme_window, text="主题：").grid(row=3, column=0, sticky="e")
     theme_name_entry = tk.Entry(theme_window)
     theme_name_entry.grid(row=3, column=1, sticky="w")
 
@@ -313,6 +313,7 @@ def add_custom_theme(config):
     tk.Button(theme_window, text="保存", command=save_theme).grid(
         row=5, column=0, pady=15, padx=15
     )
+    tk.Button(theme_window, text="取消", command=theme_window.destroy).grid(row=5, column=1)
 
     center_window(theme_window)
 
@@ -322,7 +323,6 @@ def generate_config():
         "broker": website_entry.get(),
         "secret_id": secret_entry.get(),
         "port": int(port_entry.get()),
-        "test": test_var.get(),
     }
 
     # 内置主题配置
@@ -384,7 +384,7 @@ root = tk.Tk()
 root.title("小爱控制V1.1.0")
 
 # 设置窗口最小值
-root.wm_minsize(600, 600)  # 将宽度设置为600，高度设置为600
+root.wm_minsize(600, 650)  # 将宽度设置为600，高度设置为600
 
 # 设置根窗口的行列权重
 root.rowconfigure(0, weight=1)
@@ -408,7 +408,7 @@ website_entry = tk.Entry(system_frame)
 website_entry.grid(row=0, column=1, sticky="ew")
 website_entry.insert(0, config.get("broker", ""))
 
-tk.Label(system_frame, text="密钥：").grid(row=1, column=0, sticky="e")
+tk.Label(system_frame, text="密钥：").grid(row=1, column=0, pady=10,sticky="e")
 secret_entry = tk.Entry(system_frame)
 secret_entry.grid(row=1, column=1, sticky="ew")
 secret_entry.insert(0, config.get("secret_id", ""))
@@ -417,10 +417,6 @@ tk.Label(system_frame, text="端口：").grid(row=2, column=0, sticky="e")
 port_entry = tk.Entry(system_frame)
 port_entry.grid(row=2, column=1, sticky="ew")
 port_entry.insert(0, str(config.get("port", "")))
-
-test_var = tk.IntVar(value=config.get("test", 0))
-test_check = tk.Checkbutton(system_frame, text="test", variable=test_var)
-test_check.grid(row=3, column=0, columnspan=2, sticky="w")
 
 # 添加设置开机自启动按钮上面的提示
 auto_start_label = tk.Label(
