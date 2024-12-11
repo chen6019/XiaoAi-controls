@@ -12,20 +12,6 @@ import shlex
 import subprocess
 import win32com.client
 
-# 获取用户的 AppData\Roaming 目录
-appdata_dir = os.path.join(os.getenv("APPDATA"), "Ai-controls")
-
-# 如果目录不存在则创建
-if not os.path.exists(appdata_dir):
-    os.makedirs(appdata_dir)
-
-# 配置文件路径
-config_file_path = os.path.join(appdata_dir, "config.json")
-
-# 创建主窗口
-root = tk.Tk()
-root.title("小爱控制V1.1.0")
-
 # 创建一个命名的互斥体
 mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "xagui_test_mutex")
 
@@ -60,36 +46,6 @@ def center_window(window):
     x = (window.winfo_screenwidth() // 2) - (width // 2)
     y = (window.winfo_screenheight() // 2) - (height // 2)
     window.geometry(f"{width}x{height}+{x}+{y}")
-
-
-# 尝试读取配置文件
-config = {}
-if os.path.exists(config_file_path):
-    with open(config_file_path, "r", encoding="utf-8") as f:
-        config = json.load(f)
-
-# 系统配置部分
-system_frame = tk.LabelFrame(root, text="系统配置")
-system_frame.pack(padx=10, pady=5, fill="x")
-
-tk.Label(system_frame, text="网站：").grid(row=0, column=0, sticky="e")
-website_entry = tk.Entry(system_frame)
-website_entry.grid(row=0, column=1, sticky="w")
-website_entry.insert(0, config.get("broker", ""))
-
-tk.Label(system_frame, text="密钥：").grid(row=1, column=0, sticky="e")
-secret_entry = tk.Entry(system_frame)
-secret_entry.grid(row=1, column=1, sticky="w")
-secret_entry.insert(0, config.get("secret_id", ""))
-
-tk.Label(system_frame, text="端口：").grid(row=2, column=0, sticky="e")
-port_entry = tk.Entry(system_frame)
-port_entry.grid(row=2, column=1, sticky="w")
-port_entry.insert(0, str(config.get("port", "")))
-
-test_var = tk.IntVar(value=config.get("test", 0))
-test_check = tk.Checkbutton(system_frame, text="test 模式", variable=test_var)
-test_check.grid(row=3, column=0, columnspan=2)
 
 
 # 检查任务计划是否存在
@@ -168,103 +124,9 @@ def check_task():
     auto_start_button.update_idletasks()
 
 
-# 添加设置开机自启动按钮上面的提示
-auto_start_label = tk.Label(
-    system_frame,
-    text="管理员才能设置开机自启",
-)
-auto_start_label.grid(row=0, column=2)
-auto_start_label1 = tk.Label(
-    system_frame,
-    text="点击“获取权限”或“手动获取”",
-)
-auto_start_label1.grid(row=1, column=2, padx=25)
-
-# 添加设置开机自启动按钮
-auto_start_button = tk.Button(system_frame, text="", command=set_auto_start)
-auto_start_button.grid(row=2, column=2)
-
-if is_admin():
-    check_task()
-    root.title("小爱控制V1.1.0(管理员)")
-else:
-    auto_start_button.config(text="获取权限", command=get_administrator_privileges)
-
-# 主题配置部分
-theme_frame = tk.LabelFrame(root, text="主题配置")
-theme_frame.pack(padx=10, pady=5, fill="x")
-
-# 内置主题
-builtin_themes = [
-    {
-        "nickname": "计算机",
-        "key": "Computer",
-        "name_var": tk.StringVar(),
-        "checked": tk.IntVar(),
-    },
-    {
-        "nickname": "屏幕",
-        "key": "screen",
-        "name_var": tk.StringVar(),
-        "checked": tk.IntVar(),
-    },
-    {
-        "nickname": "音量",
-        "key": "volume",
-        "name_var": tk.StringVar(),
-        "checked": tk.IntVar(),
-    },
-    {
-        "nickname": "睡眠",
-        "key": "sleep",
-        "name_var": tk.StringVar(),
-        "checked": tk.IntVar(),
-    },
-]
-
-tk.Label(theme_frame, text="内置").grid(row=0, column=0, sticky="w", columnspan=2)
-tk.Label(theme_frame, text="主题").grid(row=0, column=2, sticky="w")
-tk.Label(theme_frame, text="自定义(服务需要管理员权限)").grid(
-    row=0, column=3, sticky="w"
-)
-
-for idx, theme in enumerate(builtin_themes):
-    theme_key = theme["key"]
-    theme["name_var"].set(config.get(theme_key, ""))
-    theme["checked"].set(config.get(f"{theme_key}_checked", 0))
-
-    tk.Checkbutton(theme_frame, text=theme["nickname"], variable=theme["checked"]).grid(
-        row=idx + 1, column=0, sticky="w", columnspan=2
-    )
-    tk.Entry(theme_frame, textvariable=theme["name_var"]).grid(
-        row=idx + 1, column=2, sticky="w"
-    )
-
-# 自定义主题列表
-custom_themes = []
-
-# 自定义主题列表组件
-custom_theme_list = tk.Listbox(theme_frame)
-custom_theme_list.grid(row=1, column=3, rowspan=4, pady=10)
-
-# 添加提示
-tk.Label(theme_frame, text="双击即可修改").grid(row=5, column=3, pady=15)
-# 添加和修改按钮
-tk.Button(theme_frame, text="添加", command=lambda: add_custom_theme(config)).grid(
-    row=5, column=3, sticky="w"
-)
-tk.Button(theme_frame, text="修改", command=lambda: modify_custom_theme()).grid(
-    row=5, column=3, sticky="e"
-)
-
-
 # 鼠标双击事件处理程序
 def on_double_click(event):
     modify_custom_theme()
-
-
-# 绑定鼠标双击事件到自定义主题列表
-custom_theme_list.bind("<Double-Button-1>", on_double_click)
 
 
 # 如果配置中有自定义主题，加载它们
@@ -498,6 +360,142 @@ def generate_config():
 def open_config_folder():
     os.startfile(appdata_dir)
 
+
+# 获取用户的 AppData\Roaming 目录
+appdata_dir = os.path.join(os.getenv("APPDATA"), "Ai-controls")
+
+# 如果目录不存在则创建
+if not os.path.exists(appdata_dir):
+    os.makedirs(appdata_dir)
+
+# 配置文件路径
+config_file_path = os.path.join(appdata_dir, "config.json")
+
+# 尝试读取配置文件
+config = {}
+if os.path.exists(config_file_path):
+    with open(config_file_path, "r", encoding="utf-8") as f:
+        config = json.load(f)
+
+# 创建主窗口
+root = tk.Tk()
+root.title("小爱控制V1.1.0")
+
+# 系统配置部分
+system_frame = tk.LabelFrame(root, text="系统配置")
+system_frame.pack(padx=10, pady=5, fill="x")
+
+tk.Label(system_frame, text="网站：").grid(row=0, column=0, sticky="e")
+website_entry = tk.Entry(system_frame)
+website_entry.grid(row=0, column=1, sticky="w")
+website_entry.insert(0, config.get("broker", ""))
+
+tk.Label(system_frame, text="密钥：").grid(row=1, column=0, sticky="e")
+secret_entry = tk.Entry(system_frame)
+secret_entry.grid(row=1, column=1, sticky="w")
+secret_entry.insert(0, config.get("secret_id", ""))
+
+tk.Label(system_frame, text="端口：").grid(row=2, column=0, sticky="e")
+port_entry = tk.Entry(system_frame)
+port_entry.grid(row=2, column=1, sticky="w")
+port_entry.insert(0, str(config.get("port", "")))
+
+test_var = tk.IntVar(value=config.get("test", 0))
+test_check = tk.Checkbutton(system_frame, text="test 模式", variable=test_var)
+test_check.grid(row=3, column=0, columnspan=2)
+
+
+# 添加设置开机自启动按钮上面的提示
+auto_start_label = tk.Label(
+    system_frame,
+    text="管理员才能设置开机自启",
+)
+auto_start_label.grid(row=0, column=2)
+auto_start_label1 = tk.Label(
+    system_frame,
+    text="点击“获取权限”或“手动获取”",
+)
+auto_start_label1.grid(row=1, column=2, padx=25)
+
+# 添加设置开机自启动按钮
+auto_start_button = tk.Button(system_frame, text="", command=set_auto_start)
+auto_start_button.grid(row=2, column=2)
+
+if is_admin():
+    check_task()
+    root.title("小爱控制V1.1.0(管理员)")
+else:
+    auto_start_button.config(text="获取权限", command=get_administrator_privileges)
+
+# 主题配置部分
+theme_frame = tk.LabelFrame(root, text="主题配置")
+theme_frame.pack(padx=10, pady=5, fill="x")
+
+# 内置主题
+builtin_themes = [
+    {
+        "nickname": "计算机",
+        "key": "Computer",
+        "name_var": tk.StringVar(),
+        "checked": tk.IntVar(),
+    },
+    {
+        "nickname": "屏幕",
+        "key": "screen",
+        "name_var": tk.StringVar(),
+        "checked": tk.IntVar(),
+    },
+    {
+        "nickname": "音量",
+        "key": "volume",
+        "name_var": tk.StringVar(),
+        "checked": tk.IntVar(),
+    },
+    {
+        "nickname": "睡眠",
+        "key": "sleep",
+        "name_var": tk.StringVar(),
+        "checked": tk.IntVar(),
+    },
+]
+
+tk.Label(theme_frame, text="内置").grid(row=0, column=0, sticky="w", columnspan=2)
+tk.Label(theme_frame, text="主题").grid(row=0, column=2, sticky="w")
+tk.Label(theme_frame, text="自定义(服务需要管理员权限)").grid(
+    row=0, column=3, sticky="w"
+)
+
+for idx, theme in enumerate(builtin_themes):
+    theme_key = theme["key"]
+    theme["name_var"].set(config.get(theme_key, ""))
+    theme["checked"].set(config.get(f"{theme_key}_checked", 0))
+
+    tk.Checkbutton(theme_frame, text=theme["nickname"], variable=theme["checked"]).grid(
+        row=idx + 1, column=0, sticky="w", columnspan=2
+    )
+    tk.Entry(theme_frame, textvariable=theme["name_var"]).grid(
+        row=idx + 1, column=2, sticky="w"
+    )
+
+# 自定义主题列表
+custom_themes = []
+
+# 自定义主题列表组件
+custom_theme_list = tk.Listbox(theme_frame)
+custom_theme_list.grid(row=1, column=3, rowspan=4, pady=10)
+
+# 添加提示
+tk.Label(theme_frame, text="双击即可修改").grid(row=5, column=3, pady=15)
+# 添加和修改按钮
+tk.Button(theme_frame, text="添加", command=lambda: add_custom_theme(config)).grid(
+    row=5, column=3, sticky="w"
+)
+tk.Button(theme_frame, text="修改", command=lambda: modify_custom_theme()).grid(
+    row=5, column=3, sticky="e"
+)
+
+# 绑定鼠标双击事件到自定义主题列表
+custom_theme_list.bind("<Double-Button-1>", on_double_click)
 
 # 添加按钮到框架中
 tk.Button(text="打开配置文件夹", command=open_config_folder).pack(
