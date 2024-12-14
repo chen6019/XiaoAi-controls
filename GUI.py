@@ -385,7 +385,7 @@ root = tk.Tk()
 root.title("小爱控制V1.1.0")
 
 # 设置窗口最小值
-root.wm_minsize(600, 650)  # 将宽度设置为600，高度设置为600
+# root.wm_minsize(600, 650)  # 将宽度设置为600，高度设置为600
 
 # 设置根窗口的行列权重
 root.rowconfigure(0, weight=1)
