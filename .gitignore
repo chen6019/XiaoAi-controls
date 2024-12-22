@@ -584,3 +584,4 @@ dist/XiaoAi-controls.exe
 GUI.spec
 main.spec
 XiaoAi-controls.spec
+/dist
