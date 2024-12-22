@@ -408,7 +408,7 @@ with open(icon_path, "rb") as f:
 
 
 # 初始化系统托盘图标和菜单
-icon = pystray.Icon("Ai-controls", title="小爱控制 V1.1.0")
+icon = pystray.Icon("Ai-controls", title="小爱控制 V1.2.0")
 image = Image.open(io.BytesIO(image_data))
 menu = (
     pystray.MenuItem("打开配置", open_gui),
