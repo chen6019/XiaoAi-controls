@@ -388,9 +388,6 @@ if os.path.exists(config_file_path):
 root = tk.Tk()
 root.title("小爱控制V1.1.0")
 
-# 设置窗口最小值
-# root.wm_minsize(600, 650)  # 将宽度设置为600，高度设置为600
-
 # 设置根窗口的行列权重
 root.rowconfigure(0, weight=1)
 root.rowconfigure(1, weight=1)
@@ -540,6 +537,9 @@ ttk.Button(button_frame, text="打开配置文件夹", command=open_config_folde
 )
 ttk.Button(button_frame, text="保存配置文件", command=generate_config).grid(
     row=0, column=1, padx=20, sticky="w"
+)
+ttk.Button(button_frame, text="取消", command=lambda:root.destroy()).grid(
+    row=0, column=2, padx=20, sticky="w"
 )
 
 # 设置窗口在窗口大小变化时，框架自动扩展
