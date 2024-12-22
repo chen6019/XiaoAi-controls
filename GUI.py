@@ -5,6 +5,7 @@ pyinstaller -F -n GUI --noconsole --icon=icon.ico GUI.py
 import os
 import tkinter as tk
 from tkinter import messagebox, filedialog
+import tkinter.ttk as ttk
 import json
 import ctypes
 import sys
@@ -147,7 +148,8 @@ def load_custom_themes():
             status = "开" if theme["checked"] else "关"
             display_name = theme["nickname"] or theme["name"]
             item_text = f"[{status}] {display_name}"
-            custom_theme_list.insert(tk.END, item_text)
+            tree_iid = str(len(custom_themes) - 1)
+            custom_theme_tree.insert("", "end", iid=tree_iid, values=(item_text,))
             app_index += 1
         else:
             break
@@ -165,7 +167,8 @@ def load_custom_themes():
             status = "开" if theme["checked"] else "关"
             display_name = theme["nickname"] or theme["name"]
             item_text = f"[{status}] {display_name}"
-            custom_theme_list.insert(tk.END, item_text)
+            tree_iid = str(len(custom_themes) - 1)
+            custom_theme_tree.insert("", "end", iid=tree_iid, values=(item_text,))
             serve_index += 1
         else:
             break
@@ -173,44 +176,44 @@ def load_custom_themes():
 
 # 修改自定义主题的函数
 def modify_custom_theme():
-    selected = custom_theme_list.curselection()
+    selected = custom_theme_tree.selection()
     if not selected:
         messagebox.showwarning("警告", "请先选择一个自定义主题")
         return
 
-    index = selected[0]
+    index = int(selected[0])
     theme = custom_themes[index]
 
     theme_window = tk.Toplevel(root)
     theme_window.title("修改自定义主题")
     theme_window.resizable(False, False)  # 禁用窗口大小调整
 
-    tk.Label(theme_window, text="类型：").grid(row=0, column=0, sticky="e")
-    tk.Label(theme_window, text="服务类型需要").grid(row=0, column=1, sticky="e")
-    tk.Label(theme_window, text="管理员权限").grid(row=0, column=2, sticky="w")
+    ttk.Label(theme_window, text="类型：").grid(row=0, column=0, sticky="e")
+    ttk.Label(theme_window, text="服务类型需要").grid(row=0, column=1, sticky="e")
+    ttk.Label(theme_window, text="管理员权限").grid(row=0, column=2, sticky="w")
     theme_type_var = tk.StringVar(value=theme["type"])
-    tk.OptionMenu(theme_window, theme_type_var, "程序", "服务").grid(
+    ttk.OptionMenu(theme_window, theme_type_var, "程序", "服务").grid(
         row=0, column=1, sticky="w"
     )
 
-    tk.Label(theme_window, text="状态：").grid(row=1, column=0, sticky="e")
+    ttk.Label(theme_window, text="状态：").grid(row=1, column=0, sticky="e")
     theme_checked_var = tk.IntVar(value=theme["checked"])
-    tk.Checkbutton(theme_window, variable=theme_checked_var).grid(
+    ttk.Checkbutton(theme_window, variable=theme_checked_var).grid(
         row=1, column=1, sticky="w"
     )
 
-    tk.Label(theme_window, text="昵称：").grid(row=2, column=0, sticky="e")
-    theme_nickname_entry = tk.Entry(theme_window)
+    ttk.Label(theme_window, text="昵称：").grid(row=2, column=0, sticky="e")
+    theme_nickname_entry = ttk.Entry(theme_window)
     theme_nickname_entry.insert(0, theme["nickname"])
     theme_nickname_entry.grid(row=2, column=1, sticky="w")
 
-    tk.Label(theme_window, text="主题：").grid(row=3, column=0, sticky="e")
-    theme_name_entry = tk.Entry(theme_window)
+    ttk.Label(theme_window, text="主题：").grid(row=3, column=0, sticky="e")
+    theme_name_entry = ttk.Entry(theme_window)
     theme_name_entry.insert(0, theme["name"])
     theme_name_entry.grid(row=3, column=1, sticky="w")
 
-    tk.Label(theme_window, text="值：").grid(row=4, column=0, sticky="e")
-    theme_value_entry = tk.Entry(theme_window)
+    ttk.Label(theme_window, text="值：").grid(row=4, column=0, sticky="e")
+    theme_value_entry = ttk.Entry(theme_window)
     theme_value_entry.insert(0, theme["value"])
     theme_value_entry.grid(row=4, column=1, sticky="w")
 
@@ -219,7 +222,7 @@ def modify_custom_theme():
         theme_value_entry.delete(0, tk.END)
         theme_value_entry.insert(0, file_path)
 
-    tk.Button(theme_window, text="选择文件", command=select_file).grid(
+    ttk.Button(theme_window, text="选择文件", command=select_file).grid(
         row=4, column=2, sticky="w", padx=15
     )
 
@@ -232,8 +235,8 @@ def modify_custom_theme():
         status = "开" if theme["checked"] else "关"
         display_name = theme["nickname"] or theme["name"]
         item_text = f"[{status}] {display_name}"
-        custom_theme_list.delete(index)
-        custom_theme_list.insert(index, item_text)
+        custom_theme_tree.delete(str(index))
+        custom_theme_tree.insert("", "end", iid=str(index), values=(item_text,))
         theme_window.destroy()
 
     def delete_theme():
@@ -241,15 +244,16 @@ def modify_custom_theme():
             "确认删除", "确定要删除这个自定义主题吗？", parent=theme_window
         ):
             custom_themes.pop(index)
-            custom_theme_list.delete(index)
+            custom_theme_tree.delete(str(index))
             theme_window.destroy()
         else:
             theme_window.lift()
 
-    tk.Button(theme_window, text="保存", command=save_theme).grid(
+    ttk.Button(theme_window, text="保存", command=save_theme).grid(
         row=5, column=0, pady=15, padx=15
     )
-    tk.Button(theme_window, text="删除", command=delete_theme).grid(row=5, column=1)
+    ttk.Button(theme_window, text="删除", command=delete_theme).grid(row=5, column=1)
+    ttk.Button(theme_window, text="取消", command=lambda:theme_window.destroy()).grid(row=5, column=2)
 
     center_window(theme_window)
 
@@ -260,30 +264,30 @@ def add_custom_theme(config):
     theme_window.title("添加自定义主题")
     theme_window.resizable(False, False)  # 禁用窗口大小调整
 
-    tk.Label(theme_window, text="类型：").grid(row=0, column=0, sticky="e")
-    tk.Label(theme_window, text="服务类型需要").grid(row=0, column=1, sticky="e")
-    tk.Label(theme_window, text="管理员权限").grid(row=0, column=2, sticky="w")
+    ttk.Label(theme_window, text="类型：").grid(row=0, column=0, sticky="e")
+    ttk.Label(theme_window, text="服务类型需要").grid(row=0, column=1, sticky="e")
+    ttk.Label(theme_window, text="管理员权限").grid(row=0, column=2, sticky="w")
     theme_type_var = tk.StringVar(value="程序")
-    tk.OptionMenu(theme_window, theme_type_var, "程序", "服务").grid(
+    ttk.OptionMenu(theme_window, theme_type_var, "程序", "服务").grid(
         row=0, column=1, sticky="w"
     )
 
-    tk.Label(theme_window, text="状态：").grid(row=1, column=0, sticky="e")
+    ttk.Label(theme_window, text="状态：").grid(row=1, column=0, sticky="e")
     theme_checked_var = tk.IntVar()
-    tk.Checkbutton(theme_window, variable=theme_checked_var).grid(
+    ttk.Checkbutton(theme_window, variable=theme_checked_var).grid(
         row=1, column=1, sticky="w"
     )
 
-    tk.Label(theme_window, text="昵称：").grid(row=2, column=0, sticky="e")
-    theme_nickname_entry = tk.Entry(theme_window)
+    ttk.Label(theme_window, text="昵称：").grid(row=2, column=0, sticky="e")
+    theme_nickname_entry = ttk.Entry(theme_window)
     theme_nickname_entry.grid(row=2, column=1, sticky="w")
 
-    tk.Label(theme_window, text="主题：").grid(row=3, column=0, sticky="e")
-    theme_name_entry = tk.Entry(theme_window)
+    ttk.Label(theme_window, text="主题：").grid(row=3, column=0, sticky="e")
+    theme_name_entry = ttk.Entry(theme_window)
     theme_name_entry.grid(row=3, column=1, sticky="w")
 
-    tk.Label(theme_window, text="值：").grid(row=4, column=0, sticky="e")
-    theme_value_entry = tk.Entry(theme_window)
+    ttk.Label(theme_window, text="值：").grid(row=4, column=0, sticky="e")
+    theme_value_entry = ttk.Entry(theme_window)
     theme_value_entry.grid(row=4, column=1, sticky="w")
 
     def select_file():
@@ -291,7 +295,7 @@ def add_custom_theme(config):
         theme_value_entry.delete(0, tk.END)
         theme_value_entry.insert(0, file_path)
 
-    tk.Button(theme_window, text="选择文件", command=select_file).grid(
+    ttk.Button(theme_window, text="选择文件", command=select_file).grid(
         row=4, column=2, sticky="w", padx=15
     )
 
@@ -307,13 +311,13 @@ def add_custom_theme(config):
         status = "开" if theme["checked"] else "关"
         display_name = theme["nickname"] or theme["name"]
         item_text = f"[{status}] {display_name}"
-        custom_theme_list.insert(tk.END, item_text)
+        custom_theme_tree.insert("", "end", iid=str(len(custom_themes) - 1), values=(item_text,))
         theme_window.destroy()
 
-    tk.Button(theme_window, text="保存", command=save_theme).grid(
+    ttk.Button(theme_window, text="保存", command=save_theme).grid(
         row=5, column=0, pady=15, padx=15
     )
-    tk.Button(theme_window, text="取消", command=theme_window.destroy).grid(row=5, column=1)
+    ttk.Button(theme_window, text="取消", command=theme_window.destroy).grid(row=5, column=2)
 
     center_window(theme_window)
 
@@ -394,7 +398,7 @@ root.rowconfigure(2, weight=0)
 root.columnconfigure(0, weight=1)
 
 # 系统配置部分
-system_frame = tk.LabelFrame(root, text="系统配置")
+system_frame = ttk.LabelFrame(root, text="系统配置")
 system_frame.grid(row=0, column=0, padx=10, pady=5, sticky="nsew")
 
 # 使用 grid 布局，并设置权重
@@ -404,39 +408,39 @@ for i in range(4):
 for j in range(3):
     system_frame.columnconfigure(j, weight=1)
 
-tk.Label(system_frame, text="网站：").grid(row=0, column=0, sticky="e")
-website_entry = tk.Entry(system_frame)
+ttk.Label(system_frame, text="网站：").grid(row=0, column=0, sticky="e")
+website_entry = ttk.Entry(system_frame)
 website_entry.grid(row=0, column=1, sticky="ew")
 website_entry.insert(0, config.get("broker", ""))
 
-tk.Label(system_frame, text="密钥：").grid(row=1, column=0, pady=10,sticky="e")
-secret_entry = tk.Entry(system_frame)
+ttk.Label(system_frame, text="密钥：").grid(row=1, column=0, pady=10,sticky="e")
+secret_entry = ttk.Entry(system_frame,show="*")
 secret_entry.grid(row=1, column=1, sticky="ew")
 secret_entry.insert(0, config.get("secret_id", ""))
 
-tk.Label(system_frame, text="端口：").grid(row=2, column=0, sticky="e")
-port_entry = tk.Entry(system_frame)
+ttk.Label(system_frame, text="端口：").grid(row=2, column=0, sticky="e")
+port_entry = ttk.Entry(system_frame)
 port_entry.grid(row=2, column=1, sticky="ew")
 port_entry.insert(0, str(config.get("port", "")))
 
 test_var = tk.IntVar(value=config.get("test", 0))
-test_check = tk.Checkbutton(system_frame, text="test", variable=test_var)
+test_check = ttk.Checkbutton(system_frame, text="test", variable=test_var)
 test_check.grid(row=3, column=0, columnspan=2, sticky="w")
 
 # 添加设置开机自启动按钮上面的提示
-auto_start_label = tk.Label(
+auto_start_label = ttk.Label(
     system_frame,
     text="需要管理员权限才能设置",
 )
 auto_start_label.grid(row=0, column=2, sticky="n")
-auto_start_label1 = tk.Label(
+auto_start_label1 = ttk.Label(
     system_frame,
     text="开机自启和服务类型主题",
 )
 auto_start_label1.grid(row=1, column=2, sticky="n")
 
 # 添加设置开机自启动按钮
-auto_start_button = tk.Button(system_frame, text="", command=set_auto_start)
+auto_start_button = ttk.Button(system_frame, text="", command=set_auto_start)
 auto_start_button.grid(row=2, column=2,  sticky="n")
 
 # 程序标题栏
@@ -449,7 +453,7 @@ else:
     test_check.grid_remove()
 
 # 主题配置部分
-theme_frame = tk.LabelFrame(root, text="主题配置")
+theme_frame = ttk.LabelFrame(root, text="主题配置")
 theme_frame.grid(row=1, column=0, padx=10, pady=5, sticky="nsew")
 
 # 使用 grid 布局，并设置权重
@@ -487,9 +491,9 @@ builtin_themes = [
     },
 ]
 
-tk.Label(theme_frame, text="内置").grid(row=0, column=0, sticky="w", columnspan=2)
-tk.Label(theme_frame, text="主题").grid(row=0, column=2, sticky="w")
-tk.Label(theme_frame, text="自定义(服务需要管理员权限)").grid(
+ttk.Label(theme_frame, text="内置").grid(row=0, column=0, sticky="w", columnspan=2)
+ttk.Label(theme_frame, text="主题").grid(row=0, column=2, sticky="w")
+ttk.Label(theme_frame, text="自定义(服务需管理员)").grid(
     row=0, column=3, sticky="w"
 )
 
@@ -498,10 +502,10 @@ for idx, theme in enumerate(builtin_themes):
     theme["name_var"].set(config.get(theme_key, ""))
     theme["checked"].set(config.get(f"{theme_key}_checked", 0))
 
-    tk.Checkbutton(theme_frame, text=theme["nickname"], variable=theme["checked"]).grid(
+    ttk.Checkbutton(theme_frame, text=theme["nickname"], variable=theme["checked"]).grid(
         row=idx + 1, column=0, sticky="w", columnspan=2
     )
-    tk.Entry(theme_frame, textvariable=theme["name_var"]).grid(
+    ttk.Entry(theme_frame, textvariable=theme["name_var"]).grid(
         row=idx + 1, column=2, sticky="ew"
     )
 
@@ -509,21 +513,22 @@ for idx, theme in enumerate(builtin_themes):
 custom_themes = []
 
 # 自定义主题列表组件
-custom_theme_list = tk.Listbox(theme_frame)
-custom_theme_list.grid(row=1, column=3, rowspan=4, pady=10, sticky="nsew")
+custom_theme_tree = ttk.Treeview(theme_frame, columns=("theme",), show="headings")
+custom_theme_tree.heading("theme", text="主题列表")
+custom_theme_tree.grid(row=1, column=3, rowspan=4, pady=10, sticky="nsew")
 
 # 添加提示
-tk.Label(theme_frame, text="双击即可修改").grid(row=5, column=3, pady=15, sticky="n")
+ttk.Label(theme_frame, text="双击即可修改").grid(row=6, column=3, pady=15, sticky="n")
 # 添加和修改按钮
-tk.Button(theme_frame, text="添加", command=lambda: add_custom_theme(config)).grid(
+ttk.Button(theme_frame, text="添加", command=lambda: add_custom_theme(config)).grid(
     row=5, column=3, sticky="w"
 )
-tk.Button(theme_frame, text="修改", command=lambda: modify_custom_theme()).grid(
+ttk.Button(theme_frame, text="修改", command=lambda: modify_custom_theme()).grid(
     row=5, column=3, sticky="e"
 )
 
 # 绑定鼠标双击事件到自定义主题列表
-custom_theme_list.bind("<Double-Button-1>", on_double_click)
+custom_theme_tree.bind("<Double-Button-1>", on_double_click)
 
 # 添加按钮到框架中
 button_frame = tk.Frame(root)
@@ -532,10 +537,10 @@ button_frame.grid_rowconfigure(0, weight=1)
 button_frame.grid_columnconfigure(0, weight=1)
 button_frame.grid_columnconfigure(1, weight=1)
 
-tk.Button(button_frame, text="打开配置文件夹", command=open_config_folder).grid(
+ttk.Button(button_frame, text="打开配置文件夹", command=open_config_folder).grid(
     row=0, column=0, padx=20, sticky="e"
 )
-tk.Button(button_frame, text="保存配置文件", command=generate_config).grid(
+ttk.Button(button_frame, text="保存配置文件", command=generate_config).grid(
     row=0, column=1, padx=20, sticky="w"
 )
 
