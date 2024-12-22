@@ -514,11 +514,9 @@ custom_themes = []
 
 # 自定义主题列表组件
 custom_theme_tree = ttk.Treeview(theme_frame, columns=("theme",), show="headings")
-custom_theme_tree.heading("theme", text="主题列表")
+custom_theme_tree.heading("theme", text="双击即可修改")
 custom_theme_tree.grid(row=1, column=3, rowspan=4, pady=10, sticky="nsew")
 
-# 添加提示
-ttk.Label(theme_frame, text="双击即可修改").grid(row=6, column=3, pady=15, sticky="n")
 # 添加和修改按钮
 ttk.Button(theme_frame, text="添加", command=lambda: add_custom_theme(config)).grid(
     row=5, column=3, sticky="w"
