@@ -386,7 +386,7 @@ if os.path.exists(config_file_path):
 
 # 创建主窗口
 root = tk.Tk()
-root.title("小爱控制V1.1.0")
+root.title("小爱控制V1.2.0")
 
 # 设置根窗口的行列权重
 root.rowconfigure(0, weight=1)
@@ -443,7 +443,7 @@ auto_start_button.grid(row=2, column=2,  sticky="n")
 # 程序标题栏
 if is_admin():
     check_task()
-    root.title("小爱控制V1.1.0(管理员)")
+    root.title("小爱控制V1.2.0(管理员)")
 else:
     auto_start_button.config(text="获取权限", command=get_administrator_privileges)
     # 隐藏test
