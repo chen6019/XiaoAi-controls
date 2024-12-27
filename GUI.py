@@ -189,12 +189,20 @@ def modify_custom_theme():
     theme_window.resizable(False, False)  # 禁用窗口大小调整
 
     ttk.Label(theme_window, text="类型：").grid(row=0, column=0, sticky="e")
-    ttk.Label(theme_window, text="服务类型需要").grid(row=0, column=1, sticky="e")
-    ttk.Label(theme_window, text="管理员权限").grid(row=0, column=2, sticky="w")
     theme_type_var = tk.StringVar(value=theme["type"])
-    ttk.OptionMenu(theme_window, theme_type_var, "程序", "服务").grid(
-        row=0, column=1, sticky="w"
+    # 创建 Combobox
+    theme_type_combobox = ttk.Combobox(
+        theme_window, 
+        textvariable=theme_type_var, 
+        values=["程序", "服务"],
+        state="readonly"
     )
+    theme_type_combobox.grid(row=0, column=1, sticky="w")
+    type_index = ["程序", "服务"].index(theme["type"])
+    theme_type_combobox.current(type_index)
+
+    ttk.Label(theme_window, text="服务类型需要").grid(row=0, column=2, sticky="w")
+    ttk.Label(theme_window, text="管理员权限").grid(row=1, column=2, sticky="w")
 
     ttk.Label(theme_window, text="状态：").grid(row=1, column=0, sticky="e")
     theme_checked_var = tk.IntVar(value=theme["checked"])
@@ -265,12 +273,18 @@ def add_custom_theme(config):
     theme_window.resizable(False, False)  # 禁用窗口大小调整
 
     ttk.Label(theme_window, text="类型：").grid(row=0, column=0, sticky="e")
-    ttk.Label(theme_window, text="服务类型需要").grid(row=0, column=1, sticky="e")
-    ttk.Label(theme_window, text="管理员权限").grid(row=0, column=2, sticky="w")
     theme_type_var = tk.StringVar(value="程序")
-    ttk.OptionMenu(theme_window, theme_type_var, "程序", "服务").grid(
-        row=0, column=1, sticky="w"
+    theme_type_combobox = ttk.Combobox(
+        theme_window, 
+        textvariable=theme_type_var, 
+        values=["程序", "服务"],
+        state="readonly"
     )
+    theme_type_combobox.grid(row=0, column=1, sticky="w")
+
+
+    ttk.Label(theme_window, text="服务类型需要").grid(row=0, column=2, sticky="w")
+    ttk.Label(theme_window, text="管理员权限").grid(row=1, column=2, sticky="w")
 
     ttk.Label(theme_window, text="状态：").grid(row=1, column=0, sticky="e")
     theme_checked_var = tk.IntVar()
@@ -348,7 +362,7 @@ def generate_config():
             config[f"{prefix}_checked"] = theme["checked"]
             config[f"{prefix}_directory{app_index}"] = theme["value"]
             app_index += 1
-        else:
+        elif theme["type"] == "服务":
             prefix = f"serve{serve_index}"
             config[prefix] = theme["name"]
             config[f"{prefix}_name"] = theme["nickname"]
