@@ -56,7 +56,11 @@ if ctypes.windll.kernel32.GetLastError() == 183:
 """
 
 
-def execute_command(cmd, timeout=30):
+def execute_command(cmd: str, timeout: int = 30) -> int:
+    """
+    English: Executes a system command with an optional timeout, terminating the command if it exceeds the timeout
+    中文: 使用可选超时时间执行系统命令，如果超时则终止命令
+    """
     process = subprocess.Popen(cmd, shell=True)
     process.poll()
     if timeout:
@@ -81,7 +85,11 @@ MQTT订阅成功时的回调函数。
 """
 
 
-def on_subscribe(client, userdata, mid, reason_code_list, properties):
+def on_subscribe(client, userdata: list, mid: int, reason_code_list: list, properties) -> None:
+    """
+    English: Callback when MQTT subscription completes
+    中文: MQTT成功订阅后回调函数
+    """
     for sub_result in reason_code_list:
         if isinstance(sub_result, int) and sub_result >= 128:
             logging.error(f"订阅失败:{reason_code_list}")
@@ -101,7 +109,11 @@ MQTT取消订阅时的回调函数。
 """
 
 
-def on_unsubscribe(client, userdata, mid, reason_code_list, properties):
+def on_unsubscribe(client, userdata: list, mid: int, reason_code_list: list, properties) -> None:
+    """
+    English: Callback when MQTT unsubscription completes
+    中文: MQTT取消订阅后回调函数
+    """
     if len(reason_code_list) == 0 or not reason_code_list[0].is_failure:
         logging.info("退订成功")
     else:
@@ -117,7 +129,11 @@ def on_unsubscribe(client, userdata, mid, reason_code_list, properties):
 """
 
 
-def set_brightness(value):
+def set_brightness(value: int) -> None:
+    """
+    English: Sets the screen brightness to the specified value (0-100)
+    中文: 设置屏幕亮度，取值范围为 0-100
+    """
     try:
         wmi.WMI(namespace="wmi").WmiMonitorBrightnessMethods()[0].WmiSetBrightness(
             value, 0
@@ -134,7 +150,11 @@ def set_brightness(value):
 """
 
 
-def set_volume(value):
+def set_volume(value: int) -> None:
+    """
+    English: Sets the system volume to the specified value (0-100)
+    中文: 设置系统音量，取值范围为 0-100
+    """
     devices = AudioUtilities.GetSpeakers()
     interface = devices.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
     volume = cast(interface, POINTER(IAudioEndpointVolume))
@@ -143,7 +163,11 @@ def set_volume(value):
     volume.SetMasterVolumeLevelScalar(value / 100, None)
 
 
-def notify_in_thread(message):
+def notify_in_thread(message: str) -> None:
+    """
+    English: Displays a Windows toast notification in a separate thread
+    中文: 在单独线程中显示 Windows toast 通知
+    """
     def notify_message():
         notify(message)
 
@@ -161,7 +185,11 @@ def notify_in_thread(message):
 """
 
 
-def process_command(command, topic):
+def process_command(command: str, topic: str) -> None:
+    """
+    English: Handles the command received from MQTT messages based on the given topic
+    中文: 根据主题处理从 MQTT 消息接收到的命令
+    """
     logging.info(f"处理命令: {command} 主题: {topic}")
 
     # 先判断应用程序或服务类型主题
@@ -274,7 +302,11 @@ MQTT接收到消息时的回调函数。
 """
 
 
-def on_message(client, userdata, message):
+def on_message(client, userdata: list, message) -> None:
+    """
+    English: Callback when an MQTT message is received
+    中文: MQTT接收到消息时的回调函数
+    """
     userdata.append(message.payload)
     command = message.payload.decode()
     logging.info(f"'{message.topic}' 主题收到 '{command}'")
@@ -293,7 +325,11 @@ MQTT连接时的回调函数。
 """
 
 
-def on_connect(client, userdata, flags, reason_code, properties):
+def on_connect(client, userdata: list, flags: dict, reason_code, properties) -> None:
+    """
+    English: Callback when MQTT client connects or fails to connect
+    中文: MQTT客户端连接成功或失败时的回调函数
+    """
     if reason_code.is_failure:
         notify_in_thread(
             f"连接MQTT失败: {reason_code}. 重新连接中..."
@@ -319,7 +355,11 @@ def on_connect(client, userdata, flags, reason_code, properties):
 """
 
 
-def open_gui():
+def open_gui() -> None:
+    """
+    English: Attempts to open GUI.py or GUI.exe, else shows an error message
+    中文: 尝试运行 GUI.py 或 GUI.exe，如果找不到则弹出错误提示
+    """
     if os.path.isfile("GUI.py"):
         subprocess.Popen([".venv\\Scripts\\python.exe", "GUI.py"])
         notify_in_thread("正在打开配置窗口...")
@@ -347,7 +387,11 @@ def open_gui():
 """
 
 
-def exit_program():
+def exit_program() -> None:
+    """
+    English: Stops the MQTT loop, closes the tray icon, and exits the program
+    中文: 停止 MQTT 循环，关闭托盘图标，并退出程序
+    """
     try:
         mqttc.loop_stop()
         icon.stop()
@@ -369,7 +413,11 @@ def exit_program():
 """
 
 
-def truncate_large_file(file_path, max_size=1024 * 1024 * 50):
+def truncate_large_file(file_path: str, max_size: int = 1024 * 1024 * 50) -> None:
+    """
+    English: Clears file content if it's larger than the specified max_size
+    中文: 如果文件大小超过限制则清空文件内容
+    """
     if os.path.getsize(file_path) > max_size:
         with open(file_path, "w"):
             pass
@@ -384,7 +432,11 @@ def truncate_large_file(file_path, max_size=1024 * 1024 * 50):
 """
 
 
-def is_admin():
+def is_admin() -> bool:
+    """
+    English: Checks whether the current process is running with administrator privileges
+    中文: 检查当前进程是否以管理员权限运行
+    """
     try:
         return ctypes.windll.shell32.IsUserAnAdmin()
     except Exception:
@@ -399,7 +451,11 @@ def is_admin():
 """
 
 
-def admin():
+def admin() -> None:
+    """
+    English: Opens a messagebox to show whether the current process has admin privileges
+    中文: 弹出信息框展示当前进程是否拥有管理员权限
+    """
     def show_message():
         if is_admin():
             messagebox.showinfo("信息", "已经拥有管理员权限")
@@ -511,6 +567,10 @@ port = int(config.get("port"))
 
 # 动态加载主题
 def load_theme(key):
+    """
+    English: Loads the theme from config if it is enabled
+    中文: 如果主题被勾选启用，则从配置中加载该主题
+    """
     return config.get(key) if config.get(f"{key}_checked") == 1 else None
 
 
