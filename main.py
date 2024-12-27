@@ -169,7 +169,7 @@ def process_command(command, topic):
         if topic == application:
             if command == "off":
                 process_name = os.path.basename(directory)
-                logging.info(f"Trying to kill process: {process_name}")
+                logging.info(f"尝试终止进程: {process_name}")
                 result = subprocess.run(
                     ["taskkill", "/F", "/IM", process_name],
                     capture_output=True,
@@ -180,21 +180,43 @@ def process_command(command, topic):
             elif command == "on":
                 subprocess.Popen(directory)
             return
-
+    
+    def check_service_status(service_name):
+        result = subprocess.run(["sc", "query", service_name], capture_output=True, text=True)
+        if "RUNNING" in result.stdout:
+            return "running"
+        elif "STOPPED" in result.stdout:
+            return "stopped"
+        else:
+            logging.error(f"无法获取服务{serve_name}的状态:{result.stderr}")
+            return "unknown"
+    
     for serve, serve_name in serves:
         if topic == serve:
             if command == "off":
-                result = subprocess.run(["sc", "stop", serve_name], shell=True)
-                if result.returncode == 0:
-                    notify_in_thread(f"成功关闭 {serve_name}")
+                status = check_service_status(serve_name)
+                if status == "unknown":
+                    notify_in_thread(f"无法获取 {serve_name} 的状态,详情请查看日志")
+                if status == "stopped":
+                    notify_in_thread(f"{serve_name} 还没有运行")
                 else:
-                    notify_in_thread(f"关闭 {serve_name} 失败")
+                    result = subprocess.run(["sc", "stop", serve_name], shell=True)
+                    if result.returncode == 0:
+                        notify_in_thread(f"成功关闭 {serve_name}")
+                    else:
+                        notify_in_thread(f"关闭 {serve_name} 失败")
             elif command == "on":
-                result = subprocess.run(["sc", "start", serve_name], shell=True)
-                if result.returncode == 0:
-                    notify_in_thread(f"成功启动 {serve_name}")
+                status = check_service_status(serve_name)
+                if status == "unknown":
+                    notify_in_thread(f"无法获取 {serve_name} 的状态,详情请查看日志")
+                if status == "running":
+                    notify_in_thread(f"{serve_name} 已经在运行")
                 else:
-                    notify_in_thread(f"启动 {serve_name} 失败")
+                    result = subprocess.run(["sc", "start", serve_name], shell=True)
+                    if result.returncode == 0:
+                        notify_in_thread(f"成功启动 {serve_name}")
+                    else:
+                        notify_in_thread(f"启动 {serve_name} 失败")
             return
 
     # 若不匹配应用程序或服务，再判断是否为内置主题
