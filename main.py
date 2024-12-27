@@ -163,7 +163,41 @@ def notify_in_thread(message):
 
 def process_command(command, topic):
     logging.info(f"处理命令: {command} 主题: {topic}")
-    # 根据主题和命令执行不同的操作
+
+    # 先判断应用程序或服务类型主题
+    for application, directory in applications:
+        if topic == application:
+            if command == "off":
+                process_name = os.path.basename(directory)
+                logging.info(f"Trying to kill process: {process_name}")
+                result = subprocess.run(
+                    ["taskkill", "/F", "/IM", process_name],
+                    capture_output=True,
+                    text=True,
+                )
+                logging.info(result.stdout)
+                logging.error(result.stderr)
+            elif command == "on":
+                subprocess.Popen(directory)
+            return
+
+    for serve, serve_name in serves:
+        if topic == serve:
+            if command == "off":
+                result = subprocess.run(["sc", "stop", serve_name], shell=True)
+                if result.returncode == 0:
+                    notify_in_thread(f"成功关闭 {serve_name}")
+                else:
+                    notify_in_thread(f"关闭 {serve_name} 失败")
+            elif command == "on":
+                result = subprocess.run(["sc", "start", serve_name], shell=True)
+                if result.returncode == 0:
+                    notify_in_thread(f"成功启动 {serve_name}")
+                else:
+                    notify_in_thread(f"启动 {serve_name} 失败")
+            return
+
+    # 若不匹配应用程序或服务，再判断是否为内置主题
     if topic == Computer:
         # 电脑开关机控制
         if command == "on":
@@ -203,36 +237,9 @@ def process_command(command, topic):
         elif command == "on":
             execute_command("rundll32.exe powrprof.dll,SetSuspendState 0,1,0")
     else:
-        for application, directory in applications:
-            if topic == application:
-                if command == "off":
-                    process_name = os.path.basename(directory)
-                    print(f"Trying to kill process: {process_name}")
-                    result = subprocess.run(
-                        ["taskkill", "/F", "/IM", process_name],
-                        capture_output=True,
-                        text=True,
-                    )
-                    print(result.stdout)
-                    print(result.stderr)
-                elif command == "on":
-                    subprocess.Popen(directory)
-                return
-        for serve, serve_name in serves:
-            if topic == serve:
-                if command == "off":
-                    result = subprocess.run(["sc", "stop", serve_name], shell=True)
-                    if result.returncode == 0:
-                        notify_in_thread(f"成功关闭 {serve_name}")
-                    else:
-                        notify_in_thread(f"关闭 {serve_name} 失败")
-                elif command == "on":
-                    result = subprocess.run(["sc", "start", serve_name], shell=True)
-                    if result.returncode == 0:
-                        notify_in_thread(f"成功启动 {serve_name}")
-                    else:
-                        notify_in_thread(f"启动 {serve_name} 失败")
-                return
+        # 未知主题
+        notify_in_thread(f"未知主题: {topic}")
+        logging.error(f"未知主题: {topic}")
 
 
 """
@@ -454,14 +461,6 @@ else:
 if config["test"] == 1:
     logging.info("开启测试模式:可以不启用任何主题")
 else:
-    # logging.info("开始检查主题配置")
-    # for key in ["Computer", "screen", "volume", "sleep"]:
-    #     logging.info(f"{key}_checked: {config.get(f'{key}_checked', 0)}")
-    
-    # for index in range(1, 100):
-    #     logging.info(f"application{index}_checked: {config.get(f'application{index}_checked', 0)}")
-    #     logging.info(f"serve{index}_checked: {config.get(f'serve{index}_checked', 0)}")
-    # logging.info("检查主题配置结束")
     if (
         all(
             config.get(f"{key}_checked", 0) == 0
@@ -498,23 +497,29 @@ screen = load_theme("screen")
 volume = load_theme("volume")
 sleep = load_theme("sleep")
 
+# 加载应用程序主题到应用程序列表
 applications = []
-for i in range(1, 100):
+for i in range(1, 50):
     app_key = f"application{i}"
     directory_key = f"application{i}_directory{i}"
     application = load_theme(app_key)
     directory = config.get(directory_key) if application else None
     if application:
+        logging.info(f"加载应用程序: {app_key}, 目录: {directory}")
         applications.append((application, directory))
+logging.info(f"读取的应用程序列表: {applications}\n")
 
+# 加载服务主题到服务列表
 serves = []
-for i in range(1, 100):
+for i in range(1, 50):
     serve_key = f"serve{i}"
     serve_name_key = f"serve{i}_value"
     serve = load_theme(serve_key)
     serve_name = config.get(serve_name_key) if serve else None
     if serve:
+        logging.info(f"加载服务: {serve_key}, 名称: {serve_name}")
         serves.append((serve, serve_name))
+logging.info(f"读取的服务列表: {serves}\n")
 
 # 如果主题不为空，将其记录到日志中
 for key in ["Computer", "screen", "volume", "sleep"]:
