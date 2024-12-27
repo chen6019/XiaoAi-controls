@@ -22,7 +22,11 @@ if ctypes.windll.kernel32.GetLastError() == 183:
 
 
 # 判断是否拥有管理员权限
-def is_admin():
+def is_admin() -> bool:
+    """
+    English: Checks if the user has administrator privileges
+    中文: 检查用户是否拥有管理员权限
+    """
     try:
         return ctypes.windll.shell32.IsUserAnAdmin()
     except Exception:
@@ -30,7 +34,11 @@ def is_admin():
 
 
 # 获取管理员权限
-def get_administrator_privileges():
+def get_administrator_privileges() -> None:
+    """
+    English: Re-runs the program with administrator privileges
+    中文: 以管理员权限重新运行当前程序
+    """
     messagebox.showinfo("提示！", "将以管理员权限重新运行！！")
     ctypes.windll.shell32.ShellExecuteW(
         None, "runas", sys.executable, f'"{__file__}"', None, 0
@@ -39,7 +47,11 @@ def get_administrator_privileges():
 
 
 # 设置窗口居中
-def center_window(window):
+def center_window(window) -> None:
+    """
+    English: Centers the given window on the screen
+    中文: 将指定窗口在屏幕上居中显示
+    """
     window.update_idletasks()
     width = window.winfo_width()
     height = window.winfo_height()
@@ -49,7 +61,11 @@ def center_window(window):
 
 
 # 检查任务计划是否存在
-def check_task_exists(task_name):
+def check_task_exists(task_name: str) -> bool:
+    """
+    English: Checks if a scheduled task with the given name exists
+    中文: 根据任务名称判断是否存在相应的计划任务
+    """
     scheduler = win32com.client.Dispatch("Schedule.Service")
     scheduler.Connect()
     root_folder = scheduler.GetFolder("\\")
@@ -60,7 +76,11 @@ def check_task_exists(task_name):
 
 
 # 设置开机自启动
-def set_auto_start():
+def set_auto_start() -> None:
+    """
+    English: Creates a scheduled task to auto-start the program upon logon
+    中文: 设置开机自启动，将程序在登录时自动运行
+    """
     exe_path = os.path.join(
         os.path.dirname(os.path.abspath(sys.argv[0])), "XiaoAi-controls.exe"
     )
@@ -102,7 +122,11 @@ def set_auto_start():
 
 
 # 移除开机自启动
-def remove_auto_start():
+def remove_auto_start() -> None:
+    """
+    English: Removes the scheduled task for auto-start
+    中文: 移除开机自启动的计划任务
+    """
     if messagebox.askyesno("确定？", "你确定要删除开机自启动任务吗？"):
         delete_result = subprocess.call(
             'schtasks /Delete /TN "小爱控制" /F', shell=True
@@ -116,7 +140,11 @@ def remove_auto_start():
 
 
 # 检查是否有计划任务并更新按钮状态
-def check_task():
+def check_task() -> None:
+    """
+    English: Updates the button text based on whether the auto-start task exists
+    中文: 检查是否存在开机自启任务，并更新按钮文字
+    """
     if check_task_exists("小爱控制"):
         auto_start_button.config(text="关闭开机自启", command=remove_auto_start)
     else:
@@ -125,12 +153,20 @@ def check_task():
 
 
 # 鼠标双击事件处理程序
-def on_double_click(event):
+def on_double_click(event) -> None:
+    """
+    English: Event handler for double-click on a custom theme tree item
+    中文: 自定义主题列表项双击事件处理回调
+    """
     modify_custom_theme()
 
 
 # 如果配置中有自定义主题，加载它们
-def load_custom_themes():
+def load_custom_themes() -> None:
+    """
+    English: Loads user-defined themes from config and displays them in the tree
+    中文: 从配置文件中读取自定义主题并展示到树状列表中
+    """
     app_index = 1
     serve_index = 1
     while True:
@@ -174,7 +210,11 @@ def load_custom_themes():
 
 
 # 修改自定义主题的函数
-def modify_custom_theme():
+def modify_custom_theme() -> None:
+    """
+    English: Opens a new window to modify selected custom theme
+    中文: 打开新窗口修改已选定的自定义主题
+    """
     selected = custom_theme_tree.selection()
     if not selected:
         messagebox.showwarning("警告", "请先选择一个自定义主题")
@@ -266,7 +306,11 @@ def modify_custom_theme():
 
 
 # 添加自定义主题的函数中，也要更新显示
-def add_custom_theme(config):
+def add_custom_theme(config: dict) -> None:
+    """
+    English: Opens a new window to add a new custom theme and updates display
+    中文: 打开新窗口添加新的自定义主题，并更新显示
+    """
     theme_window = tk.Toplevel(root)
     theme_window.title("添加自定义主题")
     theme_window.resizable(False, False)  # 禁用窗口大小调整
@@ -335,7 +379,11 @@ def add_custom_theme(config):
     center_window(theme_window)
 
 
-def generate_config():
+def generate_config() -> None:
+    """
+    English: Generates and saves the config file (JSON) based on the input
+    中文: 根据输入生成并保存配置文件(JSON格式)
+    """
     config = {
         "broker": website_entry.get(),
         "secret_id": secret_entry.get(),
@@ -377,7 +425,11 @@ def generate_config():
 
 
 # 打开配置文件夹的函数
-def open_config_folder():
+def open_config_folder() -> None:
+    """
+    English: Opens the folder containing configuration files
+    中文: 打开配置文件夹
+    """
     os.startfile(appdata_dir)
 
 
