@@ -1,7 +1,6 @@
 """打包命令
 pyinstaller -F -n GUI --noconsole --icon=icon.ico GUI.py
 """
-
 import os
 import tkinter as tk
 from tkinter import messagebox, filedialog
