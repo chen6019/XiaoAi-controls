@@ -204,7 +204,7 @@ def process_command(command: str, topic: str) -> None:
                     text=True,
                 )
                 logging.info(result.stdout)
-                logging.error(result.stderr)
+                # logging.error(result.stderr)
             elif command == "on":
                 if not directory or not os.path.isfile(directory):
                     notify_in_thread(f"启动失败，文件不存在: {directory}")
@@ -540,7 +540,7 @@ else:
         config = json.load(f)
 
 if config["test"] == 1:
-    logging.info("开启测试模式:可以不启用任何主题")
+    logging.warning("开启测试模式:可以不启用任何主题")
 else:
     if (
         all(
@@ -555,13 +555,13 @@ else:
             config.get(f"serve{index}_checked", 0) == 0 for index in range(1, 100)
         )
     ):
-        logging.info("没有启用任何主题，显示错误信息")
+        logging.error("没有启用任何主题，显示错误信息")
         messagebox.showerror("Error", "主题不能一个都没有吧！\n（除了测试模式）")
         icon.stop()
         open_gui()
         sys.exit(0)
     else:
-        logging.info("至少有一个主题被启用")
+        logging.info("至少已有一个主题被启用")
 
 broker = config.get("broker")
 secret_id = config.get("secret_id")
@@ -646,7 +646,7 @@ try:
     mqttc.loop_forever()
 except KeyboardInterrupt:
     notify_in_thread("收到中断信号\n程序停止")
-    logging.info("收到中断,程序停止")
+    logging.warning("收到中断,程序停止")
     exit_program()
 logging.info(f"总共收到以下消息: {mqttc.user_data_get()}")
 
