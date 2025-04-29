@@ -160,7 +160,7 @@ def set_volume(value: int) -> None:
     volume = cast(interface, POINTER(IAudioEndpointVolume))
 
     # 控制音量在 0.0 - 1.0 之间
-    volume.SetMasterVolumeLevelScalar(value / 100, None)
+    volume.SetMasterVolumeLevelScalar(value / 100, None)  # type: ignore
 
 
 def notify_in_thread(message: str) -> None:
@@ -325,18 +325,20 @@ MQTT连接时的回调函数。
 """
 
 
-def on_connect(client, userdata: list, flags: dict, reason_code, properties) -> None:
-    """
-    English: Callback when MQTT client connects or fails to connect
-    中文: MQTT客户端连接成功或失败时的回调函数
-    """
-    if reason_code.is_failure:
+def on_connect(client, userdata: list, flags: dict, reason_code, properties=None) -> None:
+    # 兼容 int 和 ReasonCode 类型
+    try:
+        is_fail = reason_code.is_failure
+    except AttributeError:
+        is_fail = reason_code != 0
+
+    if is_fail:
         notify_in_thread(
             f"连接MQTT失败: {reason_code}. 重新连接中..."
-        )  # 连接失败时的提示
+        )
         logging.error(f"连接失败: {reason_code}. loop_forever() 将重试连接")
     else:
-        notify_in_thread(f"MQTT成功连接至{broker}")  # 连接成功时的提示
+        notify_in_thread(f"MQTT成功连接至{broker}")
         logging.info(f"连接到 {broker}")
         for key, value in config.items():
             if key.endswith("_checked") and value == 1:
@@ -469,11 +471,8 @@ def admin() -> None:
 # 获取资源文件的路径
 def resource_path(relative_path):
     """获取资源文件的绝对路径"""
-    try:
-        # PyInstaller 创建临时文件夹
-        base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.abspath(".")
+    # PyInstaller 创建临时文件夹
+    base_path = getattr(sys, "_MEIPASS", os.path.abspath("."))
     return os.path.join(base_path, relative_path)
 
 # 获取应用程序的路径
@@ -615,7 +614,7 @@ for serve, serve_name in serves:
     logging.info(f'主题"{serve}"，值："{serve_name}"')
 
 # 初始化MQTT客户端
-mqttc = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+mqttc = mqtt.Client()
 mqttc.on_connect = on_connect
 mqttc.on_message = on_message
 mqttc.on_subscribe = on_subscribe
