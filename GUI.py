@@ -434,8 +434,25 @@ def generate_config() -> None:
     # 保存为 JSON 文件
     with open(config_file_path, "w", encoding="utf-8") as f:
         json.dump(config, f, ensure_ascii=False, indent=4)
-
+    # 保存后刷新界面
     messagebox.showinfo("提示", "配置文件已保存")
+    # 重新读取配置
+    with open(config_file_path, "r", encoding="utf-8") as f:
+        config = json.load(f)
+    # 刷新内置主题
+    for idx, theme in enumerate(builtin_themes):
+        theme_key = theme["key"]
+        theme["name_var"].set(config.get(theme_key, ""))
+        theme["checked"].set(config.get(f"{theme_key}_checked", 0))
+    # 刷新test模式
+    test_var.set(config.get("test", 0))
+    # 刷新自定义主题
+    custom_themes.clear()
+    for item in custom_theme_tree.get_children():
+        custom_theme_tree.delete(item)
+    load_custom_themes()
+    # ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, f'"{__file__}"', None, 0)
+    # sys.exit()
 
 
 # 打开配置文件夹的函数
@@ -445,6 +462,24 @@ def open_config_folder() -> None:
     中文: 打开配置文件夹
     """
     os.startfile(appdata_dir)
+
+def sleep():
+    # 检查系统休眠/睡眠支持（test模式开启时跳过检测）
+    global sleep_disabled, sleep_status_message
+    if not ("config" in globals() and config.get("test", 0) == 1):
+        try:
+            result = subprocess.run(["powercfg", "-a"], capture_output=True, text=True, shell=True)
+            output = result.stdout + result.stderr
+            if ("休眠" in output and "不可用" in output) or ("S3" in output and "不可用" in output):
+                sleep_disabled = True
+                sleep_status_message = output.strip()
+            else:
+                sleep_status_message = output.strip()
+        except Exception as e:
+            sleep_disabled = True
+            sleep_status_message = f"检测失败: {e}"
+    else:
+        sleep_status_message = "test模式已开启，未检测系统休眠/睡眠支持。"
 
 def enable_window() -> None:
     """
@@ -484,23 +519,6 @@ if os.path.exists(config_file_path):
     with open(config_file_path, "r", encoding="utf-8") as f:
         config = json.load(f)
 
-# 检查系统休眠/睡眠支持（test模式开启时跳过检测）
-sleep_disabled = False
-sleep_status_message = ""
-if not ("config" in globals() and config.get("test", 0) == 1):
-    try:
-        result = subprocess.run(["powercfg", "-a"], capture_output=True, text=True, shell=True)
-        output = result.stdout + result.stderr
-        if ("休眠" in output and "不可用" in output) or ("S3" in output and "不可用" in output):
-            sleep_disabled = True
-            sleep_status_message = output.strip()
-        else:
-            sleep_status_message = output.strip()
-    except Exception as e:
-        sleep_disabled = True
-        sleep_status_message = f"检测失败: {e}"
-else:
-    sleep_status_message = "test模式已开启，未检测系统休眠/睡眠支持。"
 
 # 创建主窗口
 root = tk.Tk()
@@ -612,6 +630,10 @@ ttk.Label(theme_frame, text="主题:").grid(row=0, column=2, sticky="w")
 ttk.Label(theme_frame, text="自定义(服务需管理员)").grid(
     row=0, column=3, sticky="w"
 )
+
+sleep_disabled = False
+sleep_status_message = ""
+sleep()
 
 for idx, theme in enumerate(builtin_themes):
     theme_key = theme["key"]
