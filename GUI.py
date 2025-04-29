@@ -465,22 +465,6 @@ def enable_window() -> None:
     except Exception as e:
         messagebox.showerror("错误", f"启用失败: {e}")
 
-
-# 检查系统休眠/睡眠支持
-sleep_disabled = False
-sleep_status_message = ""
-try:
-    result = subprocess.run(["powercfg", "-a"], capture_output=True, text=True, shell=True)
-    output = result.stdout + result.stderr
-    if ("休眠" in output and "不可用" in output) or ("S3" in output and "不可用" in output):
-        sleep_disabled = True
-        sleep_status_message = output.strip()
-    else:
-        sleep_status_message = output.strip()
-except Exception as e:
-    sleep_disabled = True
-    sleep_status_message = f"检测失败: {e}"
-
 # 获取用户的 AppData\Roaming 目录
 appdata_env: Optional[str] = os.getenv("APPDATA")
 if appdata_env is None:
@@ -499,6 +483,24 @@ config: Dict[str, Any] = {}
 if os.path.exists(config_file_path):
     with open(config_file_path, "r", encoding="utf-8") as f:
         config = json.load(f)
+
+# 检查系统休眠/睡眠支持（test模式开启时跳过检测）
+sleep_disabled = False
+sleep_status_message = ""
+if not ("config" in globals() and config.get("test", 0) == 1):
+    try:
+        result = subprocess.run(["powercfg", "-a"], capture_output=True, text=True, shell=True)
+        output = result.stdout + result.stderr
+        if ("休眠" in output and "不可用" in output) or ("S3" in output and "不可用" in output):
+            sleep_disabled = True
+            sleep_status_message = output.strip()
+        else:
+            sleep_status_message = output.strip()
+    except Exception as e:
+        sleep_disabled = True
+        sleep_status_message = f"检测失败: {e}"
+else:
+    sleep_status_message = "test模式已开启，未检测系统休眠/睡眠支持。"
 
 # 创建主窗口
 root = tk.Tk()
