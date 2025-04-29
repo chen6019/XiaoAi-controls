@@ -85,7 +85,7 @@ MQTT订阅成功时的回调函数。
 """
 
 
-def on_subscribe(client, userdata: list, mid: int, reason_code_list: list, properties) -> None:
+def on_subscribe(client, userdata, mid, reason_code_list, properties=None):
     """
     English: Callback when MQTT subscription completes
     中文: MQTT成功订阅后回调函数
