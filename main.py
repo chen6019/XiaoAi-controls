@@ -257,8 +257,8 @@ def process_command(command: str, topic: str) -> None:
         if command == "on":
             ctypes.windll.user32.LockWorkStation()
         elif command == "off":
-            execute_command("shutdown -s -t 60")
-            notify_in_thread("电脑将在60秒后关机")
+            execute_command("shutdown -r -t 15")
+            notify_in_thread("电脑将在15秒后重启")
     elif topic == screen:
         # 屏幕亮度控制
         if command == "off" or command == "1":
