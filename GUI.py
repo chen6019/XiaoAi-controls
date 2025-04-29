@@ -176,7 +176,7 @@ def load_custom_themes() -> None:
         app_key = f"application{app_index}"
         if app_key in config:
             theme = {
-                "type": "程序",
+                "type": "程序或脚本",
                 "checked": config.get(f"{app_key}_checked", 0),
                 "nickname": config.get(f"{app_key}_name", ""),
                 "name": config.get(app_key, ""),
@@ -195,7 +195,7 @@ def load_custom_themes() -> None:
         serve_key = f"serve{serve_index}"
         if serve_key in config:
             theme = {
-                "type": "服务",
+                "type": "服务(需管理员权限)",
                 "checked": config.get(f"{serve_key}_checked", 0),
                 "nickname": config.get(f"{serve_key}_name", ""),
                 "name": config.get(serve_key, ""),
@@ -210,6 +210,17 @@ def load_custom_themes() -> None:
             serve_index += 1
         else:
             break
+
+
+def show_detail_window():
+    detail_win = tk.Toplevel(root)
+    detail_win.title("详情信息")
+    detail_win.geometry("600x900")
+    detail_text = tk.Text(detail_win, wrap="word")
+    detail_text.insert("end", "【内置主题详解】\n计算机：\n    打开：锁定计算机（Win+L）\n    关闭：15秒后重启计算机\n屏幕：\n    灯泡设备，通过API调节屏幕亮度(百分比)\n音量：\n    灯泡设备，可调节系统总音量(百分比)\n睡眠：\n    开关设备，可休眠计算机\n\n\n【自定义主题详解】\n\n注：[均为开关设备]\n程序或脚本：\n    需要填写路径，或调用系统api选择程序或脚本文件\n服务：\n    主程序需要管理员权限（开机自启时默认拥有）\n填写服务名称\n\n\n【系统睡眠支持检测】\n" + sleep_status_message)
+    detail_text.config(state="disabled")
+    detail_text.pack(expand=True, fill="both", padx=10, pady=10)
+    center_window(detail_win)
 
 
 # 修改自定义主题的函数
@@ -236,15 +247,15 @@ def modify_custom_theme() -> None:
     theme_type_combobox = ttk.Combobox(
         theme_window, 
         textvariable=theme_type_var, 
-        values=["程序", "服务"],
+        values=["程序或脚本", "服务(需管理员权限)"],
         state="readonly"
     )
     theme_type_combobox.grid(row=0, column=1, sticky="w")
-    type_index = ["程序", "服务"].index(theme["type"])
+    type_index = ["程序或脚本", "服务(需管理员权限)"].index(theme["type"])
     theme_type_combobox.current(type_index)
 
-    ttk.Label(theme_window, text="服务类型需要").grid(row=0, column=2, sticky="w")
-    ttk.Label(theme_window, text="管理员权限").grid(row=1, column=2, sticky="w")
+    ttk.Label(theme_window, text="服务时主程序").grid(row=0, column=2, sticky="w")
+    ttk.Label(theme_window, text="需管理员权限").grid(row=1, column=2, sticky="w")
 
     ttk.Label(theme_window, text="状态：").grid(row=1, column=0, sticky="e")
     theme_checked_var = tk.IntVar(value=theme["checked"])
@@ -319,18 +330,18 @@ def add_custom_theme(config: Dict[str, Any]) -> None:
     theme_window.resizable(False, False)  # 禁用窗口大小调整
 
     ttk.Label(theme_window, text="类型：").grid(row=0, column=0, sticky="e")
-    theme_type_var = tk.StringVar(value="程序")
+    theme_type_var = tk.StringVar(value="程序或脚本")
     theme_type_combobox = ttk.Combobox(
         theme_window, 
         textvariable=theme_type_var, 
-        values=["程序", "服务"],
+        values=["程序或脚本", "服务(需管理员权限)"],
         state="readonly"
     )
     theme_type_combobox.grid(row=0, column=1, sticky="w")
 
 
-    ttk.Label(theme_window, text="服务类型需要").grid(row=0, column=2, sticky="w")
-    ttk.Label(theme_window, text="管理员权限").grid(row=1, column=2, sticky="w")
+    ttk.Label(theme_window, text="服务时主程序").grid(row=0, column=2, sticky="w")
+    ttk.Label(theme_window, text="需管理员权限").grid(row=1, column=2, sticky="w")
 
     ttk.Label(theme_window, text="状态：").grid(row=1, column=0, sticky="e")
     theme_checked_var = tk.IntVar()
@@ -405,14 +416,14 @@ def generate_config() -> None:
     app_index = 1
     serve_index = 1
     for theme in custom_themes:
-        if theme["type"] == "程序":
+        if theme["type"] == "程序或脚本":
             prefix = f"application{app_index}"
             config[prefix] = theme["name"]
             config[f"{prefix}_name"] = theme["nickname"]
             config[f"{prefix}_checked"] = theme["checked"]
             config[f"{prefix}_directory{app_index}"] = theme["value"]
             app_index += 1
-        elif theme["type"] == "服务":
+        elif theme["type"] == "服务(需管理员权限)":
             prefix = f"serve{serve_index}"
             config[prefix] = theme["name"]
             config[f"{prefix}_name"] = theme["nickname"]
@@ -435,6 +446,20 @@ def open_config_folder() -> None:
     """
     os.startfile(appdata_dir)
 
+# 检查系统休眠/睡眠支持
+sleep_disabled = False
+sleep_status_message = ""
+try:
+    result = subprocess.run(["powercfg", "-a"], capture_output=True, text=True, shell=True)
+    output = result.stdout + result.stderr
+    if ("休眠" in output and "不可用" in output) or ("S3" in output and "不可用" in output):
+        sleep_disabled = True
+        sleep_status_message = output.strip()
+    else:
+        sleep_status_message = output.strip()
+except Exception as e:
+    sleep_disabled = True
+    sleep_status_message = f"检测失败: {e}"
 
 # 获取用户的 AppData\Roaming 目录
 appdata_env: Optional[str] = os.getenv("APPDATA")
@@ -503,7 +528,7 @@ auto_start_label = ttk.Label(
 auto_start_label.grid(row=0, column=2, sticky="n")
 auto_start_label1 = ttk.Label(
     system_frame,
-    text="开机自启和服务类型主题",
+    text="开机自启功能",
 )
 auto_start_label1.grid(row=1, column=2, sticky="n")
 
@@ -559,8 +584,9 @@ builtin_themes: List[Dict[str, Any]] = [
     },
 ]
 
-ttk.Label(theme_frame, text="内置").grid(row=0, column=0, sticky="w", columnspan=2)
-ttk.Label(theme_frame, text="主题").grid(row=0, column=2, sticky="w")
+ttk.Label(theme_frame, text="内置").grid(row=0, column=0, sticky="w")
+ttk.Button(theme_frame, text="详情", command=show_detail_window).grid(row=0, column=1, sticky="e", columnspan=2)
+ttk.Label(theme_frame, text="主题:").grid(row=0, column=2, sticky="w")
 ttk.Label(theme_frame, text="自定义(服务需管理员)").grid(
     row=0, column=3, sticky="w"
 )
@@ -569,13 +595,24 @@ for idx, theme in enumerate(builtin_themes):
     theme_key = theme["key"]
     theme["name_var"].set(config.get(theme_key, ""))
     theme["checked"].set(config.get(f"{theme_key}_checked", 0))
-
-    ttk.Checkbutton(theme_frame, text=theme["nickname"], variable=theme["checked"]).grid(
-        row=idx + 1, column=0, sticky="w", columnspan=2
-    )
-    ttk.Entry(theme_frame, textvariable=theme["name_var"]).grid(
-        row=idx + 1, column=2, sticky="ew"
-    )
+    if theme_key == "sleep" and sleep_disabled:
+        theme["checked"].set(0)
+        theme["name_var"].set("")
+        cb = ttk.Checkbutton(theme_frame, text=theme["nickname"], variable=theme["checked"])
+        cb.state(["disabled"])
+        cb.grid(row=idx + 1, column=0, sticky="w", columnspan=2)
+        entry = ttk.Entry(theme_frame, textvariable=theme["name_var"])
+        entry.config(state="disabled")
+        entry.grid(row=idx + 1, column=2, sticky="ew")
+        sleep_tip = ttk.Label(theme_frame, text="休眠/睡眠不可用\n点击详情按钮查看原因", foreground="red")
+        sleep_tip.grid(row=idx + 1, column=2, sticky="w")
+    else:
+        ttk.Checkbutton(theme_frame, text=theme["nickname"], variable=theme["checked"]).grid(
+            row=idx + 1, column=0, sticky="w", columnspan=2
+        )
+        ttk.Entry(theme_frame, textvariable=theme["name_var"]).grid(
+            row=idx + 1, column=2, sticky="ew"
+        )
 
 # 自定义主题列表
 custom_themes: List[Dict[str, Any]] = []
