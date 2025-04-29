@@ -206,6 +206,10 @@ def process_command(command: str, topic: str) -> None:
                 logging.info(result.stdout)
                 logging.error(result.stderr)
             elif command == "on":
+                if not directory or not os.path.isfile(directory):
+                    notify_in_thread(f"启动失败，文件不存在: {directory}")
+                    logging.error(f"启动失败，文件不存在: {directory}")
+                    return
                 subprocess.Popen(directory)
             return
     
