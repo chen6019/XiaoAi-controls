@@ -215,9 +215,9 @@ def load_custom_themes() -> None:
 def show_detail_window():
     detail_win = tk.Toplevel(root)
     detail_win.title("详情信息")
-    detail_win.geometry("600x900")
+    detail_win.geometry("600x600")
     detail_text = tk.Text(detail_win, wrap="word")
-    detail_text.insert("end", "【内置主题详解】\n计算机：\n    打开：锁定计算机（Win+L）\n    关闭：15秒后重启计算机\n屏幕：\n    灯泡设备，通过API调节屏幕亮度(百分比)\n音量：\n    灯泡设备，可调节系统总音量(百分比)\n睡眠：\n    开关设备，可休眠计算机\n\n\n【自定义主题详解】\n\n注：[均为开关设备]\n程序或脚本：\n    需要填写路径，或调用系统api选择程序或脚本文件\n服务：\n    主程序需要管理员权限（开机自启时默认拥有）\n填写服务名称\n\n\n【系统睡眠支持检测】\n" + sleep_status_message)
+    detail_text.insert("end", "\n【内置主题详解】\n计算机：\n    打开：锁定计算机（Win+L）\n    关闭：15秒后重启计算机\n屏幕：\n    灯泡设备，通过API调节屏幕亮度(百分比)\n音量：\n    灯泡设备，可调节系统总音量(百分比)\n睡眠：\n    开关设备，可休眠计算机\n\n\n【自定义主题详解】\n\n注：[均为开关设备]\n程序或脚本：\n    需要填写路径，或调用系统api选择程序或脚本文件\n服务：\n    主程序需要管理员权限（开机自启时默认拥有）\n填写服务名称\n\n\n【系统睡眠支持检测】\n\n可开启test模式以禁用本程序的睡眠支持检测\n\n可尝试此命令启用：powercfg.exe /hibernate on\n\n" + sleep_status_message+"\n\n\n")
     detail_text.config(state="disabled")
     detail_text.pack(expand=True, fill="both", padx=10, pady=10)
     center_window(detail_win)
@@ -446,6 +446,26 @@ def open_config_folder() -> None:
     """
     os.startfile(appdata_dir)
 
+def enable_window() -> None:
+    """
+    
+    中文: 通过命令启用睡眠/休眠功能
+    """
+    #检查是否有管理员权限
+    if not is_admin():
+        messagebox.showerror("错误", "需要管理员权限才能启用休眠/睡眠功能")
+        return
+    # 尝试启用休眠/睡眠功能
+    try:
+        result = subprocess.run(["powercfg", "/hibernate", "on"], capture_output=True, text=True, shell=True)
+        if result.returncode == 0:
+            messagebox.showinfo("提示", "休眠/睡眠功能已启用")
+        else:
+            messagebox.showerror("错误", f"启用失败: \n{result.stderr.strip()}")
+    except Exception as e:
+        messagebox.showerror("错误", f"启用失败: {e}")
+
+
 # 检查系统休眠/睡眠支持
 sleep_disabled = False
 sleep_status_message = ""
@@ -517,7 +537,7 @@ port_entry.grid(row=2, column=1, sticky="ew")
 port_entry.insert(0, str(config.get("port", "")))
 
 test_var = tk.IntVar(value=config.get("test", 0))
-test_check = ttk.Checkbutton(system_frame, text="test", variable=test_var)
+test_check = ttk.Checkbutton(system_frame, text="test模式", variable=test_var)
 test_check.grid(row=3, column=0, columnspan=2, sticky="w")
 
 # 添加设置开机自启动按钮上面的提示
@@ -528,7 +548,7 @@ auto_start_label = ttk.Label(
 auto_start_label.grid(row=0, column=2, sticky="n")
 auto_start_label1 = ttk.Label(
     system_frame,
-    text="开机自启功能",
+    text="开机自启/启用睡眠(休眠)功能",
 )
 auto_start_label1.grid(row=1, column=2, sticky="n")
 
@@ -543,7 +563,7 @@ if is_admin():
 else:
     auto_start_button.config(text="获取权限", command=get_administrator_privileges)
     # 隐藏test
-    test_check.grid_remove()
+    # test_check.grid_remove()
 
 # 主题配置部分
 theme_frame = ttk.LabelFrame(root, text="主题配置")
@@ -604,7 +624,7 @@ for idx, theme in enumerate(builtin_themes):
         entry = ttk.Entry(theme_frame, textvariable=theme["name_var"])
         entry.config(state="disabled")
         entry.grid(row=idx + 1, column=2, sticky="ew")
-        sleep_tip = ttk.Label(theme_frame, text="休眠/睡眠不可用\n点击详情按钮查看原因", foreground="red")
+        sleep_tip = ttk.Button(theme_frame, text="休眠/睡眠不可用\n点击(详情)查看原因",command=enable_window)
         sleep_tip.grid(row=idx + 1, column=2, sticky="w")
     else:
         ttk.Checkbutton(theme_frame, text=theme["nickname"], variable=theme["checked"]).grid(
