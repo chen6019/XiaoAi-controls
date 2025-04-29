@@ -11,6 +11,7 @@ import sys
 import shlex
 import subprocess
 import win32com.client
+from typing import Any, Dict, List, Union, Optional
 
 # 创建一个命名的互斥体
 mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "XiaoAi-controls-GUI")
@@ -47,16 +48,16 @@ def get_administrator_privileges() -> None:
 
 
 # 设置窗口居中
-def center_window(window) -> None:
+def center_window(window: tk.Tk) -> None:
     """
     English: Centers the given window on the screen
     中文: 将指定窗口在屏幕上居中显示
     """
     window.update_idletasks()
-    width = window.winfo_width()
-    height = window.winfo_height()
-    x = (window.winfo_screenwidth() // 2) - (width // 2)
-    y = (window.winfo_screenheight() // 2) - (height // 2)
+    width: int = window.winfo_width()
+    height: int = window.winfo_height()
+    x: int = (window.winfo_screenwidth() // 2) - (width // 2)
+    y: int = (window.winfo_screenheight() // 2) - (height // 2)
     window.geometry(f"{width}x{height}+{x}+{y}")
 
 
@@ -153,7 +154,7 @@ def check_task() -> None:
 
 
 # 鼠标双击事件处理程序
-def on_double_click(event) -> None:
+def on_double_click(event: tk.Event) -> None:
     """
     English: Event handler for double-click on a custom theme tree item
     中文: 自定义主题列表项双击事件处理回调
@@ -306,7 +307,7 @@ def modify_custom_theme() -> None:
 
 
 # 添加自定义主题的函数中，也要更新显示
-def add_custom_theme(config: dict) -> None:
+def add_custom_theme(config: Dict[str, Any]) -> None:
     """
     English: Opens a new window to add a new custom theme and updates display
     中文: 打开新窗口添加新的自定义主题，并更新显示
@@ -434,17 +435,20 @@ def open_config_folder() -> None:
 
 
 # 获取用户的 AppData\Roaming 目录
-appdata_dir = os.path.join(os.getenv("APPDATA"), "Ai-controls")
+appdata_env: Optional[str] = os.getenv("APPDATA")
+if appdata_env is None:
+    raise RuntimeError("未检测到 APPDATA 环境变量")
+appdata_dir: str = os.path.join(appdata_env, "Ai-controls")
 
 # 如果目录不存在则创建
 if not os.path.exists(appdata_dir):
     os.makedirs(appdata_dir)
 
 # 配置文件路径
-config_file_path = os.path.join(appdata_dir, "config.json")
+config_file_path: str = os.path.join(appdata_dir, "config.json")
 
 # 尝试读取配置文件
-config = {}
+config: Dict[str, Any] = {}
 if os.path.exists(config_file_path):
     with open(config_file_path, "r", encoding="utf-8") as f:
         config = json.load(f)
@@ -526,7 +530,7 @@ for j in range(4):
     theme_frame.columnconfigure(j, weight=1)
 
 # 内置主题
-builtin_themes = [
+builtin_themes: List[Dict[str, Any]] = [
     {
         "nickname": "计算机",
         "key": "Computer",
@@ -572,7 +576,7 @@ for idx, theme in enumerate(builtin_themes):
     )
 
 # 自定义主题列表
-custom_themes = []
+custom_themes: List[Dict[str, Any]] = []
 
 # 自定义主题列表组件
 custom_theme_tree = ttk.Treeview(theme_frame, columns=("theme",), show="headings")
