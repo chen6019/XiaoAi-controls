@@ -47,8 +47,10 @@ def get_administrator_privileges() -> None:
     sys.exit()
 
 
+from typing import Any, Dict, List, Union, Optional
+
 # 设置窗口居中
-def center_window(window: tk.Tk) -> None:
+def center_window(window: Union[tk.Tk, tk.Toplevel]) -> None:
     """
     English: Centers the given window on the screen
     中文: 将指定窗口在屏幕上居中显示
