@@ -217,6 +217,7 @@ def show_detail_window():
     detail_win.title("详情信息")
     detail_win.geometry("600x600")
     detail_text = tk.Text(detail_win, wrap="word")
+    sleep()
     detail_text.insert("end", "\n【内置主题详解】\n计算机：\n    打开：锁定计算机（Win+L）\n    关闭：15秒后重启计算机\n屏幕：\n    灯泡设备，通过API调节屏幕亮度(百分比)\n音量：\n    灯泡设备，可调节系统总音量(百分比)\n睡眠：\n    开关设备，可休眠计算机\n\n\n【自定义主题详解】\n\n注：[均为开关设备]\n程序或脚本：\n    需要填写路径，或调用系统api选择程序或脚本文件\n服务：\n    主程序需要管理员权限（开机自启时默认拥有）\n填写服务名称\n\n\n【系统睡眠支持检测】\n\n可开启test模式以禁用本程序的睡眠支持检测\n\n可尝试此命令启用：powercfg.exe /hibernate on\n\n" + sleep_status_message+"\n\n\n")
     detail_text.config(state="disabled")
     detail_text.pack(expand=True, fill="both", padx=10, pady=10)
@@ -435,17 +436,40 @@ def generate_config() -> None:
     with open(config_file_path, "w", encoding="utf-8") as f:
         json.dump(config, f, ensure_ascii=False, indent=4)
     # 保存后刷新界面
-    messagebox.showinfo("提示", "配置文件已保存")
+    messagebox.showinfo("提示", "配置文件已保存\n请重新打开主程序以应用更改\n更改test模式需重启本程序")
     # 重新读取配置
     with open(config_file_path, "r", encoding="utf-8") as f:
         config = json.load(f)
+    # 刷新test模式
+    test_var.set(config.get("test", 0))
+    # sleep()
     # 刷新内置主题
     for idx, theme in enumerate(builtin_themes):
         theme_key = theme["key"]
         theme["name_var"].set(config.get(theme_key, ""))
         theme["checked"].set(config.get(f"{theme_key}_checked", 0))
-    # 刷新test模式
-    test_var.set(config.get("test", 0))
+    # for idx, theme in enumerate(builtin_themes):
+    #     theme_key = theme["key"]
+    #     theme["name_var"].set(config.get(theme_key, ""))
+    #     theme["checked"].set(config.get(f"{theme_key}_checked", 0))
+    #     if theme_key == "sleep" and sleep_disabled:
+    #         theme["checked"].set(0)
+    #         theme["name_var"].set("")
+    #         cb = ttk.Checkbutton(theme_frame, text=theme["nickname"], variable=theme["checked"])
+    #         cb.state(["disabled"])
+    #         cb.grid(row=idx + 1, column=0, sticky="w", columnspan=2)
+    #         entry = ttk.Entry(theme_frame, textvariable=theme["name_var"])
+    #         entry.config(state="disabled")
+    #         entry.grid(row=idx + 1, column=2, sticky="ew")
+    #         sleep_tip = ttk.Button(theme_frame, text="休眠/睡眠不可用\n点击(详情)查看原因",command=enable_window)
+    #         sleep_tip.grid(row=idx + 1, column=2, sticky="w")
+    #     else:
+    #         ttk.Checkbutton(theme_frame, text=theme["nickname"], variable=theme["checked"]).grid(
+    #             row=idx + 1, column=0, sticky="w", columnspan=2
+    #         )
+    #         ttk.Entry(theme_frame, textvariable=theme["name_var"]).grid(
+    #             row=idx + 1, column=2, sticky="ew"
+    #         )
     # 刷新自定义主题
     custom_themes.clear()
     for item in custom_theme_tree.get_children():
@@ -453,6 +477,7 @@ def generate_config() -> None:
     load_custom_themes()
     # ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, f'"{__file__}"', None, 0)
     # sys.exit()
+    # root.update()
 
 
 # 打开配置文件夹的函数
@@ -470,11 +495,21 @@ def sleep():
         try:
             result = subprocess.run(["powercfg", "-a"], capture_output=True, text=True, shell=True)
             output = result.stdout + result.stderr
-            if ("休眠" in output and "不可用" in output) or ("S3" in output and "不可用" in output):
+            # 只要有“休眠不可用”或“尚未启用休眠”就禁用
+            if ("休眠不可用" in output) or ("尚未启用休眠" in output):
                 sleep_disabled = True
-                sleep_status_message = output.strip()
             else:
-                sleep_status_message = output.strip()
+                # 还需判断“休眠”行是否包含“不可用”
+                if "休眠" in output:
+                    lines = output.splitlines()
+                    hibernate_line = next((l for l in lines if l.strip().startswith("休眠")), None)
+                    if hibernate_line and ("不可用" in hibernate_line):
+                        sleep_disabled = True
+                    else:
+                        sleep_disabled = False
+                else:
+                    sleep_disabled = True
+            sleep_status_message = output.strip()
         except Exception as e:
             sleep_disabled = True
             sleep_status_message = f"检测失败: {e}"
