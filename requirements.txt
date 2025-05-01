@@ -1,0 +1,9 @@
+paho-mqtt
+wmi
+win11toast
+pillow
+pystray
+comtypes
+pycaw
+setuptools
+pywin32
