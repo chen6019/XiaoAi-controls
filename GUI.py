@@ -97,7 +97,7 @@ def set_auto_start() -> None:
 
     quoted_exe_path = shlex.quote(exe_path)
     result = subprocess.call(
-        f'schtasks /Create /SC ONLOGON /TN "小爱控制" /TR "{quoted_exe_path}" /F',
+        f'schtasks /Create /SC ONSTART /TN "小爱控制" /TR "{quoted_exe_path}" /RU SYSTEM /F',
         shell=True,
     )
 
