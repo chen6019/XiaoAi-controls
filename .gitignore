@@ -5,3 +5,5 @@ GUI.spec
 main.spec
 XiaoAi-controls.spec
 .gitignore
+log.txt
+config.json
