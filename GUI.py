@@ -1,5 +1,5 @@
 """打包命令
-pyinstaller -F -n GUI --noconsole --icon=icon_GUI.ico GUI.py
+pyinstaller -F -n RC-GUI --noconsole --icon=icon_GUI.ico GUI.py
 """
 import os
 import tkinter as tk
@@ -14,7 +14,7 @@ import win32com.client
 from typing import Any, Dict, List, Union, Optional
 
 # 创建一个命名的互斥体
-mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "XiaoAi-controls-GUI")
+mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "Remote-Controls-GUI")
 
 # 检查互斥体是否已经存在
 if ctypes.windll.kernel32.GetLastError() == 183:
@@ -85,26 +85,26 @@ def set_auto_start() -> None:
     中文: 设置开机自启动，将程序在登录时自动运行
     """
     exe_path = os.path.join(
-        os.path.dirname(os.path.abspath(sys.argv[0])), "XiaoAi-controls.exe"
+        os.path.dirname(os.path.abspath(sys.argv[0])), "Remote-Controls.exe"
     )
 
     # 检查文件是否存在
     if not os.path.exists(exe_path):
         messagebox.showerror(
-            "错误", "未找到 XiaoAi-controls.exe 文件\n请检查文件是否存在"
+            "错误", "未找到 Remote-Controls.exe 文件\n请检查文件是否存在"
         )
         return
 
     quoted_exe_path = shlex.quote(exe_path)
     result = subprocess.call(
-        f'schtasks /Create /SC ONSTART /TN "小爱控制" /TR "{quoted_exe_path}" /RU SYSTEM /F',
+        f'schtasks /Create /SC ONSTART /TN "远程控制" /TR "{quoted_exe_path}" /RU SYSTEM /F',
         shell=True,
     )
 
     scheduler = win32com.client.Dispatch("Schedule.Service")
     scheduler.Connect()
     root_folder = scheduler.GetFolder("\\")
-    task_definition = root_folder.GetTask("小爱控制").Definition
+    task_definition = root_folder.GetTask("远程控制").Definition
 
     principal = task_definition.Principal
     principal.RunLevel = 1
@@ -114,7 +114,7 @@ def set_auto_start() -> None:
     settings.StopIfGoingOnBatteries = False
     settings.ExecutionTimeLimit = "PT0S"
 
-    root_folder.RegisterTaskDefinition("小爱控制", task_definition, 6, "", "", 3)
+    root_folder.RegisterTaskDefinition("远程控制", task_definition, 6, "", "", 3)
     if result == 0:
         messagebox.showinfo("提示", "创建开机自启动成功")
         messagebox.showinfo("提示！", "移动位置后要重新设置哦！！")
@@ -132,7 +132,7 @@ def remove_auto_start() -> None:
     """
     if messagebox.askyesno("确定？", "你确定要删除开机自启动任务吗？"):
         delete_result = subprocess.call(
-            'schtasks /Delete /TN "小爱控制" /F', shell=True
+            'schtasks /Delete /TN "远程控制" /F', shell=True
         )
         if delete_result == 0:
             messagebox.showinfo("提示", "关闭开机自启动成功")
@@ -148,7 +148,7 @@ def check_task() -> None:
     English: Updates the button text based on whether the auto-start task exists
     中文: 检查是否存在开机自启任务，并更新按钮文字
     """
-    if check_task_exists("小爱控制"):
+    if check_task_exists("远程控制"):
         auto_start_button.config(text="关闭开机自启", command=remove_auto_start)
     else:
         auto_start_button.config(text="设置开机自启", command=set_auto_start)
@@ -539,7 +539,7 @@ def enable_window() -> None:
 appdata_env: Optional[str] = os.getenv("APPDATA")
 if appdata_env is None:
     raise RuntimeError("未检测到 APPDATA 环境变量")
-appdata_dir: str = os.path.join(appdata_env, "Ai-controls")
+appdata_dir: str = os.path.join(appdata_env, "Remote-Controls")
 
 # 如果目录不存在则创建
 if not os.path.exists(appdata_dir):
@@ -557,7 +557,7 @@ if os.path.exists(config_file_path):
 
 # 创建主窗口
 root = tk.Tk()
-root.title("小爱控制V1.2.1")
+root.title("远程控制V1.2.1")
 
 # 设置根窗口的行列权重
 root.rowconfigure(0, weight=1)
@@ -614,7 +614,7 @@ auto_start_button.grid(row=2, column=2,  sticky="n")
 # 程序标题栏
 if is_admin():
     check_task()
-    root.title("小爱控制V1.2.1(管理员)")
+    root.title("远程控制V1.2.1(管理员)")
 else:
     auto_start_button.config(text="获取权限", command=get_administrator_privileges)
     # 隐藏test

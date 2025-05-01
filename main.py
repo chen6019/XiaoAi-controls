@@ -10,7 +10,7 @@ C:\\Program Files\\Python313\\Lib 文件夹下
 否则报错: _tkinter.TclError: Can't find a usable init.tcl
 
 打包指令:
-pyinstaller --onefile -n XiaoAi-controls --windowed --icon=icon.ico --add-data "icon.ico;."  main.py
+pyinstaller -F -n Remote-Controls --windowed --icon=icon.ico --add-data "icon.ico;."  main.py
 
 """
 
@@ -37,7 +37,7 @@ from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
 
 
 # 创建一个命名的互斥体
-mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "XiaoAi-controls-main")
+mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "Remote-Controls-main")
 
 # 检查互斥体是否已经存在
 if ctypes.windll.kernel32.GetLastError() == 183:
@@ -354,7 +354,7 @@ def on_connect(client, userdata: list, flags: dict, reason_code, properties=None
 
 
 """
-打开GUI界面。
+打开RC-GUI界面。
 
 无参数
 无返回值
@@ -363,22 +363,22 @@ def on_connect(client, userdata: list, flags: dict, reason_code, properties=None
 
 def open_gui() -> None:
     """
-    English: Attempts to open GUI.py or GUI.exe, else shows an error message
-    中文: 尝试运行 GUI.py 或 GUI.exe，如果找不到则弹出错误提示
+    English: Attempts to open GUI.py or RC-GUI.exe, else shows an error message
+    中文: 尝试运行 GUI.py 或 RC-GUI.exe，如果找不到则弹出错误提示
     """
     if os.path.isfile("GUI.py"):
         subprocess.Popen([".venv\\Scripts\\python.exe", "GUI.py"])
         notify_in_thread("正在打开配置窗口...")
-    elif os.path.isfile("GUI.exe"):
-        subprocess.Popen(["GUI.exe"])
+    elif os.path.isfile("RC-GUI.exe"):
+        subprocess.Popen(["RC-GUI.exe"])
         notify_in_thread("正在打开配置窗口...")
     else:
         def show_message():
             current_path = os.getcwd()
             messagebox.showerror(
-                "Error", f"找不到GUI.py或GUI.exe\n当前工作路径{current_path}"
+                "Error", f"找不到GUI.py或RC-GUI.exe\n当前工作路径{current_path}"
             )
-            logging.error(f"找不到GUI.py或GUI.exe\n当前工作路径{current_path}")
+            logging.error(f"找不到GUI.py或RC-GUI.exe\n当前工作路径{current_path}")
 
         thread = threading.Thread(target=show_message)
         thread.daemon = True
@@ -496,7 +496,7 @@ with open(icon_path, "rb") as f:
 
 
 # 初始化系统托盘图标和菜单
-icon = pystray.Icon("Ai-controls", title="小爱控制 V1.2.1")
+icon = pystray.Icon("Remote-Controls", title="远程控制 V1.2.1")
 image = Image.open(io.BytesIO(image_data))
 menu = (
     pystray.MenuItem("打开配置", open_gui),
@@ -511,7 +511,7 @@ icon_Thread.start()
 
 # 日志和配置文件路径处理
 appdata_path = os.path.join(
-    os.path.expanduser("~"), "AppData", "Roaming", "Ai-controls"
+    os.path.expanduser("~"), "AppData", "Roaming", "Remote-Controls"
 )
 # 确保目录存在
 os.makedirs(appdata_path, exist_ok=True)
@@ -530,7 +530,7 @@ config_path = os.path.join(appdata_path, "config.json")
 
 # 检查配置文件是否存在
 if not os.path.exists(config_path):
-    messagebox.showerror("Error", "配置文件不存在\n请先打开GUI配置文件")
+    messagebox.showerror("Error", "配置文件不存在\n请先打开RC-GUI配置文件")
     logging.error("config.json 文件不存在")
     icon.stop()
     open_gui()
