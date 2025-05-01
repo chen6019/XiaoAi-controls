@@ -1,6 +1,6 @@
-# 小爱同学远程控制工具（Ai-controls）
+# 远程控制工具（RC-remote-controls）
 
-#### 免责声明：本程序仅供学习交流使用，不得用于商业用途，如有侵权请联系删除，本人不对使用本程序产生的任何后果负责，请勿用于非法用途，否则后果自负
+#### 免责声明：本程序仅供学习交流使用，如有侵权请联系删除，本人不对使用本程序产生的任何后果负责，请勿用于非法用途，否则后果自负
 
 ## 项目简介
 
@@ -8,7 +8,7 @@
 
 ## 功能
 
-- （设备类型开关）小爱远程重启、锁定、启动应用程序或脚本、服务启停
+- （设备类型开关）远程重启、锁定、启动应用程序或脚本、服务启停
 - （设备类型灯）调节显示器亮度
 - （设备类型灯）调节系统音量
 - 支持自定义主题（程序/脚本/服务）
@@ -39,7 +39,7 @@ pyinstaller -F -n GUI --noconsole --icon=icon.ico GUI.py
 pyinstaller --onefile -n XiaoAi-controls --windowed --icon=icon.ico --add-data "icon.ico;." main.py
 ```
 
-## 教程
+## 教程（参考）
 
 ### 1. 修改 MQTT 服务器信息
 
@@ -77,6 +77,6 @@ pyinstaller --onefile -n XiaoAi-controls --windowed --icon=icon.ico --add-data "
 
 ## 反馈与交流
 
-如有问题、建议或 Bug 反馈，请通过 GitHub Issue 或邮箱联系作者。
+如有问题、建议或 Bug 反馈，请通过 GitHub Issue 或邮箱（mc_chen6019@qq.com）联系作者。
 
 ---
