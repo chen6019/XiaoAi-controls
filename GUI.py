@@ -535,15 +535,8 @@ def enable_window() -> None:
     except Exception as e:
         messagebox.showerror("错误", f"启用失败: {e}")
 
-# 获取用户的 AppData\Roaming 目录
-appdata_env: Optional[str] = os.getenv("APPDATA")
-if appdata_env is None:
-    raise RuntimeError("未检测到 APPDATA 环境变量")
-appdata_dir: str = os.path.join(appdata_env, "Remote-Controls")
-
-# 如果目录不存在则创建
-if not os.path.exists(appdata_dir):
-    os.makedirs(appdata_dir)
+# 配置文件和目录改为当前工作目录
+appdata_dir: str = os.path.abspath(os.path.dirname(sys.argv[0]))
 
 # 配置文件路径
 config_file_path: str = os.path.join(appdata_dir, "config.json")
