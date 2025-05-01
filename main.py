@@ -509,14 +509,13 @@ icon_Thread = threading.Thread(target=icon.run)
 icon_Thread.daemon = True
 icon_Thread.start()
 
-# 日志和配置文件路径处理
-appdata_path = os.path.join(
-    os.path.expanduser("~"), "AppData", "Roaming", "Remote-Controls"
-)
-# 确保目录存在
-os.makedirs(appdata_path, exist_ok=True)
+# 配置文件和日志文件路径改为当前工作目录
+appdata_path = os.path.abspath(os.path.dirname(sys.argv[0]))
 
 log_path = os.path.join(appdata_path, "log.txt")
+config_path = os.path.join(appdata_path, "config.json")
+
+# 日志和配置文件路径处理
 logging.basicConfig(
     filename=log_path,
     level=logging.INFO,
@@ -525,8 +524,6 @@ logging.basicConfig(
 )
 
 truncate_large_file(log_path)
-
-config_path = os.path.join(appdata_path, "config.json")
 
 # 检查配置文件是否存在
 if not os.path.exists(config_path):
