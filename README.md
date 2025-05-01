@@ -35,7 +35,7 @@ pip install --upgrade setuptools
 如需打包为 exe，推荐使用 PyInstaller：
 
 ```bash
-pyinstaller -F -n GUI --noconsole --icon=icon.ico GUI.py
+pyinstaller -F -n GUI --noconsole --icon=icon_GUI.ico GUI.py
 pyinstaller --onefile -n XiaoAi-controls --windowed --icon=icon.ico --add-data "icon.ico;." main.py
 ```
 
@@ -71,7 +71,10 @@ pyinstaller --onefile -n XiaoAi-controls --windowed --icon=icon.ico --add-data "
 - Q: 配置文件不存在？
   A: 请先运行 GUI 程序，保存配置。
 - Q: 休眠/睡眠不可用？
-  A: 请以管理员权限运行 cmd，并尝试“powercfg /hibernate on”。
+  A: 请以管理员权限运行 cmd，并尝试执行
+```bash
+  powercfg /hibernate on
+```
 - Q: MQTT 无法连接？
   A: 检查服务器地址、端口、密钥是否正确，网络是否畅通。
 
