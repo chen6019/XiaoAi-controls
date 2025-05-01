@@ -1,5 +1,5 @@
 """打包命令
-pyinstaller -F -n GUI --noconsole --icon=icon.ico GUI.py
+pyinstaller -F -n GUI --noconsole --icon=icon_GUI.ico GUI.py
 """
 import os
 import tkinter as tk
