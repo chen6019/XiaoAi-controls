@@ -1,5 +1,6 @@
 """打包命令
 pyinstaller -F -n RC-GUI --noconsole --icon=icon_GUI.ico GUI.py
+程序名：RC-GUI.exe
 """
 import os
 import tkinter as tk
