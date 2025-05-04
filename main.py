@@ -416,10 +416,15 @@ def exit_program() -> None:
         logging.error(f"程序停止时出错: {e}")
     finally:
         # 释放互斥体
-        logging.info("程序已停止")
-        # ctypes.windll.kernel32.ReleaseMutex(mutex)
-        threading.Timer(0.5, lambda: os._exit(0)).start()
+        try:
+            ctypes.windll.kernel32.ReleaseMutex(mutex)
+            ctypes.windll.kernel32.CloseHandle(mutex)
+            logging.info("互斥体已释放")
+        except Exception as e:
+            logging.error(f"释放互斥体时出错: {e}")
         
+        logging.info("程序已停止")
+        threading.Timer(0.5, lambda: os._exit(0)).start()
 
 
 """
@@ -595,8 +600,16 @@ except KeyboardInterrupt:
     notify_in_thread("收到中断信号\n程序停止")
     logging.warning("收到中断,程序停止")
     exit_program()
+except Exception as e:
+    logging.error(f"程序异常: {e}")
+    exit_program()
+
 logging.info(f"总共收到以下消息: {mqttc.user_data_get()}")
 
-# 释放互斥体
-ctypes.windll.kernel32.ReleaseMutex(mutex)
+# 确保在程序退出前释放互斥体
+try:
+    ctypes.windll.kernel32.ReleaseMutex(mutex)
+    ctypes.windll.kernel32.CloseHandle(mutex)
+except Exception as e:
+    logging.error(f"释放互斥体时出错: {e}")
 

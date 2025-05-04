@@ -54,11 +54,31 @@ def is_main_admin():
 
 main_process = None
 
+def clean_orphaned_mutex():
+    """清理可能未被正确释放的主程序互斥体"""
+    try:
+        # 尝试创建与主程序相同名称的互斥体
+        mutex = ctypes.windll.kernel32.CreateMutexW(None, False, MUTEX_NAME)
+        if mutex:
+            # 释放并关闭互斥体
+            ctypes.windll.kernel32.ReleaseMutex(mutex)
+            ctypes.windll.kernel32.CloseHandle(mutex)
+            return True
+    except Exception as e:
+        notify(f"清理互斥体失败: {e}")
+    return False
+
 def start_main():
     global main_process
-    if is_main_running():
+    # 检查进程是否已在运行
+    if get_main_proc():
         notify("主程序已在运行")
         return
+    
+    # 如果进程未运行但之前检测到互斥体存在，则可能是互斥体未被正确释放
+    # 尝试清理互斥体
+    clean_orphaned_mutex()
+    
     if MAIN_EXE.endswith('.exe') and os.path.exists(MAIN_EXE):
         main_process = subprocess.Popen([MAIN_EXE], creationflags=subprocess.CREATE_NO_WINDOW)
     elif os.path.exists(MAIN_EXE):
@@ -95,18 +115,13 @@ def force_stop_main():
             except Exception:
                 pass
     
-    # 尝试清理互斥体（通过创建同名互斥体并立即关闭）
-    try:
-        # 创建与主程序相同的互斥体
-        mutex = ctypes.windll.kernel32.CreateMutexW(None, False, MUTEX_NAME)
-        if mutex:
-            # 关闭互斥体
-            ctypes.windll.kernel32.CloseHandle(mutex)
-            notify("已强制清理主程序")
-            return True
-    except Exception as e:
-        notify(f"强制清理失败: {e}")
-    return False
+    # 无论进程是否存在，都尝试清理可能残留的互斥体
+    if clean_orphaned_mutex():
+        notify("已强制清理主程序")
+        return True
+    else:
+        notify("没有发现主程序或互斥体")
+        return False
 
 def restart_main():
     stop_main()
@@ -115,9 +130,13 @@ def restart_main():
 
 def restart_main_as_admin():
     """以管理员权限重启主程序"""
-    if is_main_running():
+    # 检查进程是否在运行，如果在运行则关闭
+    if get_main_proc():
         stop_main()
         time.sleep(1)
+    
+    # 无论进程是否在运行，都尝试清理可能残留的互斥体
+    clean_orphaned_mutex()
     
     # 确定要启动的程序
     args = None
