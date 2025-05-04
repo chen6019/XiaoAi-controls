@@ -15,6 +15,7 @@ GUI_EXE = "RC-GUI.exe"
 GUI_PY = "GUI.py"
 ICON_FILE = "icon.ico"
 MUTEX_NAME = "Remote-Controls-main"
+TRAY_MUTEX_NAME = "Remote-Controls-tray"  # 托盘程序的互斥体名称
 
 def resource_path(relative_path):
     base_path = getattr(sys, "_MEIPASS", os.path.abspath("."))
@@ -78,6 +79,34 @@ def stop_main():
         notify("主程序已关闭")
     except Exception:
         notify("关闭主程序失败")
+
+def force_stop_main():
+    """强制关闭主程序并清理互斥体"""
+    # 先尝试常规方式关闭
+    proc = get_main_proc()
+    if proc:
+        try:
+            proc.terminate()
+            proc.wait(2)
+        except Exception:
+            # 如果常规关闭失败，使用强制结束
+            try:
+                proc.kill()
+            except Exception:
+                pass
+    
+    # 尝试清理互斥体（通过创建同名互斥体并立即关闭）
+    try:
+        # 创建与主程序相同的互斥体
+        mutex = ctypes.windll.kernel32.CreateMutexW(None, False, MUTEX_NAME)
+        if mutex:
+            # 关闭互斥体
+            ctypes.windll.kernel32.CloseHandle(mutex)
+            notify("已强制清理主程序")
+            return True
+    except Exception as e:
+        notify(f"强制清理失败: {e}")
+    return False
 
 def restart_main():
     stop_main()
@@ -148,6 +177,9 @@ def on_restart_as_admin(icon, item):
 def on_stop(icon, item):
     stop_main()
 
+def on_force_stop(icon, item):
+    force_stop_main()
+
 def on_check_admin(icon, item):
     check_admin()
 
@@ -156,9 +188,17 @@ def on_open_gui(icon, item):
 
 def on_exit(icon, item):
     icon.stop()
-    sys.exit(0)
+    # 不直接调用 sys.exit()，因为这会在 pystray 的事件处理中引发异常
+    # 而是安排在事件处理完成后退出
+    threading.Timer(0.5, lambda: os._exit(0)).start()
 
 def tray_main():
+    # 创建托盘程序互斥体，检查是否已经运行
+    tray_mutex = ctypes.windll.kernel32.CreateMutexW(None, False, TRAY_MUTEX_NAME)
+    if ctypes.windll.kernel32.GetLastError() == 183:  # ERROR_ALREADY_EXISTS
+        notify("托盘程序已在运行")
+        sys.exit(0)
+        
     icon_path = resource_path(ICON_FILE)
     image = Image.open(icon_path) if os.path.exists(icon_path) else None
     menu = pystray.Menu(
@@ -168,6 +208,7 @@ def tray_main():
         pystray.MenuItem("重启主程序", on_restart),
         pystray.MenuItem("以管理员权限重启主程序", on_restart_as_admin),
         pystray.MenuItem("关闭主程序", on_stop),
+        pystray.MenuItem("强制关闭主程序", on_force_stop),
         pystray.MenuItem("退出托盘", on_exit),
     )
     icon = pystray.Icon("Remote-Controls-Tray", image, "远程控制托盘", menu)
