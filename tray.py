@@ -59,9 +59,9 @@ def start_main():
         notify("主程序已在运行")
         return
     if MAIN_EXE.endswith('.exe') and os.path.exists(MAIN_EXE):
-        main_process = subprocess.Popen([MAIN_EXE])
+        main_process = subprocess.Popen([MAIN_EXE], creationflags=subprocess.CREATE_NO_WINDOW)
     elif os.path.exists(MAIN_EXE):
-        main_process = subprocess.Popen([sys.executable, MAIN_EXE])
+        main_process = subprocess.Popen([sys.executable, MAIN_EXE], creationflags=subprocess.CREATE_NO_WINDOW)
     else:
         notify("未找到主程序")
         return
@@ -103,10 +103,11 @@ def restart_main_as_admin():
     
     try:
         # 使用 ShellExecute 以管理员权限启动程序
+        # SW_HIDE = 0 用于隐藏窗口
         if MAIN_EXE.endswith('.exe'):
-            ctypes.windll.shell32.ShellExecuteW(None, "runas", program, None, None, 1)
+            ctypes.windll.shell32.ShellExecuteW(None, "runas", program, None, None, 0)
         else:
-            ctypes.windll.shell32.ShellExecuteW(None, "runas", program, f'"{args}"', None, 1)
+            ctypes.windll.shell32.ShellExecuteW(None, "runas", program, f'"{args}"', None, 0)
         notify("已以管理员权限启动主程序")
     except Exception as e:
         notify(f"启动失败: {e}")
@@ -161,12 +162,12 @@ def tray_main():
     icon_path = resource_path(ICON_FILE)
     image = Image.open(icon_path) if os.path.exists(icon_path) else None
     menu = pystray.Menu(
+        pystray.MenuItem("检查主程序管理员权限", on_check_admin),
+        pystray.MenuItem("打开配置界面", on_open_gui),
         pystray.MenuItem("打开主程序", on_open),
         pystray.MenuItem("重启主程序", on_restart),
         pystray.MenuItem("以管理员权限重启主程序", on_restart_as_admin),
         pystray.MenuItem("关闭主程序", on_stop),
-        pystray.MenuItem("主程序管理员权限", on_check_admin),
-        pystray.MenuItem("打开配置界面", on_open_gui),
         pystray.MenuItem("退出托盘", on_exit),
     )
     icon = pystray.Icon("Remote-Controls-Tray", image, "远程控制托盘", menu)
