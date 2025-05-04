@@ -24,8 +24,6 @@ import json
 import logging
 from tkinter import messagebox
 import sys
-import pystray
-from PIL import Image
 import threading
 import subprocess
 import time
@@ -228,26 +226,36 @@ def process_command(command: str, topic: str) -> None:
             if command == "off":
                 status = check_service_status(serve_name)
                 if status == "unknown":
+                    logging.error(f"无法获取服务{serve_name}的状态")
                     notify_in_thread(f"无法获取 {serve_name} 的状态,详情请查看日志")
                 if status == "stopped":
+                    logging.info(f"{serve_name} 还没有运行")
                     notify_in_thread(f"{serve_name} 还没有运行")
                 else:
                     result = subprocess.run(["sc", "stop", serve_name], shell=True)
                     if result.returncode == 0:
+                        logging.info(f"成功关闭 {serve_name}")
                         notify_in_thread(f"成功关闭 {serve_name}")
                     else:
+                        logging.error(f"关闭 {serve_name} 失败")
+                        logging.error(result.stderr)
                         notify_in_thread(f"关闭 {serve_name} 失败")
             elif command == "on":
                 status = check_service_status(serve_name)
                 if status == "unknown":
+                    logging.error(f"无法获取服务{serve_name}的状态")
                     notify_in_thread(f"无法获取 {serve_name} 的状态,详情请查看日志")
                 if status == "running":
+                    logging.info(f"{serve_name} 已经在运行")
                     notify_in_thread(f"{serve_name} 已经在运行")
                 else:
                     result = subprocess.run(["sc", "start", serve_name], shell=True)
                     if result.returncode == 0:
+                        logging.info(f"成功启动 {serve_name}")
                         notify_in_thread(f"成功启动 {serve_name}")
                     else:
+                        logging.error(f"启动 {serve_name} 失败")
+                        logging.error(result.stderr)
                         notify_in_thread(f"启动 {serve_name} 失败")
             return
 
@@ -285,6 +293,9 @@ def process_command(command: str, topic: str) -> None:
             except ValueError:
                 notify_in_thread("音量值无效")
                 logging.error("音量值无效")
+            except Exception as e:
+                notify_in_thread(f"设置音量时发生未知错误，请查看日志")
+                logging.error(f"设置音量时出错: {e}")
     elif topic == sleep:
         if command == "off":
             notify_in_thread("当前还没有进入睡眠模式哦！")
@@ -395,12 +406,11 @@ def open_gui() -> None:
 
 def exit_program() -> None:
     """
-    English: Stops the MQTT loop, closes the tray icon, and exits the program
-    中文: 停止 MQTT 循环，关闭托盘图标，并退出程序
+    English: Stops the MQTT loop and exits the program
+    中文: 停止 MQTT 循环，并退出程序
     """
     try:
         mqttc.loop_stop()
-        icon.stop()
         mqttc.disconnect()
     except Exception as e:
         logging.error(f"程序停止时出错: {e}")
@@ -429,49 +439,6 @@ def truncate_large_file(file_path: str, max_size: int = 1024 * 1024 * 50) -> Non
             pass
 
 
-"""
-判断当前程序是否以管理员权限运行。
-
-返回值:
-- True: 以管理员权限运行
-- False: 不是以管理员权限运行
-"""
-
-
-def is_admin() -> bool:
-    """
-    English: Checks whether the current process is running with administrator privileges
-    中文: 检查当前进程是否以管理员权限运行
-    """
-    try:
-        return ctypes.windll.shell32.IsUserAnAdmin()
-    except Exception:
-        return False
-
-
-"""
-显示管理员权限提示。
-
-无参数
-无返回值
-"""
-
-
-def admin() -> None:
-    """
-    English: Opens a messagebox to show whether the current process has admin privileges
-    中文: 弹出信息框展示当前进程是否拥有管理员权限
-    """
-    def show_message():
-        if is_admin():
-            messagebox.showinfo("信息", "已经拥有管理员权限")
-        else:
-            messagebox.showerror("错误", "没有管理员权限")
-
-    thread2 = threading.Thread(target=show_message)
-    thread2.daemon = True
-    thread2.start()
-
 # 获取资源文件的路径
 def resource_path(relative_path):
     """获取资源文件的绝对路径"""
@@ -494,21 +461,6 @@ icon_path = resource_path("icon.ico")
 with open(icon_path, "rb") as f:
     image_data = f.read()
 
-
-# 初始化系统托盘图标和菜单
-icon = pystray.Icon("Remote-Controls", title="远程控制 V1.2.1")
-image = Image.open(io.BytesIO(image_data))
-menu = (
-    pystray.MenuItem("打开配置", open_gui),
-    pystray.MenuItem("管理员权限查询", admin),
-    pystray.MenuItem("退出", exit_program),
-)
-icon.menu = menu
-icon.icon = image
-icon_Thread = threading.Thread(target=icon.run)
-icon_Thread.daemon = True
-icon_Thread.start()
-
 # 配置文件和日志文件路径改为当前工作目录
 appdata_path = os.path.abspath(os.path.dirname(sys.argv[0]))
 
@@ -529,7 +481,6 @@ truncate_large_file(log_path)
 if not os.path.exists(config_path):
     messagebox.showerror("Error", "配置文件不存在\n请先打开RC-GUI配置文件")
     logging.error("config.json 文件不存在")
-    icon.stop()
     open_gui()
     sys.exit(0)
 else:
@@ -554,7 +505,6 @@ else:
     ):
         logging.error("没有启用任何主题，显示错误信息")
         messagebox.showerror("Error", "主题不能一个都没有吧！\n（除了测试模式）")
-        icon.stop()
         open_gui()
         sys.exit(0)
     else:
@@ -629,14 +579,12 @@ except socket.timeout:
     messagebox.showerror(
         "Error", "连接到 MQTT 服务器超时，请检查网络连接或服务器地址，端口号！"
     )
-    icon.stop()
     open_gui()
     sys.exit(0)
 except socket.gaierror:
     messagebox.showerror(
         "Error", "无法解析 MQTT 服务器地址，请重试或检查服务器地址是否正确！"
     )
-    icon.stop()
     open_gui()
     sys.exit(0)
 try:
