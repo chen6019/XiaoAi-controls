@@ -418,7 +418,8 @@ def exit_program() -> None:
         # 释放互斥体
         logging.info("程序已停止")
         # ctypes.windll.kernel32.ReleaseMutex(mutex)
-        sys.exit(0)
+        threading.Timer(0.5, lambda: os._exit(0)).start()
+        
 
 
 """
@@ -478,14 +479,15 @@ logging.basicConfig(
 truncate_large_file(log_path)
 
 # 检查配置文件是否存在
-if not os.path.exists(config_path):
+if os.path.exists(config_path):
+    with open(config_path, "r", encoding="utf-8") as f:
+        config = json.load(f)
+else:
     messagebox.showerror("Error", "配置文件不存在\n请先打开RC-GUI配置文件")
     logging.error("config.json 文件不存在")
     open_gui()
-    sys.exit(0)
-else:
-    with open(config_path, "r", encoding="utf-8") as f:
-        config = json.load(f)
+    threading.Timer(0.5, lambda: os._exit(0)).start()
+
 
 if config["test"] == 1:
     logging.warning("开启测试模式:可以不启用任何主题")
@@ -506,7 +508,7 @@ else:
         logging.error("没有启用任何主题，显示错误信息")
         messagebox.showerror("Error", "主题不能一个都没有吧！\n（除了测试模式）")
         open_gui()
-        sys.exit(0)
+        threading.Timer(0.5, lambda: os._exit(0)).start()
     else:
         logging.info("至少已有一个主题被启用")
 
@@ -580,13 +582,13 @@ except socket.timeout:
         "Error", "连接到 MQTT 服务器超时，请检查网络连接或服务器地址，端口号！"
     )
     open_gui()
-    sys.exit(0)
+    threading.Timer(0.5, lambda: os._exit(0)).start()
 except socket.gaierror:
     messagebox.showerror(
         "Error", "无法解析 MQTT 服务器地址，请重试或检查服务器地址是否正确！"
     )
     open_gui()
-    sys.exit(0)
+    threading.Timer(0.5, lambda: os._exit(0)).start()
 try:
     mqttc.loop_forever()
 except KeyboardInterrupt:
