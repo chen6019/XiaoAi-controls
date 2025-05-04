@@ -11,7 +11,7 @@ C:\\Program Files\\Python313\\Lib 文件夹下
 
 打包指令:
 pyinstaller -F -n Remote-Controls --windowed --icon=icon.ico --add-data "icon.ico;."  main.py
-
+程序名：Remote-Controls.exe
 """
 
 # 导入各种必要的模块
