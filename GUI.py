@@ -14,13 +14,13 @@ import subprocess
 import win32com.client
 from typing import Any, Dict, List, Union, Optional
 
-# 创建一个命名的互斥体
-mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "Remote-Controls-GUI")
+# # 创建一个命名的互斥体
+# mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "Remote-Controls-GUI")
 
-# 检查互斥体是否已经存在
-if ctypes.windll.kernel32.GetLastError() == 183:
-    messagebox.showerror("错误", "应用程序已在运行。")
-    sys.exit()
+# # 检查互斥体是否已经存在
+# if ctypes.windll.kernel32.GetLastError() == 183:
+#     messagebox.showerror("错误", "应用程序已在运行。")
+#     sys.exit()
 
 
 # 判断是否拥有管理员权限
@@ -737,8 +737,8 @@ load_custom_themes()
 
 root.mainloop()
 
-# 释放互斥体
-ctypes.windll.kernel32.ReleaseMutex(mutex)
+# # 释放互斥体
+# ctypes.windll.kernel32.ReleaseMutex(mutex)
 
 """
 GUI程序用来生成配置文件(用于Windows系统)
