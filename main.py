@@ -420,37 +420,37 @@ def admin() -> None:
 - str: 已登录用户的用户名，未登录则返回空字符串
 """
 def is_user_logged_in() -> str:
-    """
-    English: Checks if a user is currently logged in to the system and returns the username
-    中文: 检测系统中是否有用户当前已登录并返回用户名
-    """
-    try:
-        # 方法1: 使用os.getlogin()获取当前登录用户
-        try:
-            username = os.getlogin()
-            if username:
-                return username
-        except Exception as e:
-            logging.debug(f"os.getlogin()失败: {e}")
-        
-        # 方法2: 从环境变量获取用户名
-        username = os.environ.get('USERNAME') or os.environ.get('USER')
-        if username:
-            return username
-            
-        # 方法3: 获取当前进程有效用户
-        import getpass
-        try:
-            username = getpass.getuser()
-            if username:
-                return username
-        except Exception as e:
-            logging.debug(f"getpass.getuser()失败: {e}")
-            
-        return ""  # 所有方法都失败时返回空字符串
-    except Exception as e:
-        logging.error(f"检测用户登录状态时出错: {e}")
-        return ""
+	"""
+	English: Checks if a user is currently logged in to the system and returns the username
+	中文: 检测系统中是否有用户当前已登录并返回用户名
+	"""
+	try:
+		# 方法1: 使用os.getlogin()获取当前登录用户
+		try:
+			username = os.getlogin()
+			if username:
+				return username
+		except Exception as e:
+			logging.debug(f"os.getlogin()失败: {e}")
+		
+		# 方法2: 从环境变量获取用户名
+		username = os.environ.get('USERNAME') or os.environ.get('USER')
+		if username:
+			return username
+			
+		# 方法3: 获取当前进程有效用户
+		import getpass
+		try:
+			username = getpass.getuser()
+			if username:
+				return username
+		except Exception as e:
+			logging.debug(f"getpass.getuser()失败: {e}")
+			
+		return ""  # 所有方法都失败时返回空字符串
+	except Exception as e:
+		logging.error(f"检测用户登录状态时出错: {e}")
+		return ""
 
 
 """
@@ -469,7 +469,8 @@ def monitor_login_status() -> None:
 	while True:
 		username = is_user_logged_in()
 		if username:
-			logging.info(f"检测到用户已登录，用户名: {username}，开始加载托盘图标")
+			logging.info(f"检测到用户已登录，用户名: {username}，5秒后开始加载托盘图标")
+			time.sleep(5)
 			try:
 				# 初始化系统托盘图标和菜单
 				icon_path = resource_path("icon.ico")
@@ -572,34 +573,34 @@ def exit_program() -> None:
 - backup_count: 保留的备份数量，默认1个
 """
 def rotate_large_file(file_path: str, max_size: int = 1024 * 1024 * 1, backup_count: int = 1) -> None:
-    """
-    English: Rotates file if it's larger than the specified max_size
-    中文: 如果文件大小超过限制则进行轮转备份
-    """
-    try:
-        if os.path.exists(file_path) and os.path.getsize(file_path) > max_size:
-            # 创建备份文件 (RC.log.back, etc.)
-            for i in range(backup_count, 0, -1):
-                if i > 1 and os.path.exists(f"{file_path}.{i-1}"):
-                    if os.path.exists(f"{file_path}.{i}"):
-                        os.remove(f"{file_path}.{i}")
-                    os.rename(f"{file_path}.{i-1}", f"{file_path}.{i}")
-            
-            # 最新的日志文件变成 .back 备份
-            if os.path.exists(f"{file_path}.back"):
-                os.remove(f"{file_path}.back")
-            os.rename(file_path, f"{file_path}.back")
-            
-            # 创建新的空日志文件
-            with open(file_path, "w") as f:
-                f.write(f"# 新日志文件创建于 {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
-                f.write(f"# 上一个日志文件备份为 {os.path.basename(file_path)}.back\n\n")
-    except Exception as e:
-        # 如果轮转失败，先确保日志文件存在
-        if not os.path.exists(file_path):
-            with open(file_path, "w") as f:
-                f.write(f"# 新日志文件创建于 {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
-                f.write(f"# 警告：尝试轮转日志时出错: {e}\n\n")
+	"""
+	English: Rotates file if it's larger than the specified max_size
+	中文: 如果文件大小超过限制则进行轮转备份
+	"""
+	try:
+		if os.path.exists(file_path) and os.path.getsize(file_path) > max_size:
+			# 创建备份文件 (RC.log.back, etc.)
+			for i in range(backup_count, 0, -1):
+				if i > 1 and os.path.exists(f"{file_path}.{i-1}"):
+					if os.path.exists(f"{file_path}.{i}"):
+						os.remove(f"{file_path}.{i}")
+					os.rename(f"{file_path}.{i-1}", f"{file_path}.{i}")
+			
+			# 最新的日志文件变成 .back 备份
+			if os.path.exists(f"{file_path}.back"):
+				os.remove(f"{file_path}.back")
+			os.rename(file_path, f"{file_path}.back")
+			
+			# 创建新的空日志文件
+			with open(file_path, "w") as f:
+				f.write(f"# 新日志文件创建于 {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+				f.write(f"# 上一个日志文件备份为 {os.path.basename(file_path)}.back\n\n")
+	except Exception as e:
+		# 如果轮转失败，先确保日志文件存在
+		if not os.path.exists(file_path):
+			with open(file_path, "w") as f:
+				f.write(f"# 新日志文件创建于 {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+				f.write(f"# 警告：尝试轮转日志时出错: {e}\n\n")
 
 # 获取资源文件的路径
 def resource_path(relative_path):
@@ -628,11 +629,11 @@ rotate_large_file(log_path)
 
 # 日志和配置文件路径处理
 logging.basicConfig(
-    filename=log_path,
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s: %(message)s",
-    datefmt="%m/%d/%Y %H:%M:%S",
-    encoding='utf-8'  # 新增编码参数
+	filename=log_path,
+	level=logging.INFO,
+	format="%(asctime)s %(levelname)s: %(message)s",
+	datefmt="%m/%d/%Y %H:%M:%S",
+	encoding='utf-8'  # 新增编码参数
 )
 
 # 记录程序启动信息
