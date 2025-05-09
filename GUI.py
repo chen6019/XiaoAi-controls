@@ -119,6 +119,34 @@ def set_auto_start() -> None:
     if result == 0:
         messagebox.showinfo("提示", "创建开机自启动成功")
         messagebox.showinfo("提示！", "移动位置后要重新设置哦！！")
+        # 添加托盘程序自启动，登录时运行
+        tray_exe_path = os.path.join(
+            os.path.dirname(os.path.abspath(sys.argv[0])), "RC-tray.exe"
+        )
+        if os.path.exists(tray_exe_path):
+            quoted_tray_path = shlex.quote(tray_exe_path)
+            tray_result = subprocess.call(
+                f'schtasks /Create /SC ONLOGON /TN "远程控制-托盘" '
+                f'/TR "{quoted_tray_path}" /RU SYSTEM /F',
+                shell=True,
+            )
+            # 同步设置权限和运行级别
+            task_def = root_folder.GetTask("远程控制-托盘").Definition
+            principal = task_def.Principal
+            principal.RunLevel = 1
+            settings = task_def.Settings
+            settings.DisallowStartIfOnBatteries = False
+            settings.StopIfGoingOnBatteries = False
+            settings.ExecutionTimeLimit = "PT0S"
+            root_folder.RegisterTaskDefinition(
+                "远程控制-托盘", task_def, 6, "", "", 3
+            )
+            if tray_result == 0:
+                messagebox.showinfo("提示", "创建托盘自启动成功")
+            else:
+                messagebox.showerror("错误", "创建托盘自启动失败")
+        else:
+            messagebox.showwarning("警告", "未找到 RC-tray.exe 文件，跳过托盘启动设置")
         check_task()
     else:
         messagebox.showerror("错误", "创建开机自启动失败")
@@ -135,12 +163,18 @@ def remove_auto_start() -> None:
         delete_result = subprocess.call(
             'schtasks /Delete /TN "远程控制" /F', shell=True
         )
-        if delete_result == 0:
-            messagebox.showinfo("提示", "关闭开机自启动成功")
-            check_task()
+        tray_delete = subprocess.call(
+            'schtasks /Delete /TN "远程控制-托盘" /F', shell=True
+        )
+        if delete_result == 0 and tray_delete == 0:
+            messagebox.showinfo("提示", "关闭所有自启动任务成功")
+        elif delete_result == 0:
+            messagebox.showinfo("提示", "关闭主程序自启动成功，托盘任务已不存在")
+        elif tray_delete == 0:
+            messagebox.showinfo("提示", "关闭托盘自启动成功，主程序任务已不存在")
         else:
             messagebox.showerror("错误", "关闭开机自启动失败")
-            check_task()
+        check_task()
 
 
 # 检查是否有计划任务并更新按钮状态

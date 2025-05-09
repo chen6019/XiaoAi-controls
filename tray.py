@@ -1,4 +1,4 @@
-# tray.py
+# 程序文件名RC-tray.exe
 import os
 import sys
 import subprocess
