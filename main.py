@@ -42,8 +42,8 @@ mutex = ctypes.windll.kernel32.CreateMutexW(None, False, r"Global\Remote-Control
 
 # 检查互斥体是否已经存在
 if ctypes.windll.kernel32.GetLastError() == 183:
-    messagebox.showerror("错误", "应用程序已在运行。")
-    sys.exit()
+	messagebox.showerror("错误", "应用程序已在运行。")
+	sys.exit()
 
 """
 执行系统命令，并在超时后终止命令。
@@ -58,20 +58,20 @@ if ctypes.windll.kernel32.GetLastError() == 183:
 
 
 def execute_command(cmd: str, timeout: int = 30) -> int:
-    """
-    English: Executes a system command with an optional timeout, terminating the command if it exceeds the timeout
-    中文: 使用可选超时时间执行系统命令，如果超时则终止命令
-    """
-    process = subprocess.Popen(cmd, shell=True)
-    process.poll()
-    if timeout:
-        remaining = timeout
-        while process.poll() is None and remaining > 0:
-            time.sleep(1)
-            remaining -= 1
-        if remaining == 0 and process.poll() is None:
-            process.kill()
-    return process.wait()
+	"""
+	English: Executes a system command with an optional timeout, terminating the command if it exceeds the timeout
+	中文: 使用可选超时时间执行系统命令，如果超时则终止命令
+	"""
+	process = subprocess.Popen(cmd, shell=True)
+	process.poll()
+	if timeout:
+		remaining = timeout
+		while process.poll() is None and remaining > 0:
+			time.sleep(1)
+			remaining -= 1
+		if remaining == 0 and process.poll() is None:
+			process.kill()
+	return process.wait()
 
 
 """
@@ -87,15 +87,15 @@ MQTT订阅成功时的回调函数。
 
 
 def on_subscribe(client, userdata, mid, reason_code_list, properties=None):
-    """
-    English: Callback when MQTT subscription completes
-    中文: MQTT成功订阅后回调函数
-    """
-    for sub_result in reason_code_list:
-        if isinstance(sub_result, int) and sub_result >= 128:
-            logging.error(f"订阅失败:{reason_code_list}")
-        else:
-            logging.info(f"使用代码发送订阅申请成功：{mid}")
+	"""
+	English: Callback when MQTT subscription completes
+	中文: MQTT成功订阅后回调函数
+	"""
+	for sub_result in reason_code_list:
+		if isinstance(sub_result, int) and sub_result >= 128:
+			logging.error(f"订阅失败:{reason_code_list}")
+		else:
+			logging.info(f"使用代码发送订阅申请成功：{mid}")
 
 
 """
@@ -111,15 +111,15 @@ MQTT取消订阅时的回调函数。
 
 
 def on_unsubscribe(client, userdata: list, mid: int, reason_code_list: list, properties) -> None:
-    """
-    English: Callback when MQTT unsubscription completes
-    中文: MQTT取消订阅后回调函数
-    """
-    if len(reason_code_list) == 0 or not reason_code_list[0].is_failure:
-        logging.info("退订成功")
-    else:
-        logging.error(f"{broker} 回复失败: {reason_code_list[0]}")
-    client.disconnect()
+	"""
+	English: Callback when MQTT unsubscription completes
+	中文: MQTT取消订阅后回调函数
+	"""
+	if len(reason_code_list) == 0 or not reason_code_list[0].is_failure:
+		logging.info("退订成功")
+	else:
+		logging.error(f"{broker} 回复失败: {reason_code_list[0]}")
+	client.disconnect()
 
 
 """
@@ -131,16 +131,16 @@ def on_unsubscribe(client, userdata: list, mid: int, reason_code_list: list, pro
 
 
 def set_brightness(value: int) -> None:
-    """
-    English: Sets the screen brightness to the specified value (0-100)
-    中文: 设置屏幕亮度，取值范围为 0-100
-    """
-    try:
-        wmi.WMI(namespace="wmi").WmiMonitorBrightnessMethods()[0].WmiSetBrightness(
-            value, 0
-        )
-    except Exception as e:
-        logging.error(f"无法设置亮度: {e}")
+	"""
+	English: Sets the screen brightness to the specified value (0-100)
+	中文: 设置屏幕亮度，取值范围为 0-100
+	"""
+	try:
+		wmi.WMI(namespace="wmi").WmiMonitorBrightnessMethods()[0].WmiSetBrightness(
+			value, 0
+		)
+	except Exception as e:
+		logging.error(f"无法设置亮度: {e}")
 
 
 """
@@ -152,29 +152,29 @@ def set_brightness(value: int) -> None:
 
 
 def set_volume(value: int) -> None:
-    """
-    English: Sets the system volume to the specified value (0-100)
-    中文: 设置系统音量，取值范围为 0-100
-    """
-    devices = AudioUtilities.GetSpeakers()
-    interface = devices.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
-    volume = cast(interface, POINTER(IAudioEndpointVolume))
+	"""
+	English: Sets the system volume to the specified value (0-100)
+	中文: 设置系统音量，取值范围为 0-100
+	"""
+	devices = AudioUtilities.GetSpeakers()
+	interface = devices.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
+	volume = cast(interface, POINTER(IAudioEndpointVolume))
 
-    # 控制音量在 0.0 - 1.0 之间
-    volume.SetMasterVolumeLevelScalar(value / 100, None)  # type: ignore
+	# 控制音量在 0.0 - 1.0 之间
+	volume.SetMasterVolumeLevelScalar(value / 100, None)  # type: ignore
 
 
 def notify_in_thread(message: str) -> None:
-    """
-    English: Displays a Windows toast notification in a separate thread
-    中文: 在单独线程中显示 Windows toast 通知
-    """
-    def notify_message():
-        notify(message)
+	"""
+	English: Displays a Windows toast notification in a separate thread
+	中文: 在单独线程中显示 Windows toast 通知
+	"""
+	def notify_message():
+		notify(message)
 
-    thread = threading.Thread(target=notify_message)
-    thread.daemon = True
-    thread.start()
+	thread = threading.Thread(target=notify_message)
+	thread.daemon = True
+	thread.start()
 
 
 """
@@ -187,129 +187,129 @@ def notify_in_thread(message: str) -> None:
 
 
 def process_command(command: str, topic: str) -> None:
-    """
-    English: Handles the command received from MQTT messages based on the given topic
-    中文: 根据主题处理从 MQTT 消息接收到的命令
-    """
-    logging.info(f"处理命令: {command} 主题: {topic}")
+	"""
+	English: Handles the command received from MQTT messages based on the given topic
+	中文: 根据主题处理从 MQTT 消息接收到的命令
+	"""
+	logging.info(f"处理命令: {command} 主题: {topic}")
 
-    # 先判断应用程序或服务类型主题
-    for application, directory in applications:
-        if topic == application:
-            if command == "off":
-                process_name = os.path.basename(directory)
-                logging.info(f"尝试终止进程: {process_name}")
-                notify_in_thread(f"尝试终止进程: {process_name}")
-                result = subprocess.run(
-                    ["taskkill", "/F", "/IM", process_name],
-                    capture_output=True,
-                    text=True,
-                )
-                logging.info(result.stdout)
-            elif command == "on":
-                if not directory or not os.path.isfile(directory):
-                    notify_in_thread(f"启动失败，文件不存在: {directory}")
-                    logging.error(f"启动失败，文件不存在: {directory}")
-                    return
-                subprocess.Popen(directory)
-                logging.info(f"启动: {directory}")
-                notify_in_thread(f"启动: {directory}")
-            return
-    
-    def check_service_status(service_name):
-        result = subprocess.run(["sc", "query", service_name], capture_output=True, text=True)
-        if "RUNNING" in result.stdout:
-            return "running"
-        elif "STOPPED" in result.stdout:
-            return "stopped"
-        else:
-            logging.error(f"无法获取服务{serve_name}的状态:{result.stderr}")
-            return "unknown"
-    
-    for serve, serve_name in serves:
-        if topic == serve:
-            if command == "off":
-                status = check_service_status(serve_name)
-                if status == "unknown":
-                    logging.error(f"无法获取服务{serve_name}的状态")
-                    notify_in_thread(f"无法获取 {serve_name} 的状态,详情请查看日志")
-                if status == "stopped":
-                    logging.info(f"{serve_name} 还没有运行")
-                    notify_in_thread(f"{serve_name} 还没有运行")
-                else:
-                    result = subprocess.run(["sc", "stop", serve_name], shell=True)
-                    if result.returncode == 0:
-                        logging.info(f"成功关闭 {serve_name}")
-                        notify_in_thread(f"成功关闭 {serve_name}")
-                    else:
-                        logging.error(f"关闭 {serve_name} 失败")
-                        logging.error(result.stderr)
-                        notify_in_thread(f"关闭 {serve_name} 失败")
-            elif command == "on":
-                status = check_service_status(serve_name)
-                if status == "unknown":
-                    logging.error(f"无法获取服务{serve_name}的状态")
-                    notify_in_thread(f"无法获取 {serve_name} 的状态,详情请查看日志")
-                if status == "running":
-                    logging.info(f"{serve_name} 已经在运行")
-                    notify_in_thread(f"{serve_name} 已经在运行")
-                else:
-                    result = subprocess.run(["sc", "start", serve_name], shell=True)
-                    if result.returncode == 0:
-                        logging.info(f"成功启动 {serve_name}")
-                        notify_in_thread(f"成功启动 {serve_name}")
-                    else:
-                        logging.error(f"启动 {serve_name} 失败")
-                        logging.error(result.stderr)
-                        notify_in_thread(f"启动 {serve_name} 失败")
-            return
+	# 先判断应用程序或服务类型主题
+	for application, directory in applications:
+		if topic == application:
+			if command == "off":
+				process_name = os.path.basename(directory)
+				logging.info(f"尝试终止进程: {process_name}")
+				notify_in_thread(f"尝试终止进程: {process_name}")
+				result = subprocess.run(
+					["taskkill", "/F", "/IM", process_name],
+					capture_output=True,
+					text=True,
+				)
+				logging.info(result.stdout)
+			elif command == "on":
+				if not directory or not os.path.isfile(directory):
+					notify_in_thread(f"启动失败，文件不存在: {directory}")
+					logging.error(f"启动失败，文件不存在: {directory}")
+					return
+				subprocess.Popen(directory)
+				logging.info(f"启动: {directory}")
+				notify_in_thread(f"启动: {directory}")
+			return
+	
+	def check_service_status(service_name):
+		result = subprocess.run(["sc", "query", service_name], capture_output=True, text=True)
+		if "RUNNING" in result.stdout:
+			return "running"
+		elif "STOPPED" in result.stdout:
+			return "stopped"
+		else:
+			logging.error(f"无法获取服务{serve_name}的状态:{result.stderr}")
+			return "unknown"
+	
+	for serve, serve_name in serves:
+		if topic == serve:
+			if command == "off":
+				status = check_service_status(serve_name)
+				if status == "unknown":
+					logging.error(f"无法获取服务{serve_name}的状态")
+					notify_in_thread(f"无法获取 {serve_name} 的状态,详情请查看日志")
+				if status == "stopped":
+					logging.info(f"{serve_name} 还没有运行")
+					notify_in_thread(f"{serve_name} 还没有运行")
+				else:
+					result = subprocess.run(["sc", "stop", serve_name], shell=True)
+					if result.returncode == 0:
+						logging.info(f"成功关闭 {serve_name}")
+						notify_in_thread(f"成功关闭 {serve_name}")
+					else:
+						logging.error(f"关闭 {serve_name} 失败")
+						logging.error(result.stderr)
+						notify_in_thread(f"关闭 {serve_name} 失败")
+			elif command == "on":
+				status = check_service_status(serve_name)
+				if status == "unknown":
+					logging.error(f"无法获取服务{serve_name}的状态")
+					notify_in_thread(f"无法获取 {serve_name} 的状态,详情请查看日志")
+				if status == "running":
+					logging.info(f"{serve_name} 已经在运行")
+					notify_in_thread(f"{serve_name} 已经在运行")
+				else:
+					result = subprocess.run(["sc", "start", serve_name], shell=True)
+					if result.returncode == 0:
+						logging.info(f"成功启动 {serve_name}")
+						notify_in_thread(f"成功启动 {serve_name}")
+					else:
+						logging.error(f"启动 {serve_name} 失败")
+						logging.error(result.stderr)
+						notify_in_thread(f"启动 {serve_name} 失败")
+			return
 
-    # 若不匹配应用程序或服务，再判断是否为内置主题
-    if topic == Computer:
-        # 电脑开关机控制
-        if command == "on":
-            ctypes.windll.user32.LockWorkStation()
-        elif command == "off":
-            execute_command("shutdown -r -t 15")
-            notify_in_thread("电脑将在15秒后重启")
-    elif topic == screen:
-        # 屏幕亮度控制
-        if command == "off" or command == "1":
-            set_brightness(0)
-        elif command == "on":
-            set_brightness(100)
-        else:
-            try:
-                brightness = int(command[3:])
-                set_brightness(brightness)
-            except ValueError:
-                notify_in_thread("亮度值无效")
-                logging.error("亮度值无效")
-    elif topic == volume:
-        # 音量控制
-        if command == "off" or command == "1":
-            set_volume(0)
-        elif command == "on":
-            set_volume(100)
-        else:
-            try:
-                volume_value = int(command[3:])
-                set_volume(volume_value)
-            except ValueError:
-                notify_in_thread("音量值无效")
-                logging.error("音量值无效")
-            except Exception as e:
-                notify_in_thread(f"设置音量时发生未知错误，请查看日志")
-                logging.error(f"设置音量时出错: {e}")
-    elif topic == sleep:
-        if command == "off":
-            notify_in_thread("当前还没有进入睡眠模式哦！")
-        elif command == "on":
-            execute_command("rundll32.exe powrprof.dll,SetSuspendState 0,1,0")
-    else:
-        # 未知主题
-        notify_in_thread(f"未知主题: {topic}")
-        logging.error(f"未知主题: {topic}")
+	# 若不匹配应用程序或服务，再判断是否为内置主题
+	if topic == Computer:
+		# 电脑开关机控制
+		if command == "on":
+			ctypes.windll.user32.LockWorkStation()
+		elif command == "off":
+			execute_command("shutdown -r -t 15")
+			notify_in_thread("电脑将在15秒后重启")
+	elif topic == screen:
+		# 屏幕亮度控制
+		if command == "off" or command == "1":
+			set_brightness(0)
+		elif command == "on":
+			set_brightness(100)
+		else:
+			try:
+				brightness = int(command[3:])
+				set_brightness(brightness)
+			except ValueError:
+				notify_in_thread("亮度值无效")
+				logging.error("亮度值无效")
+	elif topic == volume:
+		# 音量控制
+		if command == "off" or command == "1":
+			set_volume(0)
+		elif command == "on":
+			set_volume(100)
+		else:
+			try:
+				volume_value = int(command[3:])
+				set_volume(volume_value)
+			except ValueError:
+				notify_in_thread("音量值无效")
+				logging.error("音量值无效")
+			except Exception as e:
+				notify_in_thread(f"设置音量时发生未知错误，请查看日志")
+				logging.error(f"设置音量时出错: {e}")
+	elif topic == sleep:
+		if command == "off":
+			notify_in_thread("当前还没有进入睡眠模式哦！")
+		elif command == "on":
+			execute_command("rundll32.exe powrprof.dll,SetSuspendState 0,1,0")
+	else:
+		# 未知主题
+		notify_in_thread(f"未知主题: {topic}")
+		logging.error(f"未知主题: {topic}")
 
 
 """
@@ -323,14 +323,14 @@ MQTT接收到消息时的回调函数。
 
 
 def on_message(client, userdata: list, message) -> None:
-    """
-    English: Callback when an MQTT message is received
-    中文: MQTT接收到消息时的回调函数
-    """
-    userdata.append(message.payload)
-    command = message.payload.decode()
-    logging.info(f"'{message.topic}' 主题收到 '{command}'")
-    process_command(command, message.topic)
+	"""
+	English: Callback when an MQTT message is received
+	中文: MQTT接收到消息时的回调函数
+	"""
+	userdata.append(message.payload)
+	command = message.payload.decode()
+	logging.info(f"'{message.topic}' 主题收到 '{command}'")
+	process_command(command, message.topic)
 
 
 """
@@ -346,27 +346,27 @@ MQTT连接时的回调函数。
 
 
 def on_connect(client, userdata: list, flags: dict, reason_code, properties=None) -> None:
-    # 兼容 int 和 ReasonCode 类型
-    try:
-        is_fail = reason_code.is_failure
-    except AttributeError:
-        is_fail = reason_code != 0
+	# 兼容 int 和 ReasonCode 类型
+	try:
+		is_fail = reason_code.is_failure
+	except AttributeError:
+		is_fail = reason_code != 0
 
-    if is_fail:
-        notify_in_thread(
-            f"连接MQTT失败: {reason_code}. 重新连接中..."
-        )
-        logging.error(f"连接失败: {reason_code}. loop_forever() 将重试连接")
-    else:
-        notify_in_thread(f"MQTT成功连接至{broker}")
-        logging.info(f"连接到 {broker}")
-        for key, value in config.items():
-            if key.endswith("_checked") and value == 1:
-                topic_key = key.replace("_checked", "")
-                topic = config.get(topic_key)
-                if topic:
-                    client.subscribe(topic)
-                    logging.info(f'订阅主题: "{topic}"')
+	if is_fail:
+		notify_in_thread(
+			f"连接MQTT失败: {reason_code}. 重新连接中..."
+		)
+		logging.error(f"连接失败: {reason_code}. loop_forever() 将重试连接")
+	else:
+		notify_in_thread(f"MQTT成功连接至{broker}")
+		logging.info(f"连接到 {broker}")
+		for key, value in config.items():
+			if key.endswith("_checked") and value == 1:
+				topic_key = key.replace("_checked", "")
+				topic = config.get(topic_key)
+				if topic:
+					client.subscribe(topic)
+					logging.info(f'订阅主题: "{topic}"')
 
 
 """
@@ -379,14 +379,14 @@ def on_connect(client, userdata: list, flags: dict, reason_code, properties=None
 
 
 def is_admin() -> bool:
-    """
-    English: Checks whether the current process is running with administrator privileges
-    中文: 检查当前进程是否以管理员权限运行
-    """
-    try:
-        return ctypes.windll.shell32.IsUserAnAdmin()
-    except Exception:
-        return False
+	"""
+	English: Checks whether the current process is running with administrator privileges
+	中文: 检查当前进程是否以管理员权限运行
+	"""
+	try:
+		return ctypes.windll.shell32.IsUserAnAdmin()
+	except Exception:
+		return False
 
 
 """
@@ -398,19 +398,19 @@ def is_admin() -> bool:
 
 
 def admin() -> None:
-    """
-    English: Opens a messagebox to show whether the current process has admin privileges
-    中文: 弹出信息框展示当前进程是否拥有管理员权限
-    """
-    def show_message():
-        if is_admin():
-            messagebox.showinfo("信息", "已经拥有管理员权限")
-        else:
-            messagebox.showerror("错误", "没有管理员权限")
+	"""
+	English: Opens a messagebox to show whether the current process has admin privileges
+	中文: 弹出信息框展示当前进程是否拥有管理员权限
+	"""
+	def show_message():
+		if is_admin():
+			messagebox.showinfo("信息", "已经拥有管理员权限")
+		else:
+			messagebox.showerror("错误", "没有管理员权限")
 
-    thread2 = threading.Thread(target=show_message)
-    thread2.daemon = True
-    thread2.start()
+	thread2 = threading.Thread(target=show_message)
+	thread2.daemon = True
+	thread2.start()
 
 
 """
@@ -421,30 +421,30 @@ def admin() -> None:
 - False: 用户未登录
 """
 def is_user_logged_in() -> bool:
-    """
-    English: Checks if a user is currently logged in to the system
-    中文: 检测系统中是否有用户当前已登录
-    """
-    try:
-        # 使用 WTSGetActiveConsoleSessionId 获取当前活动会话ID
-        sessionId = ctypes.windll.kernel32.WTSGetActiveConsoleSessionId()
-        if sessionId == 0xFFFFFFFF:  # 无效会话ID
-            return False
-        
-        # 检查是否有用户名关联到此会话
-        username_buffer = ctypes.create_unicode_buffer(100)
-        size = ctypes.c_ulong(200)
-        result = ctypes.windll.wtsapi32.WTSQuerySessionInformationW(
-            0, sessionId, 5, ctypes.byref(username_buffer), ctypes.byref(size))
-        
-        if result == 0:
-            return False
-        
-        username = username_buffer.value
-        return bool(username and username != "")
-    except Exception as e:
-        logging.error(f"检测用户登录状态时出错: {e}")
-        return False
+	"""
+	English: Checks if a user is currently logged in to the system
+	中文: 检测系统中是否有用户当前已登录
+	"""
+	try:
+		# 使用 WTSGetActiveConsoleSessionId 获取当前活动会话ID
+		sessionId = ctypes.windll.kernel32.WTSGetActiveConsoleSessionId()
+		if sessionId == 0xFFFFFFFF:  # 无效会话ID
+			return False
+		
+		# 检查是否有用户名关联到此会话
+		username_buffer = ctypes.create_unicode_buffer(100)
+		size = ctypes.c_ulong(200)
+		result = ctypes.windll.wtsapi32.WTSQuerySessionInformationW(
+			0, sessionId, 5, ctypes.byref(username_buffer), ctypes.byref(size))
+		
+		if result == 0:
+			return False
+		
+		username = username_buffer.value
+		return bool(username and username != "")
+	except Exception as e:
+		logging.error(f"检测用户登录状态时出错: {e}")
+		return False
 
 
 """
@@ -454,43 +454,43 @@ def is_user_logged_in() -> bool:
 无返回值
 """
 def monitor_login_status() -> None:
-    """
-    English: Monitors user login status and initializes tray icon after user logs in
-    中文: 监控用户登录状态，用户登录后初始化系统托盘图标
-    """
-    global icon, icon_Thread
-    
-    while True:
-        if is_user_logged_in():
-            logging.info("检测到用户已登录，开始加载托盘图标")
-            try:
-                # 初始化系统托盘图标和菜单
-                icon_path = resource_path("icon.ico")
-                # 从资源文件中读取图像
-                with open(icon_path, "rb") as f:
-                    image_data = f.read()
-                
-                icon = pystray.Icon("Remote-Controls", title="远程控制 V1.2.1")
-                image = Image.open(io.BytesIO(image_data))
-                menu = (
-                    pystray.MenuItem("打开配置", open_gui),
-                    pystray.MenuItem("管理员权限查询", admin),
-                    pystray.MenuItem("退出", exit_program),
-                )
+	"""
+	English: Monitors user login status and initializes tray icon after user logs in
+	中文: 监控用户登录状态，用户登录后初始化系统托盘图标
+	"""
+	global icon, icon_Thread
+	
+	while True:
+		if is_user_logged_in():
+			logging.info("检测到用户已登录，开始加载托盘图标")
+			try:
+				# 初始化系统托盘图标和菜单
+				icon_path = resource_path("icon.ico")
+				# 从资源文件中读取图像
+				with open(icon_path, "rb") as f:
+					image_data = f.read()
+				
+				icon = pystray.Icon("Remote-Controls", title="远程控制 V1.2.1")
+				image = Image.open(io.BytesIO(image_data))
+				menu = (
+					pystray.MenuItem("打开配置", open_gui),
+					pystray.MenuItem("管理员权限查询", admin),
+					pystray.MenuItem("退出", exit_program),
+				)
 
-                icon.menu = menu
-                icon.icon = image
-                icon_Thread = threading.Thread(target=icon.run)
-                icon_Thread.daemon = True
-                icon_Thread.start()
-                logging.info("托盘图标已加载完成")
-                break
-            except Exception as e:
-                logging.error(f"加载托盘图标时出错: {e}")
-                time.sleep(10)  # 出错后等待一段时间再重试
-        else:
-            logging.info("等待用户登录...")
-            time.sleep(5)  # 每5秒检查一次登录状态
+				icon.menu = menu
+				icon.icon = image
+				icon_Thread = threading.Thread(target=icon.run)
+				icon_Thread.daemon = True
+				icon_Thread.start()
+				logging.info("托盘图标已加载完成")
+				break
+			except Exception as e:
+				logging.error(f"加载托盘图标时出错: {e}")
+				time.sleep(10)  # 出错后等待一段时间再重试
+		else:
+			logging.info("等待用户登录...")
+			time.sleep(5)  # 每5秒检查一次登录状态
 
 
 """
@@ -501,27 +501,27 @@ def monitor_login_status() -> None:
 """
 
 def open_gui() -> None:
-    """
-    English: Attempts to open GUI.py or RC-GUI.exe, else shows an error message
-    中文: 尝试运行 GUI.py 或 RC-GUI.exe，如果找不到则弹出错误提示
-    """
-    if os.path.isfile("GUI.py"):
-        subprocess.Popen([".venv\\Scripts\\python.exe", "GUI.py"])
-        notify_in_thread("正在打开配置窗口...")
-    elif os.path.isfile("RC-GUI.exe"):
-        subprocess.Popen(["RC-GUI.exe"])
-        notify_in_thread("正在打开配置窗口...")
-    else:
-        def show_message():
-            current_path = os.getcwd()
-            messagebox.showerror(
-                "Error", f"找不到GUI.py或RC-GUI.exe\n当前工作路径{current_path}"
-            )
-            logging.error(f"找不到GUI.py或RC-GUI.exe\n当前工作路径{current_path}")
+	"""
+	English: Attempts to open GUI.py or RC-GUI.exe, else shows an error message
+	中文: 尝试运行 GUI.py 或 RC-GUI.exe，如果找不到则弹出错误提示
+	"""
+	if os.path.isfile("GUI.py"):
+		subprocess.Popen([".venv\\Scripts\\python.exe", "GUI.py"])
+		notify_in_thread("正在打开配置窗口...")
+	elif os.path.isfile("RC-GUI.exe"):
+		subprocess.Popen(["RC-GUI.exe"])
+		notify_in_thread("正在打开配置窗口...")
+	else:
+		def show_message():
+			current_path = os.getcwd()
+			messagebox.showerror(
+				"Error", f"找不到GUI.py或RC-GUI.exe\n当前工作路径{current_path}"
+			)
+			logging.error(f"找不到GUI.py或RC-GUI.exe\n当前工作路径{current_path}")
 
-        thread = threading.Thread(target=show_message)
-        thread.daemon = True
-        thread.start()
+		thread = threading.Thread(target=show_message)
+		thread.daemon = True
+		thread.start()
 
 
 """
@@ -533,27 +533,27 @@ def open_gui() -> None:
 
 
 def exit_program() -> None:
-    """
-    English: Stops the MQTT loop and exits the program
-    中文: 停止 MQTT 循环，并退出程序
-    """
-    try:
-        mqttc.loop_stop()
-        mqttc.disconnect()
-    except Exception as e:
-        logging.error(f"程序停止时出错: {e}")
-    finally:
-        # 释放互斥体
-        try:
-            ctypes.windll.kernel32.ReleaseMutex(mutex)
-            ctypes.windll.kernel32.CloseHandle(mutex)
-            logging.info("互斥体已释放")
-        except Exception as e:
-            logging.error(f"释放互斥体时出错: {e}")
-        
-        logging.info("程序已停止")
-        threading.Timer(0.5, lambda: os._exit(0)).start()
-        sys.exit(0)
+	"""
+	English: Stops the MQTT loop and exits the program
+	中文: 停止 MQTT 循环，并退出程序
+	"""
+	try:
+		mqttc.loop_stop()
+		mqttc.disconnect()
+	except Exception as e:
+		logging.error(f"程序停止时出错: {e}")
+	finally:
+		# 释放互斥体
+		try:
+			ctypes.windll.kernel32.ReleaseMutex(mutex)
+			ctypes.windll.kernel32.CloseHandle(mutex)
+			logging.info("互斥体已释放")
+		except Exception as e:
+			logging.error(f"释放互斥体时出错: {e}")
+		
+		logging.info("程序已停止")
+		threading.Timer(0.5, lambda: os._exit(0)).start()
+		sys.exit(0)
 
 
 """
@@ -565,27 +565,27 @@ def exit_program() -> None:
 
 
 def truncate_large_file(file_path: str, max_size: int = 1024 * 1024 * 50) -> None:
-    """
-    English: Clears file content if it's larger than the specified max_size
-    中文: 如果文件大小超过限制则清空文件内容
-    """
-    if os.path.getsize(file_path) > max_size:
-        with open(file_path, "w"):
-            pass
+	"""
+	English: Clears file content if it's larger than the specified max_size
+	中文: 如果文件大小超过限制则清空文件内容
+	"""
+	if os.path.getsize(file_path) > max_size:
+		with open(file_path, "w"):
+			pass
 
 
 # 获取资源文件的路径
 def resource_path(relative_path):
-    """获取资源文件的绝对路径"""
-    # PyInstaller 创建临时文件夹
-    base_path = getattr(sys, "_MEIPASS", os.path.abspath("."))
-    return os.path.join(base_path, relative_path)
+	"""获取资源文件的绝对路径"""
+	# PyInstaller 创建临时文件夹
+	base_path = getattr(sys, "_MEIPASS", os.path.abspath("."))
+	return os.path.join(base_path, relative_path)
 
 # 获取应用程序的路径
 if getattr(sys, "frozen", False):
-    application_path = os.path.dirname(sys.executable)
+	application_path = os.path.dirname(sys.executable)
 else:
-    application_path = os.path.dirname(os.path.abspath(__file__))
+	application_path = os.path.dirname(os.path.abspath(__file__))
 
 # 改变当前的工作路径
 os.chdir(application_path)
@@ -604,55 +604,55 @@ config_path = os.path.join(appdata_path, "config.json")
 
 # 日志和配置文件路径处理
 logging.basicConfig(
-    filename=log_path,
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s: %(message)s",
-    datefmt="%m/%d/%Y %I:%M:%S %p",
+	filename=log_path,
+	level=logging.INFO,
+	format="%(asctime)s %(levelname)s: %(message)s",
+	datefmt="%m/%d/%Y %I:%M:%S %p",
 )
 
 truncate_large_file(log_path)
 
 # 检查配置文件是否存在
 if os.path.exists(config_path):
-    try:
-        with open(config_path, "r", encoding="utf-8") as f:
-            config = json.load(f)
-    except json.JSONDecodeError:
-        messagebox.showerror("Error", "配置文件格式错误\n请检查config.json文件")
-        logging.error("config.json 文件格式错误")
-        open_gui()
-        threading.Timer(0.5, lambda: os._exit(0)).start()
-        sys.exit()
+	try:
+		with open(config_path, "r", encoding="utf-8") as f:
+			config = json.load(f)
+	except json.JSONDecodeError:
+		messagebox.showerror("Error", "配置文件格式错误\n请检查config.json文件")
+		logging.error("config.json 文件格式错误")
+		open_gui()
+		threading.Timer(0.5, lambda: os._exit(0)).start()
+		sys.exit()
 else:
-    messagebox.showerror("Error", "配置文件不存在\n请先打开RC-GUI配置文件")
-    logging.error("config.json 文件不存在")
-    open_gui()
-    threading.Timer(0.5, lambda: os._exit(0)).start()
-    sys.exit()
+	messagebox.showerror("Error", "配置文件不存在\n请先打开RC-GUI配置文件")
+	logging.error("config.json 文件不存在")
+	open_gui()
+	threading.Timer(0.5, lambda: os._exit(0)).start()
+	sys.exit()
 
 # 确保config已经定义后再继续
 if config.get("test") == 1:
-    logging.warning("开启测试模式:可以不启用任何主题")
+	logging.warning("开启测试模式:可以不启用任何主题")
 else:
-    if (
-        all(
-            config.get(f"{key}_checked", 0) == 0
-            for key in ["Computer", "screen", "volume", "sleep"]
-        )
-        and all(
-            config.get(f"application{index}_checked", 0) == 0
-            for index in range(1, 100)
-        )
-        and all(
-            config.get(f"serve{index}_checked", 0) == 0 for index in range(1, 100)
-        )
-    ):
-        logging.error("没有启用任何主题，显示错误信息")
-        messagebox.showerror("Error", "主题不能一个都没有吧！\n（除了测试模式）")
-        open_gui()
-        threading.Timer(0.5, lambda: os._exit(0)).start()
-    else:
-        logging.info("至少已有一个主题被启用")
+	if (
+		all(
+			config.get(f"{key}_checked", 0) == 0
+			for key in ["Computer", "screen", "volume", "sleep"]
+		)
+		and all(
+			config.get(f"application{index}_checked", 0) == 0
+			for index in range(1, 100)
+		)
+		and all(
+			config.get(f"serve{index}_checked", 0) == 0 for index in range(1, 100)
+		)
+	):
+		logging.error("没有启用任何主题，显示错误信息")
+		messagebox.showerror("Error", "主题不能一个都没有吧！\n（除了测试模式）")
+		open_gui()
+		threading.Timer(0.5, lambda: os._exit(0)).start()
+	else:
+		logging.info("至少已有一个主题被启用")
 
 broker = config.get("broker")
 secret_id = config.get("secret_id")
@@ -661,11 +661,11 @@ port = int(config.get("port"))
 
 # 动态加载主题
 def load_theme(key):
-    """
-    English: Loads the theme from config if it is enabled
-    中文: 如果主题被勾选启用，则从配置中加载该主题
-    """
-    return config.get(key) if config.get(f"{key}_checked") == 1 else None
+	"""
+	English: Loads the theme from config if it is enabled
+	中文: 如果主题被勾选启用，则从配置中加载该主题
+	"""
+	return config.get(key) if config.get(f"{key}_checked") == 1 else None
 
 
 Computer = load_theme("Computer")
@@ -676,37 +676,37 @@ sleep = load_theme("sleep")
 # 加载应用程序主题到应用程序列表
 applications = []
 for i in range(1, 50):
-    app_key = f"application{i}"
-    directory_key = f"application{i}_directory{i}"
-    application = load_theme(app_key)
-    directory = config.get(directory_key) if application else None
-    if application:
-        logging.info(f"加载应用程序: {app_key}, 目录: {directory}")
-        applications.append((application, directory))
+	app_key = f"application{i}"
+	directory_key = f"application{i}_directory{i}"
+	application = load_theme(app_key)
+	directory = config.get(directory_key) if application else None
+	if application:
+		logging.info(f"加载应用程序: {app_key}, 目录: {directory}")
+		applications.append((application, directory))
 logging.info(f"读取的应用程序列表: {applications}\n")
 
 # 加载服务主题到服务列表
 serves = []
 for i in range(1, 50):
-    serve_key = f"serve{i}"
-    serve_name_key = f"serve{i}_value"
-    serve = load_theme(serve_key)
-    serve_name = config.get(serve_name_key) if serve else None
-    if serve:
-        logging.info(f"加载服务: {serve_key}, 名称: {serve_name}")
-        serves.append((serve, serve_name))
+	serve_key = f"serve{i}"
+	serve_name_key = f"serve{i}_value"
+	serve = load_theme(serve_key)
+	serve_name = config.get(serve_name_key) if serve else None
+	if serve:
+		logging.info(f"加载服务: {serve_key}, 名称: {serve_name}")
+		serves.append((serve, serve_name))
 logging.info(f"读取的服务列表: {serves}\n")
 
 # 如果主题不为空，将其记录到日志中
 for key in ["Computer", "screen", "volume", "sleep"]:
-    if config.get(key):
-        logging.info(f'主题"{config.get(key)}"')
+	if config.get(key):
+		logging.info(f'主题"{config.get(key)}"')
 
 for application, directory in applications:
-    logging.info(f'主题"{application}"，值："{directory}"')
+	logging.info(f'主题"{application}"，值："{directory}"')
 
 for serve, serve_name in serves:
-    logging.info(f'主题"{serve}"，值："{serve_name}"')
+	logging.info(f'主题"{serve}"，值："{serve_name}"')
 
 # 初始化MQTT客户端
 mqttc = mqtt.Client()
@@ -718,35 +718,35 @@ mqttc.on_unsubscribe = on_unsubscribe
 mqttc.user_data_set([])
 mqttc._client_id = secret_id
 try:
-    mqttc.connect(broker, port)
+	mqttc.connect(broker, port)
 except socket.timeout:
-    messagebox.showerror(
-        "Error", "连接到 MQTT 服务器超时，请检查网络连接或服务器地址，端口号！"
-    )
-    open_gui()
-    threading.Timer(0.5, lambda: os._exit(0)).start()
+	messagebox.showerror(
+		"Error", "连接到 MQTT 服务器超时，请检查网络连接或服务器地址，端口号！"
+	)
+	open_gui()
+	threading.Timer(0.5, lambda: os._exit(0)).start()
 except socket.gaierror:
-    messagebox.showerror(
-        "Error", "无法解析 MQTT 服务器地址，请重试或检查服务器地址是否正确！"
-    )
-    open_gui()
-    threading.Timer(0.5, lambda: os._exit(0)).start()
+	messagebox.showerror(
+		"Error", "无法解析 MQTT 服务器地址，请重试或检查服务器地址是否正确！"
+	)
+	open_gui()
+	threading.Timer(0.5, lambda: os._exit(0)).start()
 try:
-    mqttc.loop_forever()
+	mqttc.loop_forever()
 except KeyboardInterrupt:
-    logging.warning("收到中断,程序停止")
-    notify_in_thread("收到中断信号\n程序停止")
-    exit_program()
+	logging.warning("收到中断,程序停止")
+	notify_in_thread("收到中断信号\n程序停止")
+	exit_program()
 except Exception as e:
-    logging.error(f"程序异常: {e}")
-    exit_program()
+	logging.error(f"程序异常: {e}")
+	exit_program()
 
 logging.info(f"总共收到以下消息: {mqttc.user_data_get()}")
 
 # 确保在程序退出前释放互斥体
 try:
-    ctypes.windll.kernel32.ReleaseMutex(mutex)
-    ctypes.windll.kernel32.CloseHandle(mutex)
+	ctypes.windll.kernel32.ReleaseMutex(mutex)
+	ctypes.windll.kernel32.CloseHandle(mutex)
 except Exception as e:
-    logging.error(f"释放互斥体时出错: {e}")
+	logging.error(f"释放互斥体时出错: {e}")
 
