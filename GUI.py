@@ -119,7 +119,7 @@ def set_auto_start() -> None:
     root_folder.RegisterTaskDefinition("A远程控制", task_definition, 6, "", "", 2)
     if result == 0:
         messagebox.showinfo("提示", "创建任务成功\n已配置为当前用户运行(不存储密码)，任务触发时仅访问本地资源")
-        messagebox.showinfo("提示", "移动位置后需重新设置任务")
+        messagebox.showinfo("提示", "移动文件位置后需重新设置任务哦！")
         # 添加托盘程序自启动，登录时运行
         tray_exe_path = os.path.join(
             os.path.dirname(os.path.abspath(sys.argv[0])), "RC-tray.exe"
@@ -208,6 +208,7 @@ def load_custom_themes() -> None:
     English: Loads user-defined themes from config and displays them in the tree
     中文: 从配置文件中读取自定义主题并展示到树状列表中
     """
+    global config
     app_index = 1
     serve_index = 1
     while True:
@@ -437,6 +438,7 @@ def generate_config() -> None:
     English: Generates and saves the config file (JSON) based on the input
     中文: 根据输入生成并保存配置文件(JSON格式)
     """
+    global config
     config = {
         "broker": website_entry.get(),
         "secret_id": secret_entry.get(),
@@ -474,57 +476,57 @@ def generate_config() -> None:
     with open(config_file_path, "w", encoding="utf-8") as f:
         json.dump(config, f, ensure_ascii=False, indent=4)
     # 保存后刷新界面
-    messagebox.showinfo("提示", "配置文件已保存\n请重新打开主程序以应用更改\n更改test模式需重启本程序")
+    messagebox.showinfo("提示", "配置文件已保存\n请重新打开主程序以应用更改\n刷新test模式需重启本程序")
     # 重新读取配置
     with open(config_file_path, "r", encoding="utf-8") as f:
         config = json.load(f)
     # 刷新test模式
     test_var.set(config.get("test", 0))
-    # sleep()
     # 刷新内置主题
     for idx, theme in enumerate(builtin_themes):
         theme_key = theme["key"]
         theme["name_var"].set(config.get(theme_key, ""))
         theme["checked"].set(config.get(f"{theme_key}_checked", 0))
-    # for idx, theme in enumerate(builtin_themes):
-    #     theme_key = theme["key"]
-    #     theme["name_var"].set(config.get(theme_key, ""))
-    #     theme["checked"].set(config.get(f"{theme_key}_checked", 0))
-    #     if theme_key == "sleep" and sleep_disabled:
-    #         theme["checked"].set(0)
-    #         theme["name_var"].set("")
-    #         cb = ttk.Checkbutton(theme_frame, text=theme["nickname"], variable=theme["checked"])
-    #         cb.state(["disabled"])
-    #         cb.grid(row=idx + 1, column=0, sticky="w", columnspan=2)
-    #         entry = ttk.Entry(theme_frame, textvariable=theme["name_var"])
-    #         entry.config(state="disabled")
-    #         entry.grid(row=idx + 1, column=2, sticky="ew")
-    #         sleep_tip = ttk.Button(theme_frame, text="休眠/睡眠不可用\n点击(详情)查看原因",command=enable_window)
-    #         sleep_tip.grid(row=idx + 1, column=2, sticky="w")
-    #     else:
-    #         ttk.Checkbutton(theme_frame, text=theme["nickname"], variable=theme["checked"]).grid(
-    #             row=idx + 1, column=0, sticky="w", columnspan=2
-    #         )
-    #         ttk.Entry(theme_frame, textvariable=theme["name_var"]).grid(
-    #             row=idx + 1, column=2, sticky="ew"
-    #         )
+
     # 刷新自定义主题
     custom_themes.clear()
     for item in custom_theme_tree.get_children():
         custom_theme_tree.delete(item)
     load_custom_themes()
-    # ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, f'"{__file__}"', None, 0)
-    # sys.exit()
-    # root.update()
-
-
-# 打开配置文件夹的函数
-def open_config_folder() -> None:
+    
+# 添加一个刷新自定义主题的函数
+def refresh_custom_themes() -> None:
     """
-    English: Opens the folder containing configuration files
-    中文: 打开配置文件夹
+    English: Refreshes the custom themes list by clearing and reloading from config
+    中文: 通过清空并重新从配置文件加载来刷新自定义主题列表
     """
-    os.startfile(appdata_dir)
+    global config
+    
+    # 提示用户未保存的更改将丢失
+    if not messagebox.askyesno("确认刷新", "刷新将加载配置文件中的设置，\n您未保存的更改将会丢失！\n确定要继续吗？"):
+        return
+    
+    # 从配置文件重新读取最新配置
+    if os.path.exists(config_file_path):
+        try:
+            with open(config_file_path, "r", encoding="utf-8") as f:
+                config = json.load(f)
+            
+            # 清空自定义主题列表
+            custom_themes.clear()
+            
+            # 清空树视图中的所有项目
+            for item in custom_theme_tree.get_children():
+                custom_theme_tree.delete(item)
+            
+            # 重新加载自定义主题
+            load_custom_themes()
+            
+            messagebox.showinfo("提示", "已从配置文件刷新自定义主题列表")
+        except Exception as e:
+            messagebox.showerror("错误", f"读取配置文件失败: {e}")
+    else:
+        messagebox.showwarning("警告", "配置文件不存在，无法刷新")
 
 def sleep():
     # 检查系统休眠/睡眠支持（test模式开启时跳过检测）
@@ -622,6 +624,10 @@ port_entry.insert(0, str(config.get("port", "")))
 test_var = tk.IntVar(value=config.get("test", 0))
 test_check = ttk.Checkbutton(system_frame, text="test模式", variable=test_var)
 test_check.grid(row=3, column=0, columnspan=2, sticky="w")
+
+#添加打开任务计划按钮
+task_button = ttk.Button(system_frame, text="点击此按钮可以手动设置", command=lambda:os.startfile("taskschd.msc"))
+task_button.grid(row=3, column=2, sticky="n", padx=15)
 
 # 添加设置开机自启动按钮上面的提示
 auto_start_label = ttk.Label(
@@ -726,6 +732,11 @@ custom_theme_tree = ttk.Treeview(theme_frame, columns=("theme",), show="headings
 custom_theme_tree.heading("theme", text="双击即可修改")
 custom_theme_tree.grid(row=1, column=3, rowspan=4, pady=10, sticky="nsew")
 
+# 刷新主题配置按钮
+ttk.Button(theme_frame, text="刷新", command=refresh_custom_themes).grid(
+    row=5, column=0, sticky="w"
+)
+
 # 添加和修改按钮
 ttk.Button(theme_frame, text="添加", command=lambda: add_custom_theme(config)).grid(
     row=5, column=3, sticky="w"
@@ -744,7 +755,7 @@ button_frame.grid_rowconfigure(0, weight=1)
 button_frame.grid_columnconfigure(0, weight=1)
 button_frame.grid_columnconfigure(1, weight=1)
 
-ttk.Button(button_frame, text="打开配置文件夹", command=open_config_folder).grid(
+ttk.Button(button_frame, text="打开配置文件夹", command=lambda:os.startfile(appdata_dir)).grid(
     row=0, column=0, padx=20, sticky="e"
 )
 ttk.Button(button_frame, text="保存配置文件", command=generate_config).grid(
