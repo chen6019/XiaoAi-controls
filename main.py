@@ -38,7 +38,7 @@ from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
 
 
 # 创建一个命名的互斥体
-mutex = ctypes.windll.kernel32.CreateMutexW(None, False, r"Global\Remote-Controls-main")
+mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "Remote-Controls-main")
 
 # 检查互斥体是否已经存在
 if ctypes.windll.kernel32.GetLastError() == 183:
@@ -414,63 +414,51 @@ def admin() -> None:
 
 
 """
-检测用户是否已登录。
+检测是否有可用的桌面环境（任务栏）。
 
 返回值:
-- str: 已登录用户的用户名，未登录则返回空字符串
+- str: 桌面环境标识符，没有桌面环境则返回空字符串
 """
 def is_user_logged_in() -> str:
 	"""
-	English: Checks if a user is currently logged in to the system and returns the username
-	中文: 检测系统中是否有用户当前已登录并返回用户名
+	English: Checks if a desktop environment (taskbar) is available
+	中文: 检测系统中是否有可用的桌面环境（任务栏）
 	"""
 	try:
-		# 方法1: 使用os.getlogin()获取当前登录用户
-		try:
-			username = os.getlogin()
-			if username:
-				return username
-		except Exception as e:
-			logging.debug(f"os.getlogin()失败: {e}")
-		
-		# 方法2: 从环境变量获取用户名
-		username = os.environ.get('USERNAME') or os.environ.get('USER')
-		if username:
-			return username
-			
-		# 方法3: 获取当前进程有效用户
-		import getpass
-		try:
-			username = getpass.getuser()
-			if username:
-				return username
-		except Exception as e:
-			logging.debug(f"getpass.getuser()失败: {e}")
-			
-		return ""  # 所有方法都失败时返回空字符串
+		# 查找任务栏窗口
+		taskbar_hwnd = ctypes.windll.user32.FindWindowW("Shell_TrayWnd", None)
+		if taskbar_hwnd != 0:
+			# 任务栏存在，返回环境标识符
+			# 尝试获取当前用户名作为标识符
+			try:
+				username = os.getlogin()
+				return username or "Desktop Environment"
+			except:
+				return "Desktop Environment"
+		return ""
 	except Exception as e:
-		logging.error(f"检测用户登录状态时出错: {e}")
+		logging.error(f"检测桌面环境时出错: {e}")
 		return ""
 
 
 """
-监控用户登录状态并在用户登录后初始化托盘图标。
+监控桌面环境状态并在桌面环境可用后初始化托盘图标。
 
 无参数
 无返回值
 """
 def monitor_login_status() -> None:
 	"""
-	English: Monitors user login status and initializes tray icon after user logs in
-	中文: 监控用户登录状态，用户登录后初始化系统托盘图标
+	English: Monitors desktop environment status and initializes tray icon when available
+	中文: 监控桌面环境状态，桌面环境可用后初始化系统托盘图标
 	"""
 	global icon, icon_Thread
 	
 	while True:
-		username = is_user_logged_in()
-		if username:
-			logging.info(f"检测到用户已登录，用户名: {username}，5秒后开始加载托盘图标")
-			time.sleep(5)
+		desktop_id = is_user_logged_in()
+		if desktop_id:
+			logging.info(f"检测到桌面环境可用，环境标识: {desktop_id}，开始加载托盘图标")
+			time.sleep(5)  # 等待桌面环境完全初始化
 			try:
 				# 初始化系统托盘图标和菜单
 				icon_path = resource_path("icon.ico")
@@ -497,8 +485,8 @@ def monitor_login_status() -> None:
 				logging.error(f"加载托盘图标时出错: {e}")
 				time.sleep(10)  # 出错后等待一段时间再重试
 		else:
-			logging.info("等待用户登录...")
-			time.sleep(5)  # 每5秒检查一次登录状态
+			logging.info("等待桌面环境可用...")
+			time.sleep(5)  # 每5秒检查一次桌面环境状态
 
 
 """
