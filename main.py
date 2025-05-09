@@ -417,34 +417,40 @@ def admin() -> None:
 检测用户是否已登录。
 
 返回值:
-- True: 用户已登录
-- False: 用户未登录
+- str: 已登录用户的用户名，未登录则返回空字符串
 """
-def is_user_logged_in() -> bool:
-	"""
-	English: Checks if a user is currently logged in to the system
-	中文: 检测系统中是否有用户当前已登录
-	"""
-	try:
-		# 使用 WTSGetActiveConsoleSessionId 获取当前活动会话ID
-		sessionId = ctypes.windll.kernel32.WTSGetActiveConsoleSessionId()
-		if sessionId == 0xFFFFFFFF:  # 无效会话ID
-			return False
-		
-		# 检查是否有用户名关联到此会话
-		username_buffer = ctypes.create_unicode_buffer(100)
-		size = ctypes.c_ulong(200)
-		result = ctypes.windll.wtsapi32.WTSQuerySessionInformationW(
-			0, sessionId, 5, ctypes.byref(username_buffer), ctypes.byref(size))
-		
-		if result == 0:
-			return False
-		
-		username = username_buffer.value
-		return bool(username and username != "")
-	except Exception as e:
-		logging.error(f"检测用户登录状态时出错: {e}")
-		return False
+def is_user_logged_in() -> str:
+    """
+    English: Checks if a user is currently logged in to the system and returns the username
+    中文: 检测系统中是否有用户当前已登录并返回用户名
+    """
+    try:
+        # 方法1: 使用os.getlogin()获取当前登录用户
+        try:
+            username = os.getlogin()
+            if username:
+                return username
+        except Exception as e:
+            logging.debug(f"os.getlogin()失败: {e}")
+        
+        # 方法2: 从环境变量获取用户名
+        username = os.environ.get('USERNAME') or os.environ.get('USER')
+        if username:
+            return username
+            
+        # 方法3: 获取当前进程有效用户
+        import getpass
+        try:
+            username = getpass.getuser()
+            if username:
+                return username
+        except Exception as e:
+            logging.debug(f"getpass.getuser()失败: {e}")
+            
+        return ""  # 所有方法都失败时返回空字符串
+    except Exception as e:
+        logging.error(f"检测用户登录状态时出错: {e}")
+        return ""
 
 
 """
@@ -461,8 +467,9 @@ def monitor_login_status() -> None:
 	global icon, icon_Thread
 	
 	while True:
-		if is_user_logged_in():
-			logging.info("检测到用户已登录，开始加载托盘图标")
+		username = is_user_logged_in()
+		if username:
+			logging.info(f"检测到用户已登录，用户名: {username}，开始加载托盘图标")
 			try:
 				# 初始化系统托盘图标和菜单
 				icon_path = resource_path("icon.ico")
@@ -557,22 +564,42 @@ def exit_program() -> None:
 
 
 """
-文件过大时截断文件。
+文件过大时轮转文件。
 
-无参数
-无返回值
+参数:
+- file_path: 文件路径
+- max_size: 文件最大大小（字节），默认5MB
+- backup_count: 保留的备份数量，默认1个
 """
-
-
-def truncate_large_file(file_path: str, max_size: int = 1024 * 1024 * 50) -> None:
-	"""
-	English: Clears file content if it's larger than the specified max_size
-	中文: 如果文件大小超过限制则清空文件内容
-	"""
-	if os.path.getsize(file_path) > max_size:
-		with open(file_path, "w"):
-			pass
-
+def rotate_large_file(file_path: str, max_size: int = 1024 * 1024 * 1, backup_count: int = 1) -> None:
+    """
+    English: Rotates file if it's larger than the specified max_size
+    中文: 如果文件大小超过限制则进行轮转备份
+    """
+    try:
+        if os.path.exists(file_path) and os.path.getsize(file_path) > max_size:
+            # 创建备份文件 (RC.log.back, etc.)
+            for i in range(backup_count, 0, -1):
+                if i > 1 and os.path.exists(f"{file_path}.{i-1}"):
+                    if os.path.exists(f"{file_path}.{i}"):
+                        os.remove(f"{file_path}.{i}")
+                    os.rename(f"{file_path}.{i-1}", f"{file_path}.{i}")
+            
+            # 最新的日志文件变成 .back 备份
+            if os.path.exists(f"{file_path}.back"):
+                os.remove(f"{file_path}.back")
+            os.rename(file_path, f"{file_path}.back")
+            
+            # 创建新的空日志文件
+            with open(file_path, "w") as f:
+                f.write(f"# 新日志文件创建于 {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+                f.write(f"# 上一个日志文件备份为 {os.path.basename(file_path)}.back\n\n")
+    except Exception as e:
+        # 如果轮转失败，先确保日志文件存在
+        if not os.path.exists(file_path):
+            with open(file_path, "w") as f:
+                f.write(f"# 新日志文件创建于 {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+                f.write(f"# 警告：尝试轮转日志时出错: {e}\n\n")
 
 # 获取资源文件的路径
 def resource_path(relative_path):
@@ -590,27 +617,37 @@ else:
 # 改变当前的工作路径
 os.chdir(application_path)
 
-
-# 启动登录监控线程
-login_monitor_thread = threading.Thread(target=monitor_login_status)
-login_monitor_thread.daemon = True
-login_monitor_thread.start()
-
 # 配置文件和日志文件路径改为当前工作目录
 appdata_path = os.path.abspath(os.path.dirname(sys.argv[0]))
 
 log_path = os.path.join(appdata_path, "RC.log")
 config_path = os.path.join(appdata_path, "config.json")
 
+# 先进行日志文件轮转，再配置日志系统
+rotate_large_file(log_path)
+
 # 日志和配置文件路径处理
 logging.basicConfig(
-	filename=log_path,
-	level=logging.INFO,
-	format="%(asctime)s %(levelname)s: %(message)s",
-	datefmt="%m/%d/%Y %I:%M:%S %p",
+    filename=log_path,
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s: %(message)s",
+    datefmt="%m/%d/%Y %H:%M:%S",
+    encoding='utf-8'  # 新增编码参数
 )
 
-truncate_large_file(log_path)
+# 记录程序启动信息
+logging.info("=" * 50)
+logging.info("程序启动")
+logging.info(f"当前工作目录: {os.getcwd()}")
+logging.info(f"日志文件路径: {log_path}")
+logging.info(f"配置文件路径: {config_path}")
+logging.info(f"Python版本: {sys.version}")
+logging.info("=" * 50)
+
+# 启动登录监控线程
+login_monitor_thread = threading.Thread(target=monitor_login_status)
+login_monitor_thread.daemon = True
+login_monitor_thread.start()
 
 # 检查配置文件是否存在
 if os.path.exists(config_path):
@@ -709,7 +746,7 @@ for serve, serve_name in serves:
 	logging.info(f'主题"{serve}"，值："{serve_name}"')
 
 # 初始化MQTT客户端
-mqttc = mqtt.Client()
+mqttc = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2) # type: ignore
 mqttc.on_connect = on_connect
 mqttc.on_message = on_message
 mqttc.on_subscribe = on_subscribe
