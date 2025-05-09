@@ -1,4 +1,5 @@
 # 程序文件名RC-tray.exe
+# 运行用户：当前登录用户（可能有管理员权限）
 import os
 import sys
 import subprocess
@@ -15,8 +16,8 @@ MAIN_EXE = "Remote-Controls.exe" if getattr(sys, "frozen", False) else "main.py"
 GUI_EXE = "RC-GUI.exe"
 GUI_PY = "GUI.py"
 ICON_FILE = "icon.ico"
-MUTEX_NAME = r"Global\\Remote-Controls-main"
-TRAY_MUTEX_NAME = r"Global\\Remote-Controls-tray"  # 托盘程序的全局互斥体名称
+MUTEX_NAME = r"Global\Remote-Controls-main"
+TRAY_MUTEX_NAME = r"Global\Remote-Controls-tray"  # 托盘程序的全局互斥体名称
 
 # 日志配置
 appdata_dir = os.path.abspath(os.path.dirname(sys.argv[0]))
@@ -32,7 +33,10 @@ def resource_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 def is_main_running():
-    # 检查互斥体是否存在
+    # 优先按进程检测主程序是否已运行
+    if get_main_proc():
+        return True
+    # 回退到互斥体判断
     mutex = ctypes.windll.kernel32.OpenMutexW(0x100000, False, MUTEX_NAME)
     if mutex:
         ctypes.windll.kernel32.CloseHandle(mutex)
@@ -69,28 +73,28 @@ def get_main_proc():
     except Exception:
         pass
         
-    # 还可以检查是否存在互斥体，这可以作为进程存在的另一种判断方式
-    if is_main_running():
-        # 如果互斥体存在但找不到进程，创建一个简单的对象来模拟进程存在
-        class DummyProcess:
-            def __init__(self):
-                self.pid = -1  # 给一个默认的pid值
+    # # 还可以检查是否存在互斥体，这可以作为进程存在的另一种判断方式
+    # if is_main_running():
+    #     # 如果互斥体存在但找不到进程，创建一个简单的对象来模拟进程存在
+    #     class DummyProcess:
+    #         def __init__(self):
+    #             self.pid = -1  # 给一个默认的pid值
                 
-            def terminate(self):
-                pass
+    #         def terminate(self):
+    #             pass
                 
-            def wait(self, timeout=None):
-                pass
+    #         def wait(self, timeout=None):
+    #             pass
                 
-            def kill(self):
-                pass
+    #         def kill(self):
+    #             pass
                 
-            def username(self):
-                return "SYSTEM"  # 假设为管理员权限
+    #         def username(self):
+    #             return "SYSTEM"  # 假设为管理员权限
                 
-        return DummyProcess()
+    #     return DummyProcess()
             
-    return None
+    # return None
 
 def is_main_admin():
     """检查主程序是否以管理员权限运行"""
@@ -145,81 +149,25 @@ def start_main():
     notify("主程序已启动")
 
 def stop_main():
-    """停止主程序，增强对管理员权限进程的处理能力"""
+    """停止主程序：统一使用 taskkill 强制终止"""
     logging.info("开始关闭主程序")
     proc = get_main_proc()
     if not proc:
         notify("主程序未运行")
         return
-        
-    # 检查是否是管理员权限进程
-    is_admin_process = False
+
     try:
-        if hasattr(proc, 'username') and callable(proc.username):
-            from __main__ import DummyProcess
-            is_admin_process = proc.username().endswith("SYSTEM") or isinstance(proc, DummyProcess)
-    except:
-        is_admin_process = is_main_admin()
-    
-    if is_admin_process:
-        try:
-            # 尝试常规 taskkill
-            if MAIN_EXE.endswith('.exe'):
-                result = subprocess.run(f"taskkill /F /IM {MAIN_EXE}", shell=True, capture_output=True)
-                if result.returncode == 0:
-                    notify("管理员权限主程序已关闭")
-                    clean_orphaned_mutex()
-                    return
-                # 提升权限重试
-                ctypes.windll.shell32.ShellExecuteW(
-                    None, "runas", "taskkill", f"/F /IM {MAIN_EXE}", None, 0
-                )
-                notify("以管理员权限尝试关闭主程序")
-                clean_orphaned_mutex()
-                return
-
-            # 针对脚本模式，按 PID 提权终止
-            if hasattr(proc, 'pid') and proc.pid > 0:
-                ctypes.windll.shell32.ShellExecuteW(
-                    None, "runas", "taskkill", f"/F /PID {proc.pid}", None, 0
-                )
-                notify("以管理员权限尝试终止主程序进程")
-                clean_orphaned_mutex()
-                return
-
-            notify("无法关闭管理员权限主程序，请手动结束")
-        except Exception as e:
-            logging.error(f"关闭管理员权限主程序失败: {e}")
-            notify(f"关闭管理员权限主程序失败: {e}")
-    else:
-        # 对普通权限进程使用标准方法
-        try:
-            # 尝试通过terminate终止
-            proc.terminate()
-            try:
-                proc.wait(5)
-                notify("主程序已关闭")
-            except Exception:
-                # 如果wait失败，尝试使用命令行强制终止进程
-                if MAIN_EXE.endswith('.exe'):
-                    subprocess.run(f"taskkill /F /IM {MAIN_EXE}", shell=True)
-                    notify("主程序已强制关闭")
-                else:
-                    # 对于Python脚本，需要找到对应的python进程
-                    if hasattr(proc, 'pid'):
-                        subprocess.run(f"taskkill /F /PID {proc.pid}", shell=True)
-                        notify("主程序已强制关闭")
-        except Exception as e:
-            logging.error(f"关闭主程序失败: {str(e)}")
-            notify(f"关闭主程序失败: {str(e)}")
-            # 最后尝试使用taskkill命令
-            if MAIN_EXE.endswith('.exe'):
-                subprocess.run(f"taskkill /F /IM {MAIN_EXE}", shell=True)
-                notify("尝试通过taskkill关闭主程序")
-    
-    # 无论结果如何，尝试清理互斥体
-    time.sleep(1)
-    clean_orphaned_mutex()
+        if MAIN_EXE.endswith('.exe'):
+            subprocess.run(f"taskkill /F /IM {MAIN_EXE}", shell=True)
+        elif hasattr(proc, 'pid'):
+            subprocess.run(f"taskkill /F /PID {proc.pid}", shell=True)
+        notify("主程序已关闭")
+    except Exception as e:
+        logging.error(f"关闭主程序失败: {e}")
+        notify(f"关闭主程序失败: {e}")
+    finally:
+        time.sleep(1)
+        clean_orphaned_mutex()
 
 def force_stop_main():
     """强制关闭主程序并清理互斥体"""

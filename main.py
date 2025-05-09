@@ -12,6 +12,7 @@ C:\\Program Files\\Python313\\Lib 文件夹下
 打包指令:
 pyinstaller -F -n Remote-Controls --windowed --icon=icon.ico --add-data "icon.ico;."  main.py
 程序名：Remote-Controls.exe
+运行用户：SYSTEM or 当前登录用户（可能有管理员权限）
 """
 
 # 导入各种必要的模块
@@ -35,7 +36,7 @@ from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
 
 
 # 创建一个命名的互斥体
-mutex = ctypes.windll.kernel32.CreateMutexW(None, False, r"Global\\Remote-Controls-main")
+mutex = ctypes.windll.kernel32.CreateMutexW(None, False, r"Global\Remote-Controls-main")
 
 # 检查互斥体是否已经存在
 if ctypes.windll.kernel32.GetLastError() == 183:
@@ -470,7 +471,7 @@ with open(icon_path, "rb") as f:
 # 配置文件和日志文件路径改为当前工作目录
 appdata_path = os.path.abspath(os.path.dirname(sys.argv[0]))
 
-log_path = os.path.join(appdata_path, "log.txt")
+log_path = os.path.join(appdata_path, "RC.log")
 config_path = os.path.join(appdata_path, "config.json")
 
 # 日志和配置文件路径处理
@@ -605,8 +606,8 @@ except socket.gaierror:
 try:
     mqttc.loop_forever()
 except KeyboardInterrupt:
-    notify_in_thread("收到中断信号\n程序停止")
     logging.warning("收到中断,程序停止")
+    notify_in_thread("收到中断信号\n程序停止")
     exit_program()
 except Exception as e:
     logging.error(f"程序异常: {e}")
