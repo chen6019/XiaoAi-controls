@@ -15,8 +15,8 @@ MAIN_EXE = "Remote-Controls.exe" if getattr(sys, "frozen", False) else "main.py"
 GUI_EXE = "RC-GUI.exe"
 GUI_PY = "GUI.py"
 ICON_FILE = "icon.ico"
-MUTEX_NAME = "Remote-Controls-main"
-TRAY_MUTEX_NAME = "Remote-Controls-tray"  # 托盘程序的互斥体名称
+MUTEX_NAME = r"Global\\Remote-Controls-main"
+TRAY_MUTEX_NAME = r"Global\\Remote-Controls-tray"  # 托盘程序的全局互斥体名称
 
 # 日志配置
 appdata_dir = os.path.abspath(os.path.dirname(sys.argv[0]))

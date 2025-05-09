@@ -35,7 +35,7 @@ from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
 
 
 # 创建一个命名的互斥体
-mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "Remote-Controls-main")
+mutex = ctypes.windll.kernel32.CreateMutexW(None, False, r"Global\\Remote-Controls-main")
 
 # 检查互斥体是否已经存在
 if ctypes.windll.kernel32.GetLastError() == 183:

@@ -596,9 +596,6 @@ root.columnconfigure(0, weight=1)
 # 系统配置部分
 system_frame = ttk.LabelFrame(root, text="系统配置")
 system_frame.grid(row=0, column=0, padx=10, pady=5, sticky="nsew")
-
-# 使用 grid 布局，并设置权重
-system_frame.grid(row=0, column=0, sticky="nsew")
 for i in range(4):
     system_frame.rowconfigure(i, weight=1)
 for j in range(3):
@@ -651,9 +648,6 @@ else:
 # 主题配置部分
 theme_frame = ttk.LabelFrame(root, text="主题配置")
 theme_frame.grid(row=1, column=0, padx=10, pady=5, sticky="nsew")
-
-# 使用 grid 布局，并设置权重
-theme_frame.grid(row=1, column=0, sticky="nsew")
 for i in range(6):
     theme_frame.rowconfigure(i, weight=1)
 for j in range(4):
