@@ -83,7 +83,7 @@ def check_task_exists(task_name: str) -> bool:
 def set_auto_start() -> None:
     """
     English: Creates a scheduled task to auto-start the program upon logon
-    中文: 设置开机自启动，将程序在登录时自动运行
+    中文: 设置开机自启动，程序自动运行
     """
     exe_path = os.path.join(
         os.path.dirname(os.path.abspath(sys.argv[0])), "Remote-Controls.exe"
@@ -98,7 +98,7 @@ def set_auto_start() -> None:
 
     quoted_exe_path = shlex.quote(exe_path)
     result = subprocess.call(
-        f'schtasks /Create /SC ONSTART /TN "远程控制" /TR "{quoted_exe_path}" /RU SYSTEM /F',
+        f'schtasks /Create /SC ONSTART /TN "远程控制" /TR "{quoted_exe_path}" /F',
         shell=True,
     )
 
@@ -109,31 +109,34 @@ def set_auto_start() -> None:
 
     principal = task_definition.Principal
     principal.RunLevel = 1
+    principal.LogonType = 2
 
     settings = task_definition.Settings
     settings.DisallowStartIfOnBatteries = False
     settings.StopIfGoingOnBatteries = False
     settings.ExecutionTimeLimit = "PT0S"
 
-    root_folder.RegisterTaskDefinition("远程控制", task_definition, 6, "", "", 3)
+    root_folder.RegisterTaskDefinition("A远程控制", task_definition, 6, "", "", 2)
     if result == 0:
-        messagebox.showinfo("提示", "创建开机自启动成功")
-        messagebox.showinfo("提示！", "移动位置后要重新设置哦！！")
+        messagebox.showinfo("提示", "创建任务成功\n已配置为当前用户运行(不存储密码)，任务触发时仅访问本地资源")
+        messagebox.showinfo("提示", "移动位置后需重新设置任务")
         # 添加托盘程序自启动，登录时运行
         tray_exe_path = os.path.join(
             os.path.dirname(os.path.abspath(sys.argv[0])), "RC-tray.exe"
         )
         if os.path.exists(tray_exe_path):
             quoted_tray_path = shlex.quote(tray_exe_path)
+            # 托盘同样不存储密码，系统启动时触发
             tray_result = subprocess.call(
-                f'schtasks /Create /SC ONLOGON /TN "远程控制-托盘" '
-                f'/TR "{quoted_tray_path}" /RU SYSTEM /F',
+                f'schtasks /Create /SC ONLOGON /TN "A远程控制-托盘" '
+                f'/TR "{quoted_tray_path}" /F',
                 shell=True,
             )
             # 同步设置权限和运行级别
             task_def = root_folder.GetTask("远程控制-托盘").Definition
             principal = task_def.Principal
             principal.RunLevel = 1
+            
             settings = task_def.Settings
             settings.DisallowStartIfOnBatteries = False
             settings.StopIfGoingOnBatteries = False
@@ -142,7 +145,7 @@ def set_auto_start() -> None:
                 "远程控制-托盘", task_def, 6, "", "", 3
             )
             if tray_result == 0:
-                messagebox.showinfo("提示", "创建托盘自启动成功")
+                messagebox.showinfo("提示", "创建托盘任务成功(不存储密码，仅本地访问)")
             else:
                 messagebox.showerror("错误", "创建托盘自启动失败")
         else:
