@@ -485,16 +485,24 @@ truncate_large_file(log_path)
 
 # 检查配置文件是否存在
 if os.path.exists(config_path):
-    with open(config_path, "r", encoding="utf-8") as f:
-        config = json.load(f)
+    try:
+        with open(config_path, "r", encoding="utf-8") as f:
+            config = json.load(f)
+    except json.JSONDecodeError:
+        messagebox.showerror("Error", "配置文件格式错误\n请检查config.json文件")
+        logging.error("config.json 文件格式错误")
+        open_gui()
+        threading.Timer(0.5, lambda: os._exit(0)).start()
+        sys.exit()
 else:
     messagebox.showerror("Error", "配置文件不存在\n请先打开RC-GUI配置文件")
     logging.error("config.json 文件不存在")
     open_gui()
     threading.Timer(0.5, lambda: os._exit(0)).start()
+    sys.exit()
 
-
-if config["test"] == 1:
+# 确保config已经定义后再继续
+if config.get("test") == 1:
     logging.warning("开启测试模式:可以不启用任何主题")
 else:
     if (
