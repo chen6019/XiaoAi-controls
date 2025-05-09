@@ -19,6 +19,8 @@ pyinstaller -F -n Remote-Controls --windowed --icon=icon.ico --add-data "icon.ic
 import io
 import paho.mqtt.client as mqtt
 import os
+import pystray
+from PIL import Image
 import wmi
 from win11toast import notify
 import json
@@ -197,19 +199,21 @@ def process_command(command: str, topic: str) -> None:
             if command == "off":
                 process_name = os.path.basename(directory)
                 logging.info(f"尝试终止进程: {process_name}")
+                notify_in_thread(f"尝试终止进程: {process_name}")
                 result = subprocess.run(
                     ["taskkill", "/F", "/IM", process_name],
                     capture_output=True,
                     text=True,
                 )
                 logging.info(result.stdout)
-                # logging.error(result.stderr)
             elif command == "on":
                 if not directory or not os.path.isfile(directory):
                     notify_in_thread(f"启动失败，文件不存在: {directory}")
                     logging.error(f"启动失败，文件不存在: {directory}")
                     return
                 subprocess.Popen(directory)
+                logging.info(f"启动: {directory}")
+                notify_in_thread(f"启动: {directory}")
             return
     
     def check_service_status(service_name):
@@ -366,12 +370,135 @@ def on_connect(client, userdata: list, flags: dict, reason_code, properties=None
 
 
 """
-打开RC-GUI界面。
+判断当前程序是否以管理员权限运行。
+
+返回值:
+- True: 以管理员权限运行
+- False: 不是以管理员权限运行
+"""
+
+
+def is_admin() -> bool:
+    """
+    English: Checks whether the current process is running with administrator privileges
+    中文: 检查当前进程是否以管理员权限运行
+    """
+    try:
+        return ctypes.windll.shell32.IsUserAnAdmin()
+    except Exception:
+        return False
+
+
+"""
+显示管理员权限提示。
 
 无参数
 无返回值
 """
 
+
+def admin() -> None:
+    """
+    English: Opens a messagebox to show whether the current process has admin privileges
+    中文: 弹出信息框展示当前进程是否拥有管理员权限
+    """
+    def show_message():
+        if is_admin():
+            messagebox.showinfo("信息", "已经拥有管理员权限")
+        else:
+            messagebox.showerror("错误", "没有管理员权限")
+
+    thread2 = threading.Thread(target=show_message)
+    thread2.daemon = True
+    thread2.start()
+
+
+"""
+检测用户是否已登录。
+
+返回值:
+- True: 用户已登录
+- False: 用户未登录
+"""
+def is_user_logged_in() -> bool:
+    """
+    English: Checks if a user is currently logged in to the system
+    中文: 检测系统中是否有用户当前已登录
+    """
+    try:
+        # 使用 WTSGetActiveConsoleSessionId 获取当前活动会话ID
+        sessionId = ctypes.windll.kernel32.WTSGetActiveConsoleSessionId()
+        if sessionId == 0xFFFFFFFF:  # 无效会话ID
+            return False
+        
+        # 检查是否有用户名关联到此会话
+        username_buffer = ctypes.create_unicode_buffer(100)
+        size = ctypes.c_ulong(200)
+        result = ctypes.windll.wtsapi32.WTSQuerySessionInformationW(
+            0, sessionId, 5, ctypes.byref(username_buffer), ctypes.byref(size))
+        
+        if result == 0:
+            return False
+        
+        username = username_buffer.value
+        return bool(username and username != "")
+    except Exception as e:
+        logging.error(f"检测用户登录状态时出错: {e}")
+        return False
+
+
+"""
+监控用户登录状态并在用户登录后初始化托盘图标。
+
+无参数
+无返回值
+"""
+def monitor_login_status() -> None:
+    """
+    English: Monitors user login status and initializes tray icon after user logs in
+    中文: 监控用户登录状态，用户登录后初始化系统托盘图标
+    """
+    global icon, icon_Thread
+    
+    while True:
+        if is_user_logged_in():
+            logging.info("检测到用户已登录，开始加载托盘图标")
+            try:
+                # 初始化系统托盘图标和菜单
+                icon_path = resource_path("icon.ico")
+                # 从资源文件中读取图像
+                with open(icon_path, "rb") as f:
+                    image_data = f.read()
+                
+                icon = pystray.Icon("Remote-Controls", title="远程控制 V1.2.1")
+                image = Image.open(io.BytesIO(image_data))
+                menu = (
+                    pystray.MenuItem("打开配置", open_gui),
+                    pystray.MenuItem("管理员权限查询", admin),
+                    pystray.MenuItem("退出", exit_program),
+                )
+
+                icon.menu = menu
+                icon.icon = image
+                icon_Thread = threading.Thread(target=icon.run)
+                icon_Thread.daemon = True
+                icon_Thread.start()
+                logging.info("托盘图标已加载完成")
+                break
+            except Exception as e:
+                logging.error(f"加载托盘图标时出错: {e}")
+                time.sleep(10)  # 出错后等待一段时间再重试
+        else:
+            logging.info("等待用户登录...")
+            time.sleep(5)  # 每5秒检查一次登录状态
+
+
+"""
+打开RC-GUI界面。
+
+无参数
+无返回值
+"""
 
 def open_gui() -> None:
     """
@@ -426,6 +553,7 @@ def exit_program() -> None:
         
         logging.info("程序已停止")
         threading.Timer(0.5, lambda: os._exit(0)).start()
+        sys.exit(0)
 
 
 """
@@ -462,11 +590,11 @@ else:
 # 改变当前的工作路径
 os.chdir(application_path)
 
-icon_path = resource_path("icon.ico")
 
-# 从资源文件中读取图像
-with open(icon_path, "rb") as f:
-    image_data = f.read()
+# 启动登录监控线程
+login_monitor_thread = threading.Thread(target=monitor_login_status)
+login_monitor_thread.daemon = True
+login_monitor_thread.start()
 
 # 配置文件和日志文件路径改为当前工作目录
 appdata_path = os.path.abspath(os.path.dirname(sys.argv[0]))
