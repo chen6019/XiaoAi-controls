@@ -5,6 +5,7 @@ pyinstaller -F -n RC-tray --windowed --icon=icon.ico --add-data "icon.ico;."  tr
 """
 
 
+from email import message
 import os
 import sys
 import subprocess
@@ -12,6 +13,7 @@ import threading
 import time
 import ctypes
 import logging
+from tkinter import messagebox
 import pystray
 from PIL import Image
 import psutil
@@ -214,7 +216,7 @@ def clean_orphaned_mutex():
             return False
     except Exception as e:
         logging.error(f"清理互斥体失败: {e}")
-        notify(f"清理互斥体失败: {e}")
+        notify(f"清理互斥体失败，详情请查看日志: {tray_log_path}")
     return False
 
 def start_main():
@@ -234,8 +236,10 @@ def start_main():
     elif os.path.exists(MAIN_EXE):
         main_process = subprocess.Popen([sys.executable, MAIN_EXE], creationflags=subprocess.CREATE_NO_WINDOW)
     else:
-        notify("未找到主程序")
+        logging.error("未找到“Remote-Controls”程序")
+        messagebox.showerror("Error","未找到“Remote-Controls”程序")
         return
+    logging.info("主程序启动成功")
     notify("主程序已启动")
 
 def stop_main():
@@ -243,7 +247,7 @@ def stop_main():
     logging.info("开始关闭主程序")
     proc = get_main_proc()
     if not proc:
-        notify("主程序未运行")
+        messagebox.showerror("Error","主程序未运行")
         return
 
     # 检查是否为管理员权限进程
@@ -295,7 +299,7 @@ def stop_main():
             notify("主程序已关闭")
     except Exception as e:
         logging.error(f"关闭主程序失败: {e}")
-        notify(f"关闭主程序失败: {e}")
+        messagebox.showerror("Error",f"关闭主程序失败,详情请查看日志{tray_log_path}")
     
     # 不管成功与否，都尝试清理互斥体
     time.sleep(1)
@@ -326,7 +330,7 @@ def restart_main_as_admin():
         program = sys.executable
         args = os.path.abspath(MAIN_EXE)
     else:
-        notify("未找到主程序")
+        messagebox.showerror("Error","未找到“Remote-Controls”程序")
         return
     
     try:
@@ -338,7 +342,7 @@ def restart_main_as_admin():
         notify("已以管理员权限启动主程序")
     except Exception as e:
         logging.error(f"启动失败: {e}")
-        notify(f"启动失败: {e}")
+        messagebox.showerror("Error",f"启动失败，详情请查看日志: {tray_log_path}")
 
 def check_admin():
     if is_main_running() and is_main_admin():
@@ -458,7 +462,7 @@ def restart_tray_as_admin(icon, item):
         )
     except Exception as e:
         logging.error(f"重启托盘失败: {e}")
-        notify(f"重启托盘失败: {e}")
+        messagebox.showerror("Error",f"重启托盘失败,请手动重启，详情请查看日志: {tray_log_path}")
         return
     # 退出当前实例
     threading.Timer(0.5, lambda: os._exit(0)).start()
