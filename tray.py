@@ -99,6 +99,53 @@ def is_main_running():
         return True
     return False
 
+def run_as_admin(executable_path, parameters=None, working_dir=None, show_cmd=0):
+    """
+    以管理员权限运行指定程序
+
+    参数：
+    executable_path (str): 要执行的可执行文件路径
+    parameters (str, optional): 传递给程序的参数，默认为None
+    working_dir (str, optional): 工作目录，默认为None（当前目录）
+    show_cmd (int, optional): 窗口显示方式，默认为1（1正常显示，0隐藏）
+
+    返回：
+    int: ShellExecute的返回值，若小于等于32表示出错
+    """
+    if parameters is None:
+        parameters = ''
+    if working_dir is None:
+        working_dir = ''
+    # 调用ShellExecuteW，设置动词为'runas'
+    result = ctypes.windll.shell32.ShellExecuteW(
+        None,                  # 父窗口句柄
+        'runas',               # 操作：请求管理员权限
+        executable_path,       # 要执行的文件路径
+        parameters,            # 参数
+        working_dir,           # 工作目录
+        show_cmd               # 窗口显示方式
+    )
+    return result
+
+def run_py_script_as_admin_hidden(script_path):
+    """
+    以管理员权限静默运行Python脚本
+    """
+    # 设置启动信息（隐藏窗口）
+    startupinfo = subprocess.STARTUPINFO()
+    startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+    startupinfo.wShowWindow = subprocess.SW_HIDE
+    
+    # 构造命令
+    command = f'python "{script_path}"'
+    
+    # 调用ShellExecute
+    result = ctypes.windll.shell32.ShellExecuteW(
+        None, 'runas', 'cmd.exe', 
+        f'/c {command}', None, 0
+    )
+    return result
+
 def get_main_proc():
     """查找主程序进程，同时处理普通权限和管理员权限的情况"""
     # 方法1：使用psutil尝试直接获取进程信息
@@ -207,7 +254,7 @@ main_process = None
 
 def clean_orphaned_mutex():
     """清理可能未被正确释放的主程序互斥体"""
-    logging.debug(f"尝试清理互斥体: {MUTEX_NAME}")
+    logging.info(f"尝试清理互斥体: {MUTEX_NAME}")
     try:
         # 先尝试以普通权限清理
         mutex = ctypes.windll.kernel32.CreateMutexW(None, False, MUTEX_NAME)
@@ -241,13 +288,13 @@ def clean_orphaned_mutex():
             f.write(script_content)
         
         # 以管理员权限运行清理脚本
-        logging.debug(f"创建临时清理脚本: {temp_script}")
+        logging.info(f"创建临时清理脚本: {temp_script}")
         result = ctypes.windll.shell32.ShellExecuteW(
             None, "runas", "cmd.exe", f"/c {temp_script}", None, 0
         )
         
         if result > 32:  # 成功启动
-            logging.debug("清理脚本启动成功，等待执行")
+            logging.info("清理脚本启动成功，等待执行")
             time.sleep(2)  # 等待脚本执行
             # 再次检查互斥体是否已被清理
             mutex = ctypes.windll.kernel32.CreateMutexW(None, False, MUTEX_NAME)
@@ -269,7 +316,7 @@ def clean_orphaned_mutex():
             return False
     except Exception as e:
         logging.error(f"清理互斥体出现异常: {e}")
-        logging.debug(f"异常详情: {traceback.format_exc()}")
+        logging.error(f"异常详情: {traceback.format_exc()}")
         notify(f"清理互斥体失败，详情请查看日志: {tray_log_path}", level="error", show_error=True)
     return False
 
@@ -286,22 +333,22 @@ def start_main():
         return
     
     # 如果进程未运行但之前检测到互斥体存在，则可能是互斥体未被正确释放
-    logging.debug("主程序未运行，检查并清理可能残留的互斥体")
+    logging.info("主程序未运行，检查并清理可能残留的互斥体")
     clean_orphaned_mutex()
     
     # 选择启动方式
     cmd_line = None
     try:
         if MAIN_EXE.endswith('.exe') and os.path.exists(MAIN_EXE):
-            logging.debug(f"以可执行文件方式启动: {MAIN_EXE}")
+            logging.info(f"以可执行文件方式启动: {MAIN_EXE}")
             cmd_line = [os.path.abspath(MAIN_EXE)]
             main_process = subprocess.Popen(cmd_line, creationflags=subprocess.CREATE_NO_WINDOW)
-            logging.debug(f"启动进程ID: {main_process.pid}")
+            logging.info(f"启动进程ID: {main_process.pid}")
         elif os.path.exists(MAIN_EXE):
-            logging.debug(f"以Python脚本方式启动: {sys.executable} {MAIN_EXE}")
+            logging.info(f"以Python脚本方式启动: {sys.executable} {MAIN_EXE}")
             cmd_line = [sys.executable, os.path.abspath(MAIN_EXE)]
             main_process = subprocess.Popen(cmd_line, creationflags=subprocess.CREATE_NO_WINDOW)
-            logging.debug(f"启动进程ID: {main_process.pid}")
+            logging.info(f"启动进程ID: {main_process.pid}")
         else:
             error_msg = f"未找到主程序文件: {MAIN_EXE}"
             logging.error(error_msg)
@@ -323,8 +370,8 @@ def start_main():
     except Exception as e:
         cmd = " ".join(cmd_line) if cmd_line else "未知"
         logging.error(f"启动主程序时出现异常: {e}")
-        logging.debug(f"启动命令: {cmd}")
-        logging.debug(f"异常详情: {traceback.format_exc()}")
+        logging.info(f"启动命令: {cmd}")
+        logging.error(f"异常详情: {traceback.format_exc()}")
         notify(f"启动主程序失败，详情请查看日志: {tray_log_path}", level="error", show_error=True)
 
 def stop_main():
@@ -363,18 +410,18 @@ def stop_main():
             """
             
             temp_script = os.path.join(os.environ.get('TEMP', '.'), 'stop_main.bat')
-            logging.debug(f"创建临时批处理脚本: {temp_script}")
+            logging.info(f"创建临时批处理脚本: {temp_script}")
             with open(temp_script, 'w') as f:
                 f.write(script_content)
             
             # 以管理员权限运行批处理
-            logging.debug("尝试以管理员权限执行批处理脚本")
+            logging.info("尝试以管理员权限执行批处理脚本")
             result = ctypes.windll.shell32.ShellExecuteW(
                 None, "runas", "cmd.exe", f"/c {temp_script}", None, 0
             )
             
             if result > 32:  # 成功启动
-                logging.debug(f"批处理脚本启动成功，等待执行完成...")
+                logging.info(f"批处理脚本启动成功，等待执行完成...")
                 time.sleep(3)  # 等待批处理执行完成
                 if not is_main_running():
                     logging.info(f"主程序已成功关闭，耗时: {time.time()-start_time:.2f}秒")
@@ -390,7 +437,7 @@ def stop_main():
                 notify("无法获取管理员权限，尝试使用常规方法关闭", level="warning")
                 
                 # 回退到常规方法
-                logging.debug("使用常规方法关闭进程")
+                logging.info("使用常规方法关闭进程")
                 subprocess.run(f'taskkill /im "{MAIN_EXE}" /f', shell=True)
                 
                 # 检查是否成功关闭
@@ -403,7 +450,7 @@ def stop_main():
                     notify("无法关闭主程序，请尝试手动关闭（任务管理器）", level="error", show_error=True)
         else:
             # 正常关闭方法
-            logging.debug("使用常规方法关闭普通权限进程")
+            logging.info("使用常规方法关闭普通权限进程")
             result = subprocess.run(f'taskkill /im "{MAIN_EXE}" /f', shell=True, capture_output=True, text=True)
             
             # 检查是否成功关闭
@@ -415,11 +462,11 @@ def stop_main():
                 notify("关闭主程序失败，详情请查看日志", level="error", show_error=True)
     except Exception as e:
         logging.error(f"关闭主程序时出现异常: {e}")
-        logging.debug(f"异常详情: {traceback.format_exc()}")
+        logging.error(f"异常详情: {traceback.format_exc()}")
         notify(f"关闭主程序失败，详情请查看日志: {tray_log_path}", level="error", show_error=True)
     
     # 不管成功与否，都尝试清理互斥体
-    logging.debug("尝试清理可能残留的互斥体")
+    logging.info("尝试清理可能残留的互斥体")
     time.sleep(1)
     clean_orphaned_mutex()
 
@@ -487,7 +534,7 @@ def restart_main_as_admin():
         logging.info("主程序当前未运行")
     
     # 无论进程是否在运行，都尝试清理可能残留的互斥体
-    logging.debug("清理可能残留的互斥体")
+    logging.info("清理可能残留的互斥体")
     clean_orphaned_mutex()
     
     # 确定要启动的程序
@@ -495,11 +542,11 @@ def restart_main_as_admin():
     try:
         if MAIN_EXE.endswith('.exe') and os.path.exists(MAIN_EXE):
             program = os.path.abspath(MAIN_EXE)
-            logging.debug(f"准备以管理员权限启动可执行文件: {program}")
+            logging.info(f"准备以管理员权限启动可执行文件: {program}")
         elif os.path.exists(MAIN_EXE):
             program = sys.executable
             args = os.path.abspath(MAIN_EXE)
-            logging.debug(f"准备以管理员权限启动Python脚本: {program} {args}")
+            logging.info(f"准备以管理员权限启动Python脚本: {program} {args}")
         else:
             error_msg = f"未找到主程序文件: {MAIN_EXE}"
             logging.error(error_msg)
@@ -507,13 +554,32 @@ def restart_main_as_admin():
             return
         
         # 使用 ShellExecute 以管理员权限启动程序
-        logging.debug("尝试获取管理员权限启动程序")
+        logging.info("尝试获取管理员权限启动程序")
+        logging.info(f"ShellExecuteW参数: {program}, {args}")
         if MAIN_EXE.endswith('.exe'):
-            result = ctypes.windll.shell32.ShellExecuteW(None, "runas", program, None, None, 0)
+            result = run_as_admin(program)
         else:
-            result = ctypes.windll.shell32.ShellExecuteW(None, "runas", program, f'"{args}"', None, 0)
-        
-        if result > 32:  # 成功启动
+            result = run_py_script_as_admin_hidden(program)
+        # 处理错误（返回值 <= 32 表示错误）
+        if result <= 32:
+            error_messages = {
+                0: "系统内存或资源不足",
+                2: "文件未找到",
+                3: "路径未找到",
+                5: "拒绝访问",
+                8: "内存不足",
+                11: "错误的格式",
+                26: "共享冲突",
+                27: "关联不完整",
+                30: "DDE繁忙",
+                31: "DDE失败",
+                32: "DDE超时或DLL未找到",
+                1223: "用户取消操作"
+            }
+            error_msg = error_messages.get(result, f"未知错误，代码：{result}")
+            logging.error(f"以管理员权限启动失败，错误码: {result}，{error_msg}")
+            raise RuntimeError(f"无法以管理员权限启动程序：{error_msg}")
+        elif result > 32:  # 成功启动
             logging.info("成功以管理员权限启动主程序")
             notify("已以管理员权限启动主程序", level="info")
             
@@ -537,7 +603,7 @@ def restart_main_as_admin():
             notify("以管理员权限启动失败，可能被用户取消", level="error", show_error=True)
     except Exception as e:
         logging.error(f"重启主程序时出现异常: {e}")
-        logging.debug(f"异常详情: {traceback.format_exc()}")
+        logging.error(f"异常详情: {traceback.format_exc()}")
         notify(f"重启主程序失败，详情请查看日志: {tray_log_path}", level="error", show_error=True)
 
 def check_admin():
@@ -568,7 +634,7 @@ def notify(msg, level="info", show_error=False):
     
     参数:
     - msg: 通知消息
-    - level: 日志级别 ("debug", "info", "warning", "error", "critical")
+    - level: 日志级别 ( "info", "warning", "error", "critical")
     - show_error: 是否在通知失败时显示错误对话框
     """
     # 根据级别记录日志
@@ -581,7 +647,7 @@ def notify(msg, level="info", show_error=False):
         threading.Thread(target=lambda: toast(msg)).start()
     except Exception as e:
         logging.error(f"发送通知失败: {e}")
-        logging.debug(f"通知失败详情: {traceback.format_exc()}")
+        logging.error(f"通知失败详情: {traceback.format_exc()}")
         
         if show_error:
             try:

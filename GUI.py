@@ -100,7 +100,7 @@ def set_auto_start() -> None:
     quoted_exe_path = shlex.quote(exe_path)
     # 使用SYSTEM账户创建任务计划
     result = subprocess.call(
-        f'schtasks /Create /SC ONSTART /TN "A远程控制" /TR "{quoted_exe_path}" /RU "SYSTEM" /F',
+        f'schtasks /Create /SC ONSTART /TN "A远程控制" /TR "{quoted_exe_path}" /F',
         shell=True,
     )
 
@@ -112,7 +112,7 @@ def set_auto_start() -> None:
     principal = task_definition.Principal
     principal.RunLevel = 1
     # SYSTEM用户已经设置，不需要再设置LogonType
-    # principal.LogonType = 2
+    principal.LogonType = 2 # 1表示使用当前登录用户凭据，用户为2
 
     settings = task_definition.Settings
     settings.DisallowStartIfOnBatteries = False
@@ -121,7 +121,7 @@ def set_auto_start() -> None:
     # 设置兼容性为 Windows 10
     task_definition.Settings.Compatibility = 4
 
-    root_folder.RegisterTaskDefinition("A远程控制", task_definition, 6, "", "", 3)
+    root_folder.RegisterTaskDefinition("A远程控制", task_definition, 6, "", "", 2)# 0表示使用当前登录用户身份，用户为2，SYSTEM为3
     check_task()
     if result == 0:
         messagebox.showinfo("提示", "创建任务成功\n已配置为SYSTEM用户运行，任务触发时仅访问本地资源")
@@ -147,6 +147,7 @@ def set_auto_start() -> None:
             settings.DisallowStartIfOnBatteries = False
             settings.StopIfGoingOnBatteries = False
             settings.ExecutionTimeLimit = "PT0S"
+            task_definition.Settings.Compatibility = 4
             root_folder.RegisterTaskDefinition(
                 "A远程控制-托盘", task_def, 6, "", "", 0  # 0表示使用当前登录用户身份
             )
