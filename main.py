@@ -600,7 +600,6 @@ else:
     threading.Timer(0.5, lambda: os._exit(0)).start()
     sys.exit()
 
-tray()  # 托盘图标
 
 # 确保config已经定义后再继续
 if config.get("test") == 1:
@@ -679,6 +678,8 @@ for application, directory in applications:
 
 for serve, serve_name in serves:
     logging.info(f'主题"{serve}"，值："{serve_name}"')
+
+# tray()  # 托盘图标
 
 # 初始化MQTT客户端
 mqttc = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2) # type: ignore

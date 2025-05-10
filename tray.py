@@ -22,7 +22,6 @@ GUI_EXE = "RC-GUI.exe"
 GUI_PY = "GUI.py"
 ICON_FILE = "icon.ico"
 MUTEX_NAME = "Remote-Controls-main"
-# TRAY_MUTEX_NAME = "Remote-Controls-tray"
 # 日志配置
 appdata_dir = os.path.abspath(os.path.dirname(sys.argv[0]))
 tray_log_path = os.path.join(appdata_dir, "tray.log")
@@ -240,7 +239,7 @@ def start_main():
     notify("主程序已启动")
 
 def stop_main():
-    """停止主程序：智能选择终止方法"""
+    """停止主程序：使用taskkill命令关闭，类似于批处理文件的实现"""
     logging.info("开始关闭主程序")
     proc = get_main_proc()
     if not proc:
@@ -248,25 +247,25 @@ def stop_main():
         return
 
     # 检查是否为管理员权限进程
-    is_admin_proc = False
+    is_admin_proc = is_main_admin()
+    
     try:
-        if hasattr(proc, 'username') and callable(proc.username):
-            username = proc.username()
-            if username.endswith("SYSTEM") or "Administrator" in username:
-                is_admin_proc = True
-                logging.info(f"检测到主程序以管理员权限运行 ({username})")
-    except Exception:
-        # 如果无法获取用户名，通过其他方式判断
-        is_admin_proc = is_main_admin()
-        
-    if is_admin_proc:
-        logging.info("主程序以管理员权限运行，尝试提权关闭...")
-        try:
-            # 尝试提权后关闭
+        if is_admin_proc:
+            logging.info("主程序以管理员权限运行，尝试提权关闭...")
+            
+            # 创建与批处理文件类似的脚本
             script_content = f"""
-            taskkill /F /IM {MAIN_EXE if MAIN_EXE.endswith('.exe') else 'python.exe'}
+            @echo off
+            echo 正在尝试关闭主程序...
+            taskkill /im "{MAIN_EXE}" /f
+            if %errorlevel% equ 0 (
+                echo 成功关闭进程 "{MAIN_EXE}".
+            ) else (
+                echo 进程 "{MAIN_EXE}" 未运行或关闭失败.
+            )
             exit
             """
+            
             temp_script = os.path.join(os.environ.get('TEMP', '.'), 'stop_main.bat')
             with open(temp_script, 'w') as f:
                 f.write(script_content)
@@ -277,124 +276,30 @@ def stop_main():
             )
             
             if result > 32:  # 成功启动
-                time.sleep(2)  # 等待批处理执行完成
+                time.sleep(3)  # 等待批处理执行完成
                 if not is_main_running():
                     notify("主程序已关闭")
                 else:
                     # 如果仍在运行，尝试更直接的方法
-                    force_stop_main()
+                    notify("主程序仍在运行，请尝试手动关闭（任务管理器）")
+                    # force_stop_main()
             else:
                 logging.warning(f"提权失败，尝试使用常规方法关闭 (错误码: {result})")
                 notify("无法获取管理员权限，尝试使用常规方法关闭")
                 
                 # 回退到常规方法
-                if MAIN_EXE.endswith('.exe'):
-                    subprocess.run(f"taskkill /F /IM {MAIN_EXE}", shell=True)
-                elif hasattr(proc, 'pid'):
-                    subprocess.run(f"taskkill /F /PID {proc.pid}", shell=True)
-        except Exception as e:
-            logging.error(f"提权关闭主程序失败: {e}")
-            notify(f"提权关闭失败，尝试常规方法")
-            # 回退到常规方法
-            try:
-                if MAIN_EXE.endswith('.exe'):
-                    subprocess.run(f"taskkill /F /IM {MAIN_EXE}", shell=True)
-                elif hasattr(proc, 'pid'):
-                    subprocess.run(f"taskkill /F /PID {proc.pid}", shell=True)
-            except Exception as e2:
-                logging.error(f"常规方法也失败: {e2}")
-                notify("所有关闭方法都失败，请手动关闭主程序")
-    else:
-        # 正常关闭方法
-        try:
-            if MAIN_EXE.endswith('.exe'):
-                subprocess.run(f"taskkill /F /IM {MAIN_EXE}", shell=True)
-            elif hasattr(proc, 'pid'):
-                subprocess.run(f"taskkill /F /PID {proc.pid}", shell=True)
+                subprocess.run(f'taskkill /im "{MAIN_EXE}" /f', shell=True)
+        else:
+            # 正常关闭方法
+            subprocess.run(f'taskkill /im "{MAIN_EXE}" /f', shell=True)
             notify("主程序已关闭")
-        except Exception as e:
-            logging.error(f"关闭主程序失败: {e}")
-            notify(f"关闭主程序失败: {e}")
+    except Exception as e:
+        logging.error(f"关闭主程序失败: {e}")
+        notify(f"关闭主程序失败: {e}")
     
     # 不管成功与否，都尝试清理互斥体
     time.sleep(1)
     clean_orphaned_mutex()
-
-def force_stop_main():
-    """强制关闭主程序并清理互斥体"""
-    logging.info("开始强制关闭主程序")
-    # 先尝试常规方式关闭
-    proc = get_main_proc()
-    if proc:
-        try:
-            # 检查是否为管理员权限进程
-            is_admin_proc = False
-            try:
-                if hasattr(proc, 'username') and callable(proc.username):
-                    username = proc.username()
-                    if username.endswith("SYSTEM") or "Administrator" in username:
-                        is_admin_proc = True
-                        logging.info(f"检测到主程序以管理员权限运行 ({username})")
-            except Exception:
-                # 如果无法获取用户名，通过其他方式判断
-                is_admin_proc = is_main_admin()
-            
-            if is_admin_proc:
-                logging.info("主程序以管理员权限运行，尝试提权强制关闭...")
-                # 创建更强力的批处理脚本
-                script_content = f"""
-                taskkill /F /IM {MAIN_EXE if MAIN_EXE.endswith('.exe') else 'python.exe'} /T
-                timeout /t 1
-                taskkill /F /IM {MAIN_EXE if MAIN_EXE.endswith('.exe') else 'python.exe'} /T
-                exit
-                """
-                temp_script = os.path.join(os.environ.get('TEMP', '.'), 'force_stop_main.bat')
-                with open(temp_script, 'w') as f:
-                    f.write(script_content)
-                
-                # 以管理员权限运行批处理
-                result = ctypes.windll.shell32.ShellExecuteW(
-                    None, "runas", "cmd.exe", f"/c {temp_script}", None, 0
-                )
-                
-                if result > 32:  # 成功启动
-                    time.sleep(3)  # 等待批处理执行完成
-                    # 无论成功与否，都继续尝试常规方法作为备份
-            
-            # 尝试常规方法终止
-            try:
-                proc.terminate()
-                proc.wait(2)
-            except Exception:
-                # 如果常规关闭失败，使用强制结束
-                try:
-                    proc.kill()
-                except Exception:
-                    pass
-        except Exception as e:
-            logging.error(f"强制关闭进程失败: {e}")
-            # 尝试使用命令行方式终止
-            try:
-                if MAIN_EXE.endswith('.exe'):
-                    subprocess.run(f"taskkill /F /IM {MAIN_EXE} /T", shell=True)
-                elif hasattr(proc, 'pid'):
-                    subprocess.run(f"taskkill /F /PID {proc.pid} /T", shell=True)
-            except Exception:
-                pass
-    
-    # 无论进程是否存在，都尝试清理可能残留的互斥体
-    if clean_orphaned_mutex():
-        notify("已强制清理主程序")
-    else:
-        logging.warning("没有检测到主程序或互斥体")
-        notify("没有发现主程序或互斥体")
-        return False
-    
-    # 最后检查一次是否完全终止
-    if is_main_running():
-        notify("无法完全终止主程序，请尝试手动关闭或重启电脑")
-        return False
-    return True
 
 def restart_main():
     logging.info("重启主程序")
@@ -426,7 +331,6 @@ def restart_main_as_admin():
     
     try:
         # 使用 ShellExecute 以管理员权限启动程序
-        # SW_HIDE = 0 用于隐藏窗口
         if MAIN_EXE.endswith('.exe'):
             ctypes.windll.shell32.ShellExecuteW(None, "runas", program, None, None, 0)
         else:
@@ -461,6 +365,59 @@ def notify(msg):
         logging.error(f"通知失败: {e}")
         print(msg)
 
+def stop_tray():
+    """关闭托盘程序自身"""
+    logging.info("关闭托盘程序自身")
+    notify("正在关闭托盘程序...")
+    
+    # 检查是否以管理员权限运行
+    try:
+        is_admin = ctypes.windll.shell32.IsUserAnAdmin() != 0
+        if not is_admin:
+            # 尝试创建一个批处理文件并以管理员权限运行
+            tray_name = os.path.basename(sys.executable) if getattr(sys, "frozen", False) else "python.exe"
+            script_content = f"""
+            @echo off
+            echo 正在关闭托盘程序...
+            taskkill /im "{tray_name}" /f
+            if %errorlevel% equ 0 (
+                echo 成功关闭进程 "{tray_name}".
+            ) else (
+                echo 进程 "{tray_name}" 未运行或关闭失败.
+            )
+            exit
+            """
+            temp_script = os.path.join(os.environ.get('TEMP', '.'), 'stop_tray.bat')
+            with open(temp_script, 'w') as f:
+                f.write(script_content)
+            
+            # 以管理员权限运行批处理
+            result = ctypes.windll.shell32.ShellExecuteW(
+                None, "runas", "cmd.exe", f"/c {temp_script}", None, 0
+            )
+        # 退出当前实例
+        threading.Timer(1.0, lambda: os._exit(0)).start()
+    except Exception as e:
+        logging.error(f"关闭托盘时出错: {e}")
+        # 如果出错，仍然尝试正常退出
+        threading.Timer(1.0, lambda: os._exit(0)).start()
+
+def is_tray_admin():
+    """检查当前托盘程序是否以管理员权限运行"""
+    try:
+        # 直接检查当前进程是否有管理员权限
+        return ctypes.windll.shell32.IsUserAnAdmin() != 0
+    except Exception as e:
+        logging.error(f"检查托盘程序管理员权限时出错: {e}")
+        return False
+
+def check_tray_admin():
+    """检查并通知托盘程序的管理员权限状态"""
+    if is_tray_admin():
+        notify("托盘程序已获得管理员权限")
+    else:
+        notify("托盘程序未获得管理员权限")
+
 def on_open(icon, item):
     start_main()
 
@@ -473,35 +430,21 @@ def on_restart_as_admin(icon, item):
 def on_stop(icon, item):
     stop_main()
 
-def on_force_stop(icon, item):
-    force_stop_main()
-
 def on_check_admin(icon, item):
     check_admin()
+
+def on_check_tray_admin(icon, item):
+    check_tray_admin()
 
 def on_open_gui(icon, item):
     open_gui()
 
-def on_exit(icon, item):
-    icon.stop()
-    # 不直接调用 sys.exit()，因为这会在 pystray 的事件处理中引发异常
-    # 而是安排在事件处理完成后退出
-    threading.Timer(0.5, lambda: os._exit(0)).start()
+def on_stop_tray(icon, item):
+    stop_tray()
 
 def restart_tray_as_admin(icon, item):
     """以管理员权限重启托盘程序"""
     logging.info("以管理员权限重启托盘程序")
-    # 先释放已创建的托盘互斥体
-    # try:
-    #     mu = ctypes.windll.kernel32.OpenMutexW(0x100000, False, TRAY_MUTEX_NAME)
-    #     if mu:
-    #         ctypes.windll.kernel32.ReleaseMutex(mu)
-    #         ctypes.windll.kernel32.CloseHandle(mu)
-    # except Exception:
-    #     logging.error("释放托盘互斥体失败")
-    #     notify("释放托盘互斥体失败")
-    #     pass
-
     # 提权重启当前脚本或exe
     try:
         if getattr(sys, "frozen", False):
@@ -517,48 +460,36 @@ def restart_tray_as_admin(icon, item):
         logging.error(f"重启托盘失败: {e}")
         notify(f"重启托盘失败: {e}")
         return
-
     # 退出当前实例
     threading.Timer(0.5, lambda: os._exit(0)).start()
 
-# def tray_main():
-    # 创建托盘程序互斥体，检查是否已经运行
-# tray_mutex = ctypes.windll.kernel32.CreateMutexW(None, False, TRAY_MUTEX_NAME)
-# if ctypes.windll.kernel32.GetLastError() == 183:  # ERROR_ALREADY_EXISTS
-#     notify("托盘程序已在运行")
-#     sys.exit(0)
-        # 简单检查桌面环境，但不要求必须可用
-    # logging.info("尝试检测桌面环境...")
-    # if is_desktop_available():
-    #     logging.info("桌面环境检测成功，继续启动托盘程序")
-    # else:
-    #     logging.warning("桌面环境尚未完全可用，但仍将继续启动托盘程序")
-    #     # 给桌面环境留出一些加载时间
-    #     time.sleep(2)
-    
-    # 检查主程序状态
+# 检查主程序状态
 main_status = "未运行"
 if is_main_running():
     main_status = "以管理员权限运行" if is_main_admin() else "以普通权限运行"
-    
-notify(f"远程控制托盘程序已启动，主程序状态: {main_status}")
-logging.info(f"托盘程序启动，主程序状态: {main_status}")
-        
+
+# 检查托盘程序状态
+tray_status = "以管理员权限运行" if is_tray_admin() else "以普通权限运行"
+
+# 托盘图标设置
 icon_path = resource_path(ICON_FILE)
 image = Image.open(icon_path) if os.path.exists(icon_path) else None
 menu = pystray.Menu(
         pystray.MenuItem("检查主程序管理员权限", on_check_admin),
+        pystray.MenuItem("检查托盘程序管理员权限", on_check_tray_admin),
         pystray.MenuItem("打开配置界面", on_open_gui),
         pystray.MenuItem("打开主程序", on_open),
-        pystray.MenuItem("重启主程序", on_restart),
         pystray.MenuItem("以管理员权限重启主程序", on_restart_as_admin),
-        pystray.MenuItem("关闭主程序", on_stop),
-        pystray.MenuItem("强制关闭主程序", on_force_stop),
         pystray.MenuItem("以管理员权限重启托盘", restart_tray_as_admin),
-        pystray.MenuItem("退出托盘", on_exit),
+        pystray.MenuItem("重启主程序", on_restart),
+        pystray.MenuItem("关闭主程序", on_stop),
+        pystray.MenuItem("退出托盘", on_stop_tray),
     )
+
+# 启动前通知
+notify(f"远程控制托盘程序已启动，主程序状态: {main_status}，托盘状态: {tray_status}")
+logging.info(f"托盘程序启动，主程序状态: {main_status}，托盘状态: {tray_status}")
+
+# 启动托盘图标
 icon = pystray.Icon("Remote-Controls-Tray", image, "远程控制托盘", menu)
 icon.run()
-
-# if __name__ == "__main__":
-#     tray_main()
