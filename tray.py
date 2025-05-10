@@ -6,6 +6,7 @@ pyinstaller -F -n RC-tray --windowed --icon=icon.ico --add-data "icon.ico;."  tr
 
 
 from email import message
+from math import log
 import os
 import sys
 import subprocess
@@ -13,10 +14,16 @@ import threading
 import time
 import ctypes
 import logging
+from logging.handlers import RotatingFileHandler
+import traceback
 from tkinter import messagebox
 import pystray
 from PIL import Image
 import psutil
+try:
+    import utils  # 尝试导入工具模块
+except ImportError:
+    utils = None
 
 # 配置
 MAIN_EXE = "Remote-Controls.exe" if getattr(sys, "frozen", False) else "main.py"
@@ -24,16 +31,57 @@ GUI_EXE = "RC-GUI.exe"
 GUI_PY = "GUI.py"
 ICON_FILE = "icon.ico"
 MUTEX_NAME = "Remote-Controls-main"
+
 # 日志配置
 appdata_dir = os.path.abspath(os.path.dirname(sys.argv[0]))
-tray_log_path = os.path.join(appdata_dir, "tray.log")
-logging.basicConfig(
-    filename=tray_log_path,
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s: %(message)s",
-    datefmt="%m/%d/%Y %H:%M:%S",
+logs_dir = os.path.join(appdata_dir, "logs")
+# 确保日志目录存在
+if not os.path.exists(logs_dir):
+    try:
+        os.makedirs(logs_dir)
+    except Exception as e:
+        print(f"创建日志目录失败: {e}")
+        logs_dir = appdata_dir  # 如果创建失败，回退到应用目录
+
+tray_log_path = os.path.join(logs_dir, "tray.log")
+
+# 配置日志处理器，启用日志轮转
+log_handler = RotatingFileHandler(
+    tray_log_path, 
+    maxBytes=1*1024*1024,  # 1MB
+    backupCount=1,          # 保留1个备份
     encoding='utf-8'
 )
+
+# 设置日志格式
+log_formatter = logging.Formatter(
+    '%(asctime)s [%(levelname)s] %(filename)s:%(lineno)d - %(message)s',
+    datefmt="%Y-%m-%d %H:%M:%S"
+)
+log_handler.setFormatter(log_formatter)
+
+# 获取根日志记录器并设置
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+logger.addHandler(log_handler)
+
+# 记录程序启动信息
+logging.info("="*50)
+logging.info("远程控制托盘程序启动")
+logging.info(f"程序路径: {os.path.abspath(__file__)}")
+logging.info(f"工作目录: {os.getcwd()}")
+logging.info(f"Python版本: {sys.version}")
+logging.info(f"系统信息: {sys.platform}")
+logging.info("="*50)
+
+# 记录详细的系统信息
+if utils:
+    utils.log_system_info(detailed=True)
+    # 启动定期状态记录（每小时记录一次系统状态）
+    status_thread = utils.log_periodic_status(interval=3600)
+    logging.info("已启用系统状态定期记录")
+else:
+    logging.warning("未能加载utils模块，系统信息记录功能不可用")
 
 def resource_path(relative_path):
     base_path = getattr(sys, "_MEIPASS", os.path.abspath("."))
@@ -159,6 +207,7 @@ main_process = None
 
 def clean_orphaned_mutex():
     """清理可能未被正确释放的主程序互斥体"""
+    logging.debug(f"尝试清理互斥体: {MUTEX_NAME}")
     try:
         # 先尝试以普通权限清理
         mutex = ctypes.windll.kernel32.CreateMutexW(None, False, MUTEX_NAME)
@@ -170,7 +219,8 @@ def clean_orphaned_mutex():
             return True
             
         # 如果普通权限清理失败，可能是权限问题，尝试提权清理
-        logging.warning("普通权限清理互斥体失败，尝试提权清理")
+        error_code = ctypes.windll.kernel32.GetLastError()
+        logging.warning(f"普通权限清理互斥体失败，错误码: {error_code}，尝试提权清理")
         
         # 创建清理脚本
         script_content = f"""
@@ -191,11 +241,13 @@ def clean_orphaned_mutex():
             f.write(script_content)
         
         # 以管理员权限运行清理脚本
+        logging.debug(f"创建临时清理脚本: {temp_script}")
         result = ctypes.windll.shell32.ShellExecuteW(
             None, "runas", "cmd.exe", f"/c {temp_script}", None, 0
         )
         
         if result > 32:  # 成功启动
+            logging.debug("清理脚本启动成功，等待执行")
             time.sleep(2)  # 等待脚本执行
             # 再次检查互斥体是否已被清理
             mutex = ctypes.windll.kernel32.CreateMutexW(None, False, MUTEX_NAME)
@@ -206,53 +258,92 @@ def clean_orphaned_mutex():
                 return True
             else:
                 # 如果仍然无法创建，可能互斥体仍然存在
-                if ctypes.windll.kernel32.GetLastError() == 183:  # ERROR_ALREADY_EXISTS
-                    logging.warning("提权清理后互斥体仍然存在")
+                error_code = ctypes.windll.kernel32.GetLastError()
+                if error_code == 183:  # ERROR_ALREADY_EXISTS
+                    logging.warning(f"提权清理后互斥体仍然存在，错误码: {error_code}")
                 else:
-                    logging.error(f"提权后检查互斥体状态失败: {ctypes.windll.kernel32.GetLastError()}")
+                    logging.error(f"提权后检查互斥体状态失败，错误码: {error_code}")
                 return False
         else:
-            logging.error(f"提权清理互斥体失败: {result}")
+            logging.error(f"提权清理互斥体失败，启动脚本失败，错误码: {result}")
             return False
     except Exception as e:
-        logging.error(f"清理互斥体失败: {e}")
-        notify(f"清理互斥体失败，详情请查看日志: {tray_log_path}")
+        logging.error(f"清理互斥体出现异常: {e}")
+        logging.debug(f"异常详情: {traceback.format_exc()}")
+        notify(f"清理互斥体失败，详情请查看日志: {tray_log_path}", level="error", show_error=True)
     return False
 
 def start_main():
+    """启动主程序"""
     global main_process
+    logging.info("="*30)
     logging.info("开始启动主程序")
+    
     # 检查进程是否已在运行
     if get_main_proc():
-        notify("主程序已在运行")
+        logging.info("主程序已在运行，不需要重复启动")
+        notify("主程序已在运行", level="warning")
         return
     
     # 如果进程未运行但之前检测到互斥体存在，则可能是互斥体未被正确释放
-    # 尝试清理互斥体
+    logging.debug("主程序未运行，检查并清理可能残留的互斥体")
     clean_orphaned_mutex()
     
-    if MAIN_EXE.endswith('.exe') and os.path.exists(MAIN_EXE):
-        main_process = subprocess.Popen([MAIN_EXE], creationflags=subprocess.CREATE_NO_WINDOW)
-    elif os.path.exists(MAIN_EXE):
-        main_process = subprocess.Popen([sys.executable, MAIN_EXE], creationflags=subprocess.CREATE_NO_WINDOW)
-    else:
-        logging.error("未找到“Remote-Controls”程序")
-        messagebox.showerror("Error","未找到“Remote-Controls”程序")
-        return
-    logging.info("主程序启动成功")
-    notify("主程序已启动")
+    # 选择启动方式
+    cmd_line = None
+    try:
+        if MAIN_EXE.endswith('.exe') and os.path.exists(MAIN_EXE):
+            logging.debug(f"以可执行文件方式启动: {MAIN_EXE}")
+            cmd_line = [os.path.abspath(MAIN_EXE)]
+            main_process = subprocess.Popen(cmd_line, creationflags=subprocess.CREATE_NO_WINDOW)
+            logging.debug(f"启动进程ID: {main_process.pid}")
+        elif os.path.exists(MAIN_EXE):
+            logging.debug(f"以Python脚本方式启动: {sys.executable} {MAIN_EXE}")
+            cmd_line = [sys.executable, os.path.abspath(MAIN_EXE)]
+            main_process = subprocess.Popen(cmd_line, creationflags=subprocess.CREATE_NO_WINDOW)
+            logging.debug(f"启动进程ID: {main_process.pid}")
+        else:
+            error_msg = f"未找到主程序文件: {MAIN_EXE}"
+            logging.error(error_msg)
+            notify(error_msg, level="error", show_error=True)
+            messagebox.showerror("错误", f"未找到\"Remote-Controls\"程序\n路径: {os.path.abspath(MAIN_EXE)}")
+            return
+        
+        # 检查进程是否成功启动
+        time.sleep(1)
+        if main_process.poll() is None:  # 如果进程仍在运行
+            logging.info(f"主程序启动成功，进程ID: {main_process.pid}")
+            notify("主程序已启动", level="info")
+        else:
+            exit_code = main_process.returncode
+            error_msg = f"主程序启动失败，退出码: {exit_code}"
+            logging.error(error_msg)
+            notify(error_msg, level="error", show_error=True)
+    
+    except Exception as e:
+        cmd = " ".join(cmd_line) if cmd_line else "未知"
+        logging.error(f"启动主程序时出现异常: {e}")
+        logging.debug(f"启动命令: {cmd}")
+        logging.debug(f"异常详情: {traceback.format_exc()}")
+        notify(f"启动主程序失败，详情请查看日志: {tray_log_path}", level="error", show_error=True)
 
 def stop_main():
     """停止主程序：使用taskkill命令关闭，类似于批处理文件的实现"""
+    logging.info("="*30)
     logging.info("开始关闭主程序")
+    
+    # 获取主程序进程
     proc = get_main_proc()
     if not proc:
+        logging.warning("主程序未运行，无需关闭")
         messagebox.showerror("Error","主程序未运行")
         return
 
     # 检查是否为管理员权限进程
     is_admin_proc = is_main_admin()
+    logging.info(f"主程序权限状态: {'管理员权限' if is_admin_proc else '普通权限'}")
     
+    start_time = time.time()
     try:
         if is_admin_proc:
             logging.info("主程序以管理员权限运行，尝试提权关闭...")
@@ -266,108 +357,240 @@ def stop_main():
                 echo 成功关闭进程 "{MAIN_EXE}".
             ) else (
                 echo 进程 "{MAIN_EXE}" 未运行或关闭失败.
+                exit /b 1
             )
-            exit
+            exit /b 0
             """
             
             temp_script = os.path.join(os.environ.get('TEMP', '.'), 'stop_main.bat')
+            logging.debug(f"创建临时批处理脚本: {temp_script}")
             with open(temp_script, 'w') as f:
                 f.write(script_content)
             
             # 以管理员权限运行批处理
+            logging.debug("尝试以管理员权限执行批处理脚本")
             result = ctypes.windll.shell32.ShellExecuteW(
                 None, "runas", "cmd.exe", f"/c {temp_script}", None, 0
             )
             
             if result > 32:  # 成功启动
+                logging.debug(f"批处理脚本启动成功，等待执行完成...")
                 time.sleep(3)  # 等待批处理执行完成
                 if not is_main_running():
-                    notify("主程序已关闭")
+                    logging.info(f"主程序已成功关闭，耗时: {time.time()-start_time:.2f}秒")
+                    notify("主程序已关闭", level="info")
                 else:
                     # 如果仍在运行，尝试更直接的方法
-                    notify("主程序仍在运行，请尝试手动关闭（任务管理器）")
+                    logging.warning("提权关闭后主程序仍在运行")
+                    notify("主程序仍在运行，请尝试手动关闭（任务管理器）", level="warning", show_error=True)
                     # force_stop_main()
             else:
-                logging.warning(f"提权失败，尝试使用常规方法关闭 (错误码: {result})")
-                notify("无法获取管理员权限，尝试使用常规方法关闭")
+                error_code = result
+                logging.warning(f"提权失败，错误码: {error_code}，尝试使用常规方法关闭")
+                notify("无法获取管理员权限，尝试使用常规方法关闭", level="warning")
                 
                 # 回退到常规方法
+                logging.debug("使用常规方法关闭进程")
                 subprocess.run(f'taskkill /im "{MAIN_EXE}" /f', shell=True)
+                
+                # 检查是否成功关闭
+                time.sleep(1)
+                if not is_main_running():
+                    logging.info(f"主程序已成功关闭(常规方法)，耗时: {time.time()-start_time:.2f}秒")
+                    notify("主程序已关闭", level="info")
+                else:
+                    logging.error("常规方法关闭失败，主程序仍在运行")
+                    notify("无法关闭主程序，请尝试手动关闭（任务管理器）", level="error", show_error=True)
         else:
             # 正常关闭方法
-            subprocess.run(f'taskkill /im "{MAIN_EXE}" /f', shell=True)
-            notify("主程序已关闭")
+            logging.debug("使用常规方法关闭普通权限进程")
+            result = subprocess.run(f'taskkill /im "{MAIN_EXE}" /f', shell=True, capture_output=True, text=True)
+            
+            # 检查是否成功关闭
+            if result.returncode == 0:
+                logging.info(f"主程序已成功关闭，耗时: {time.time()-start_time:.2f}秒")
+                notify("主程序已关闭", level="info")
+            else:
+                logging.error(f"关闭主程序失败: {result.stderr}")
+                notify("关闭主程序失败，详情请查看日志", level="error", show_error=True)
     except Exception as e:
-        logging.error(f"关闭主程序失败: {e}")
-        messagebox.showerror("Error",f"关闭主程序失败,详情请查看日志{tray_log_path}")
+        logging.error(f"关闭主程序时出现异常: {e}")
+        logging.debug(f"异常详情: {traceback.format_exc()}")
+        notify(f"关闭主程序失败，详情请查看日志: {tray_log_path}", level="error", show_error=True)
     
     # 不管成功与否，都尝试清理互斥体
+    logging.debug("尝试清理可能残留的互斥体")
     time.sleep(1)
     clean_orphaned_mutex()
 
 def restart_main():
+    """重启主程序"""
+    logging.info("="*30)
     logging.info("重启主程序")
-    stop_main()
-    time.sleep(1)
+    
+    # 检查主程序是否正在运行
+    was_running = False
+    proc = get_main_proc()
+    if proc:
+        was_running = True
+        logging.info(f"主程序当前在运行，PID: {proc.pid}，准备关闭")
+    else:
+        logging.info("主程序当前未运行，将直接启动")
+    
+    # 如果正在运行，先停止
+    if was_running:
+        stop_main()
+        time.sleep(2)  # 确保有足够时间关闭
+        
+        # 二次确认进程已关闭
+        if is_main_running():
+            logging.warning("主程序未能完全关闭，重启可能不完全")
+            notify("主程序未能完全关闭，重启可能不完全", level="warning", show_error=True)
+    
+    # 启动主程序
+    logging.info("开始启动主程序")
     start_main()
+    
+    # 确认重启结果
+    time.sleep(1)
+    if is_main_running():
+        proc = get_main_proc()
+        if proc:
+            logging.info(f"主程序重启成功，新PID: {proc.pid}")
+            notify("主程序已成功重启", level="info")
+        else:
+            # 理论上不应该运行到这里
+            logging.warning("检测到主程序正在运行，但无法获取进程详情")
+    else:
+        logging.error("主程序重启失败，未检测到进程")
+        notify("主程序重启失败，详情请查看日志", level="error", show_error=True)
 
 def restart_main_as_admin():
     """以管理员权限重启主程序"""
+    logging.info("="*30)
     logging.info("以管理员权限重启主程序")
-    # 检查进程是否在运行，如果在运行则关闭
-    if get_main_proc():
+    
+    # 记录当前状态
+    was_running = False
+    proc = get_main_proc()
+    if proc:
+        was_running = True
+        logging.info(f"主程序当前在运行，PID: {proc.pid}，准备关闭")
         stop_main()
-        time.sleep(1)
+        time.sleep(2)  # 确保有足够时间关闭
+        
+        # 二次确认进程已关闭
+        if is_main_running():
+            logging.warning("主程序仍在运行，可能无法完全关闭")
+            notify("无法完全关闭主程序，重启可能不完全", level="warning", show_error=True)
+    else:
+        logging.info("主程序当前未运行")
     
     # 无论进程是否在运行，都尝试清理可能残留的互斥体
+    logging.debug("清理可能残留的互斥体")
     clean_orphaned_mutex()
     
     # 确定要启动的程序
     args = None
-    if MAIN_EXE.endswith('.exe') and os.path.exists(MAIN_EXE):
-        program = os.path.abspath(MAIN_EXE)
-    elif os.path.exists(MAIN_EXE):
-        program = sys.executable
-        args = os.path.abspath(MAIN_EXE)
-    else:
-        messagebox.showerror("Error","未找到“Remote-Controls”程序")
-        return
-    
     try:
-        # 使用 ShellExecute 以管理员权限启动程序
-        if MAIN_EXE.endswith('.exe'):
-            ctypes.windll.shell32.ShellExecuteW(None, "runas", program, None, None, 0)
+        if MAIN_EXE.endswith('.exe') and os.path.exists(MAIN_EXE):
+            program = os.path.abspath(MAIN_EXE)
+            logging.debug(f"准备以管理员权限启动可执行文件: {program}")
+        elif os.path.exists(MAIN_EXE):
+            program = sys.executable
+            args = os.path.abspath(MAIN_EXE)
+            logging.debug(f"准备以管理员权限启动Python脚本: {program} {args}")
         else:
-            ctypes.windll.shell32.ShellExecuteW(None, "runas", program, f'"{args}"', None, 0)
-        notify("已以管理员权限启动主程序")
+            error_msg = f"未找到主程序文件: {MAIN_EXE}"
+            logging.error(error_msg)
+            messagebox.showerror("Error", f"未找到\"Remote-Controls\"程序\n路径: {os.path.abspath(MAIN_EXE)}")
+            return
+        
+        # 使用 ShellExecute 以管理员权限启动程序
+        logging.debug("尝试获取管理员权限启动程序")
+        if MAIN_EXE.endswith('.exe'):
+            result = ctypes.windll.shell32.ShellExecuteW(None, "runas", program, None, None, 0)
+        else:
+            result = ctypes.windll.shell32.ShellExecuteW(None, "runas", program, f'"{args}"', None, 0)
+        
+        if result > 32:  # 成功启动
+            logging.info("成功以管理员权限启动主程序")
+            notify("已以管理员权限启动主程序", level="info")
+            
+            # 等待一段时间，检查程序是否真的启动了
+            time.sleep(3)
+            if is_main_running():
+                proc = get_main_proc()
+                if proc:
+                    logging.info(f"确认主程序已启动，PID: {proc.pid}")
+                    # 检查是否真的以管理员身份运行
+                    if is_main_admin():
+                        logging.info("确认主程序已获得管理员权限")
+                    else:
+                        logging.warning("主程序已启动，但似乎未获得管理员权限")
+                        notify("主程序已启动，但可能未获得管理员权限", level="warning")
+            else:
+                logging.warning("主程序可能启动失败，未检测到进程")
+                notify("主程序可能启动失败，请检查日志", level="warning")
+        else:
+            logging.error(f"以管理员权限启动失败，错误码: {result}")
+            notify("以管理员权限启动失败，可能被用户取消", level="error", show_error=True)
     except Exception as e:
-        logging.error(f"启动失败: {e}")
-        messagebox.showerror("Error",f"启动失败，详情请查看日志: {tray_log_path}")
+        logging.error(f"重启主程序时出现异常: {e}")
+        logging.debug(f"异常详情: {traceback.format_exc()}")
+        notify(f"重启主程序失败，详情请查看日志: {tray_log_path}", level="error", show_error=True)
 
 def check_admin():
     if is_main_running() and is_main_admin():
+        logging.info("主程序已获得管理员权限")
         notify("主程序已获得管理员权限")
     elif is_main_running():
+        logging.info("主程序未获得管理员权限")
         notify("主程序未获得管理员权限")
     else:
+        logging.info("主程序未运行")
         notify("主程序未运行")
 
 def open_gui():
     if os.path.exists(GUI_EXE):
         subprocess.Popen([GUI_EXE])
+        logging.info(f"打开配置界面: {GUI_EXE}")
     elif os.path.exists(GUI_PY):
+        logging.info(f"打开配置界面: {GUI_PY}")
         subprocess.Popen([sys.executable, GUI_PY])
     else:
+        logging.error(f"未找到配置界面: {GUI_EXE} 或 {GUI_PY}")
         notify("未找到配置界面")
 
-def notify(msg):
-    logging.info(f"通知: {msg}")
+def notify(msg, level="info", show_error=False):
+    """
+    发送通知并记录日志
+    
+    参数:
+    - msg: 通知消息
+    - level: 日志级别 ("debug", "info", "warning", "error", "critical")
+    - show_error: 是否在通知失败时显示错误对话框
+    """
+    # 根据级别记录日志
+    log_func = getattr(logging, level.lower())
+    log_func(f"通知: {msg}")
+    
+    # 发送Win11通知
     try:
         from win11toast import notify as toast
         threading.Thread(target=lambda: toast(msg)).start()
     except Exception as e:
-        logging.error(f"通知失败: {e}")
-        print(msg)
+        logging.error(f"发送通知失败: {e}")
+        logging.debug(f"通知失败详情: {traceback.format_exc()}")
+        
+        if show_error:
+            try:
+                messagebox.showinfo("通知", msg)
+            except Exception as e2:
+                logging.error(f"显示消息框也失败: {e2}")
+                print(msg)  # 最后的后备方案，打印到控制台
+        else:
+            print(msg)
 
 def stop_tray():
     """关闭托盘程序自身"""

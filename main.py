@@ -506,7 +506,7 @@ def tray() -> None:
 
 参数:
 - file_path: 文件路径
-- max_size: 文件最大大小（字节），默认5MB
+- max_size: 文件最大大小（字节），默认1MB
 - backup_count: 保留的备份数量，默认1个
 """
 def rotate_large_file(file_path: str, max_size: int = 1024 * 1024 * 1, backup_count: int = 1) -> None:
