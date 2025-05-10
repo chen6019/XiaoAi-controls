@@ -1,10 +1,8 @@
 /build
 /.vscode
 /dist
-GUI.spec
-main.spec
-XiaoAi-controls.spec
-.gitignore
+*.spec
+*.gitignore
 *.txt
 *.log
 *.json
