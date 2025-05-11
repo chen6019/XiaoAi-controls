@@ -15,6 +15,7 @@ import wmi
 from win11toast import notify
 import json
 import logging
+from logging.handlers import RotatingFileHandler
 from tkinter import messagebox
 import sys
 import threading
@@ -519,43 +520,6 @@ def tray() -> None:
         logging.error(f"加载托盘图标时出错: {e}")
 
 
-"""
-文件过大时轮转文件。
-
-参数:
-- file_path: 文件路径
-- max_size: 文件最大大小（字节），默认1MB
-- backup_count: 保留的备份数量，默认1个
-"""
-def rotate_large_file(file_path: str, max_size: int = 1024 * 1024 * 1, backup_count: int = 1) -> None:
-    """
-    English: Rotates file if it's larger than the specified max_size
-    中文: 如果文件大小超过限制则进行轮转备份
-    """
-    try:
-        if os.path.exists(file_path) and os.path.getsize(file_path) > max_size:
-            # 创建备份文件 (RC.log.back, etc.)
-            for i in range(backup_count, 0, -1):
-                if i > 1 and os.path.exists(f"{file_path}.{i-1}"):
-                    if os.path.exists(f"{file_path}.{i}"):
-                        os.remove(f"{file_path}.{i}")
-                    os.rename(f"{file_path}.{i-1}", f"{file_path}.{i}")
-            # 最新的日志文件变成 .back 备份
-            if os.path.exists(f"{file_path}.back"):
-                os.remove(f"{file_path}.back")
-            os.rename(file_path, f"{file_path}.back")
-            
-            # 创建新的空日志文件
-            with open(file_path, "w") as f:
-                f.write(f"# 新日志文件创建于 {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
-                f.write(f"# 上一个日志文件备份为 {os.path.basename(file_path)}.back\n\n")
-    except Exception as e:
-        # 如果轮转失败，先确保日志文件存在
-        if not os.path.exists(file_path):
-            with open(file_path, "w") as f:
-                f.write(f"# 新日志文件创建于 {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
-                f.write(f"# 警告：尝试轮转日志时出错: {e}\n\n")
-
 # 获取资源文件的路径
 def resource_path(relative_path):
     """获取资源文件的绝对路径"""
@@ -587,17 +551,25 @@ if not os.path.exists(logs_dir):
 log_path = os.path.join(logs_dir, "RC.log")
 config_path = os.path.join(appdata_path, "config.json")
 
-# 先进行日志文件轮转，再配置日志系统
-rotate_large_file(log_path)
-
-# 日志和配置文件路径处理
-logging.basicConfig(
-    filename=log_path,
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s: %(message)s",
-    datefmt="%m/%d/%Y %H:%M:%S",
+# 配置日志处理器，启用日志轮转
+log_handler = RotatingFileHandler(
+    log_path, 
+    maxBytes=1*1024*1024,  # 1MB
+    backupCount=1,          # 保留1个备份文件
     encoding='utf-8'
 )
+
+# 设置日志格式
+log_formatter = logging.Formatter(
+    '%(asctime)s [%(levelname)s] %(filename)s:%(lineno)d - %(message)s',
+    datefmt="%Y-%m-%d %H:%M:%S"
+)
+log_handler.setFormatter(log_formatter)
+
+# 获取根日志记录器并设置
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+logger.addHandler(log_handler)
 
 # 记录程序启动信息
 logging.info("=" * 50)
