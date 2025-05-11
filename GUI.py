@@ -265,7 +265,7 @@ def show_detail_window():
     detail_win.geometry("600x600")
     detail_text = tk.Text(detail_win, wrap="word")
     sleep()
-    detail_text.insert("end", "\n【内置主题详解】\n计算机：\n    打开：锁定计算机（Win+L）\n    关闭：15秒后重启计算机\n屏幕：\n    灯泡设备，通过API调节屏幕亮度(百分比)\n音量：\n    灯泡设备，可调节系统总音量(百分比)\n睡眠：\n    开关设备，可休眠计算机\n\n\n【自定义主题详解】\n\n注：[均为开关设备]\n程序或脚本：\n    需要填写路径，或调用系统api选择程序或脚本文件\n服务：\n    主程序需要管理员权限（开机自启时默认拥有）\n填写服务名称\n\n\n【系统睡眠支持检测】\n\n可开启test模式以禁用本程序的睡眠支持检测\n\n可尝试此命令启用：powercfg.exe /hibernate on\n\n" + sleep_status_message+"\n\n\n")
+    detail_text.insert("end", "\n【内置主题详解】\n计算机：\n    打开：锁定计算机（Win+L）\n    关闭：15秒后重启计算机\n屏幕：\n    灯泡设备，通过API调节屏幕亮度(百分比)\n音量：\n    灯泡设备，可调节系统总音量(百分比)\n睡眠：\n    开关设备，可休眠计算机\n媒体控制：\n    灯泡设备，可控制系统媒体播放\n    开/100：上一曲\n    关/1：下一曲\n    亮度50：播放/暂停\n    亮度1-33：下一曲\n    亮度34-66：播放/暂停\n    亮度67-100：上一曲\n\n\n【自定义主题详解】\n\n注：[均为开关设备]\n程序或脚本：\n    需要填写路径，或调用系统api选择程序或脚本文件\n服务：\n    主程序需要管理员权限（开机自启时默认拥有）\n填写服务名称\n\n\n【系统睡眠支持检测】\n\n可开启test模式以禁用本程序的睡眠支持检测\n\n可尝试此命令启用：powercfg.exe /hibernate on\n\n" + sleep_status_message+"\n\n\n")
     detail_text.config(state="disabled")
     detail_text.pack(expand=True, fill="both", padx=10, pady=10)
     center_window(detail_win)
@@ -719,6 +719,12 @@ builtin_themes: List[Dict[str, Any]] = [
         "name_var": tk.StringVar(),
         "checked": tk.IntVar(),
     },
+    {
+        "nickname": "媒体控制",
+        "key": "media",
+        "name_var": tk.StringVar(),
+        "checked": tk.IntVar(),
+    },
 ]
 
 ttk.Label(theme_frame, text="内置").grid(row=0, column=0, sticky="w")
@@ -775,19 +781,18 @@ custom_themes: List[Dict[str, Any]] = []
 # 自定义主题列表组件
 custom_theme_tree = ttk.Treeview(theme_frame, columns=("theme",), show="headings")
 custom_theme_tree.heading("theme", text="双击即可修改")
-custom_theme_tree.grid(row=1, column=3, rowspan=4, pady=10, sticky="nsew")
+custom_theme_tree.grid(row=1, column=3, rowspan=5, pady=10, sticky="nsew")
 
 # 刷新主题配置按钮
 ttk.Button(theme_frame, text="刷新", command=refresh_custom_themes).grid(
-    row=5, column=0, sticky="w"
+    row=6, column=0, sticky="w"
 )
-
 # 添加和修改按钮
 ttk.Button(theme_frame, text="添加", command=lambda: add_custom_theme(config)).grid(
-    row=5, column=3, sticky="w"
+    row=6, column=3, sticky="w"
 )
 ttk.Button(theme_frame, text="修改", command=lambda: modify_custom_theme()).grid(
-    row=5, column=3, sticky="e"
+    row=6, column=3, sticky="e"
 )
 
 # 绑定鼠标双击事件到自定义主题列表
