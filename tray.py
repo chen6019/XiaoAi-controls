@@ -145,6 +145,7 @@ def run_as_admin(executable_path, parameters=None, working_dir=None, show_cmd=0)
         working_dir,           # 工作目录
         show_cmd               # 窗口显示方式
     )
+    
     return result
 
 def run_py_in_venv_as_admin_hidden(python_exe_path, script_path, script_args=None):
@@ -215,7 +216,6 @@ def get_main_proc():
     else:
         # Python脚本查找方式
         logging.info(f"查找Python脚本主程序: {process_name}")
-        
         # 尝试查找命令行中包含脚本名的Python进程
         for proc in psutil.process_iter(['pid', 'name', 'cmdline', 'username']):
             try:
@@ -417,9 +417,23 @@ def start_main(icon=None, item=None):
 def is_admin_start_main():
     """管理员权限运行主程序"""
     if MAIN_EXE.endswith('.exe') and os.path.exists(MAIN_EXE):
-        run_as_admin(MAIN_EXE)
+        close_exe(MAIN_EXE)
+        logging.info(f"以可执行文件方式启动: {MAIN_EXE}")
+        rest=run_as_admin(MAIN_EXE)
+        if rest > 32:
+            logging.info(f"成功以管理员权限启动主程序，PID: {rest}")
+        else:
+            logging.error(f"以管理员权限启动主程序失败，错误码: {rest}")
+            notify(f"以管理员权限启动主程序失败，错误码: {rest}", level="error", show_error=True)
     elif os.path.exists(MAIN_EXE):
-        run_py_in_venv_as_admin_hidden(sys.executable, MAIN_EXE)
+        close_script(MAIN_EXE)
+        logging.info(f"以Python脚本方式启动: {sys.executable} {MAIN_EXE}")
+        rest=run_py_in_venv_as_admin_hidden(sys.executable, MAIN_EXE)
+        if rest > 32:
+            logging.info(f"成功以管理员权限启动主程序，PID: {rest}")
+        else:
+            logging.error(f"以管理员权限启动主程序失败，错误码: {rest}")
+            notify(f"以管理员权限启动主程序失败，错误码: {rest}", level="error", show_error=True)
 
 @run_in_thread
 def check_admin(icon=None, item=None):
@@ -476,12 +490,12 @@ def notify(msg, level="info", show_error=False):
         else:
             print(msg)
 
-def close_(name:str):
+def close_exe(name:str):
     """关闭指定名称的进程"""
     """关闭程序函数"""
     try:
         is_admin = ctypes.windll.shell32.IsUserAnAdmin() != 0
-        if not is_admin:
+        if is_admin:
             # 尝试创建一个批处理文件并以管理员权限运行
             # tray_name = os.path.basename(sys.executable) if getattr(sys, "frozen", False) else "python.exe"
             logging.info(f"尝试关闭进程: {name}")
@@ -510,12 +524,55 @@ def close_(name:str):
                 logging.error(f"关闭进程失败，错误码: {rest}")
                 notify(f"关闭进程失败，错误码: {rest}", level="error", show_error=True)
                 return
-        # 退出当前实例
-        threading.Timer(1.0, lambda: os._exit(0)).start()
+        else:
+            logging.warning(f"当前用户没有管理员权限，无法关闭进程{name}")
+            notify(f"当前用户没有管理员权限，无法关闭进程{name}", level="warning")
+    except FileNotFoundError:
+        logging.error(f"未找到进程文件: {name}")
+        notify(f"未找到进程文件: {name}", level="error", show_error=True)
     except Exception as e:
         logging.error(f"关闭{name}时出错: {e}")
         # 如果出错，仍然尝试正常退出
         threading.Timer(1.0, lambda: os._exit(0)).start()
+
+def close_script(script_name):
+    """关闭脚本"""
+    try:
+        is_admin = ctypes.windll.shell32.IsUserAnAdmin() != 0
+        if is_admin:
+            # 通过名称查找进程（模糊匹配）
+            cmd_find = f'tasklist /FI "IMAGENAME eq python.exe" /FO CSV /NH'
+            output = subprocess.check_output(cmd_find, shell=True).decode('utf-8')
+            
+            # 解析输出，找到目标脚本的PID
+            target_pids = []
+            for line in output.splitlines():
+                if script_name in line:
+                    parts = line.replace('"', '').split(',')
+                    pid = parts[1].strip()
+                    target_pids.append(pid)
+            
+            # 终止所有匹配的进程
+            for pid in target_pids:
+                try:
+                    # 以管理员权限调用 taskkill
+                    subprocess.run(
+                        f'taskkill /F /PID {pid}',
+                        shell=True,
+                        check=True,
+                        creationflags=subprocess.CREATE_NO_WINDOW
+                    )
+                    print(f"已终止进程 PID: {pid}")
+                except subprocess.CalledProcessError:
+                    print(f"无法终止进程 PID: {pid}（可能需要管理员权限）")
+        else:
+            logging.warning(f"当前用户没有管理员权限，无法关闭脚本{script_name}")
+            notify(f"当前用户没有管理员权限，无法关闭脚本{script_name}", level="warning")
+    except FileNotFoundError:
+        logging.error(f"未找到脚本文件: {script_name}")
+        notify(f"未找到脚本文件: {script_name}", level="error", show_error=True)
+    except Exception as e:
+        logging.error(f"关闭脚本{script_name}时出错: {e}")
 
 @run_in_thread
 def stop_tray():
@@ -530,9 +587,14 @@ def stop_tray():
             logging.info("托盘图标已停止")
         except Exception as e:
             logging.error(f"停止托盘图标时出错: {e}")
-    close_(MAIN_EXE)
     tray_name = os.path.basename(sys.executable) if getattr(sys, "frozen", False) else "python.exe"
-    close_(tray_name)
+    if MAIN_EXE.endswith('.exe') and os.path.exists(MAIN_EXE):
+        close_exe(MAIN_EXE)
+        close_exe(tray_name)
+    else:
+        close_script(MAIN_EXE)
+        close_script(tray_name)
+
         
 def is_tray_admin():
     """检查当前托盘程序是否以管理员权限运行"""
@@ -603,8 +665,7 @@ try:
     icon.run()
 except KeyboardInterrupt:
     logging.info("检测到键盘中断，正在退出")
-    if icon:
-        icon.stop()
+    stop_tray()
 except Exception as e:
     logging.error(f"托盘图标运行时出错: {e}")
     logging.error(traceback.format_exc())
