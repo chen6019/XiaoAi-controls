@@ -112,7 +112,7 @@ def set_auto_start() -> None:
     principal = task_definition.Principal
     principal.RunLevel = 1
     # SYSTEM用户已经设置，不需要再设置LogonType
-    principal.LogonType = 2 # 1表示使用当前登录用户凭据，用户为2
+    principal.LogonType = 2 # 1表示使用当前登录用户凭据（不可用），用户为2
 
     settings = task_definition.Settings
     settings.DisallowStartIfOnBatteries = False
@@ -121,7 +121,7 @@ def set_auto_start() -> None:
     # 设置兼容性为 Windows 10
     task_definition.Settings.Compatibility = 4
 
-    root_folder.RegisterTaskDefinition("A远程控制", task_definition, 6, "", "", 2)# 0表示使用当前登录用户身份，用户为2，SYSTEM为3
+    root_folder.RegisterTaskDefinition("A远程控制", task_definition, 6, "", "", 2)# 0表示使用当前登录用户身份（不可用），用户为2，SYSTEM为3
     check_task()
     if result == 0:
         messagebox.showinfo("提示", "创建任务成功\n已配置为SYSTEM用户运行，任务触发时仅访问本地资源")
@@ -131,7 +131,7 @@ def set_auto_start() -> None:
             # and "tray.py"
         )
         if os.path.exists(tray_exe_path):
-            quoted_tray_path = shlex.quote(tray_exe_path)            # 托盘程序使用当前登录用户（最高权限）运行，登录后触发
+            quoted_tray_path = shlex.quote(tray_exe_path)# 托盘程序使用当前登录用户（最高权限）运行，登录后触发
             tray_result = subprocess.call(
                 f'schtasks /Create /SC ONLOGON /TN "A远程控制-托盘" '
                 f'/TR "{quoted_tray_path}" /RL HIGHEST /F',
@@ -567,6 +567,26 @@ def sleep():
     else:
         sleep_status_message = "test模式已开启，未检测系统休眠/睡眠支持。"
 
+def check_brightness_support():
+    # 检查系统亮度调节支持（test模式开启时跳过检测）
+    global brightness_disabled, brightness_status_message
+    if not ("config" in globals() and config.get("test", 0) == 1):
+        try:
+            # 尝试使用WMI获取亮度控制接口
+            import wmi
+            brightness_controllers = wmi.WMI(namespace="wmi").WmiMonitorBrightnessMethods()
+            if not brightness_controllers:
+                brightness_disabled = True
+                brightness_status_message = "系统不支持亮度调节功能，未找到亮度控制接口。"
+            else:
+                brightness_disabled = False
+                brightness_status_message = "系统支持亮度调节功能。"
+        except Exception as e:
+            brightness_disabled = True
+            brightness_status_message = f"检测亮度控制接口失败: {e}"
+    else:
+        brightness_status_message = "test模式已开启，未检测系统亮度调节支持。"
+
 def enable_window() -> None:
     """
     
@@ -601,7 +621,7 @@ if os.path.exists(config_file_path):
 
 # 创建主窗口
 root = tk.Tk()
-root.title("远程控制V1.2.1")
+root.title("远程控制V2.0.0")
 
 # 设置根窗口的行列权重
 root.rowconfigure(0, weight=1)
@@ -659,7 +679,7 @@ auto_start_button.grid(row=2, column=2,  sticky="n")
 # 程序标题栏
 if is_admin():
     check_task()
-    root.title("远程控制V1.2.1(管理员)")
+    root.title("远程控制V2.0.0(管理员)")
 else:
     auto_start_button.config(text="获取权限", command=get_administrator_privileges)
     # 隐藏test
@@ -710,7 +730,10 @@ ttk.Label(theme_frame, text="自定义(服务需管理员)").grid(
 
 sleep_disabled = False
 sleep_status_message = ""
+brightness_disabled = False
+brightness_status_message = ""
 sleep()
+check_brightness_support()
 
 for idx, theme in enumerate(builtin_themes):
     theme_key = theme["key"]
@@ -727,6 +750,17 @@ for idx, theme in enumerate(builtin_themes):
         entry.grid(row=idx + 1, column=2, sticky="ew")
         sleep_tip = ttk.Button(theme_frame, text="休眠/睡眠不可用\n点击(详情)查看原因",command=enable_window)
         sleep_tip.grid(row=idx + 1, column=2, sticky="w")
+    elif theme_key == "screen" and brightness_disabled:
+        theme["checked"].set(0)
+        theme["name_var"].set("")
+        cb = ttk.Checkbutton(theme_frame, text=theme["nickname"], variable=theme["checked"])
+        cb.state(["disabled"])
+        cb.grid(row=idx + 1, column=0, sticky="w", columnspan=2)
+        entry = ttk.Entry(theme_frame, textvariable=theme["name_var"])
+        entry.config(state="disabled")
+        entry.grid(row=idx + 1, column=2, sticky="ew")
+        brightness_tip = ttk.Button(theme_frame, text="亮度调节不可用\n系统不支持此功能",command=show_detail_window)
+        brightness_tip.grid(row=idx + 1, column=2, sticky="w")
     else:
         ttk.Checkbutton(theme_frame, text=theme["nickname"], variable=theme["checked"]).grid(
             row=idx + 1, column=0, sticky="w", columnspan=2

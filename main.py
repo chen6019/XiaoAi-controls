@@ -467,7 +467,7 @@ def tray() -> None:
         # 从资源文件中读取图像
         with open(icon_path, "rb") as f:
             image_data = f.read()
-        icon = pystray.Icon("RC-main", title="远程控制 V1.2.1")
+        icon = pystray.Icon("RC-main", title="远程控制 V2.0.0")
         image = Image.open(io.BytesIO(image_data))
         menu = (
             pystray.MenuItem("打开配置", open_gui),
@@ -508,7 +508,6 @@ def rotate_large_file(file_path: str, max_size: int = 1024 * 1024 * 1, backup_co
                     if os.path.exists(f"{file_path}.{i}"):
                         os.remove(f"{file_path}.{i}")
                     os.rename(f"{file_path}.{i-1}", f"{file_path}.{i}")
-            
             # 最新的日志文件变成 .back 备份
             if os.path.exists(f"{file_path}.back"):
                 os.remove(f"{file_path}.back")
@@ -616,7 +615,9 @@ else:
         logging.error("没有启用任何主题，显示错误信息")
         messagebox.showerror("Error", "主题不能一个都没有吧！\n（除了测试模式）")
         open_gui()
+        logging.info("程序已停止")
         threading.Timer(0.5, lambda: os._exit(0)).start()
+        sys.exit(0)
     else:
         logging.info("至少已有一个主题被启用")
 

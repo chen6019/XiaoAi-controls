@@ -526,7 +526,7 @@ def get_menu_items():
         # 显示权限状态的纯文本项（不可点击）
         pystray.MenuItem(f"托盘状态: {admin_status}", None, enabled=False),
         # 分隔线
-        pystray.MenuItem("-", None),
+        pystray.MenuItem("版本-V2.0.0", None),
         # 其他功能菜单项
         pystray.MenuItem("启动主程序", is_admin_start_main),
         pystray.MenuItem("打开配置界面", open_gui),
@@ -574,7 +574,7 @@ run_mode_info = "（脚本模式）" if is_script_mode else "（EXE模式）"
 notify(f"远程控制托盘程序已启动{run_mode_info}\n主程序状态: {main_status}\n托盘状态: {tray_status}{admin_tip}")
 
 # 创建托盘图标
-icon = pystray.Icon("RC-main-Tray", image, "远程控制托盘", menu)
+icon = pystray.Icon("RC-main-Tray", image, "远程控制托盘V2.0.0", menu)
 
 # 在带异常处理的环境中运行托盘程序
 try:
