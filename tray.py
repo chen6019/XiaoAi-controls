@@ -42,11 +42,11 @@ def run_in_thread(func):
     return wrapper
 
 # 配置
-MAIN_EXE = "Remote-Controls.exe" if getattr(sys, "frozen", False) else "main.py"
+MAIN_EXE = "RC-main.exe" if getattr(sys, "frozen", False) else "main.py"
 GUI_EXE = "RC-GUI.exe"
 GUI_PY = "GUI.py"
 ICON_FILE = "icon.ico"
-MUTEX_NAME = "Remote-Controls-main"
+MUTEX_NAME = "RC-main"
 
 # 日志配置
 appdata_dir = os.path.abspath(os.path.dirname(sys.argv[0]))
@@ -392,7 +392,7 @@ def start_main(icon=None, item=None):
             error_msg = f"未找到主程序文件: {MAIN_EXE}"
             logging.error(error_msg)
             notify(error_msg, level="error", show_error=True)
-            messagebox.showerror("错误", f"未找到\"Remote-Controls\"程序\n路径: {os.path.abspath(MAIN_EXE)}")
+            messagebox.showerror("错误", f"未找到\"RC-main\"程序\n路径: {os.path.abspath(MAIN_EXE)}")
             return
         
         # 检查进程是否成功启动
@@ -670,7 +670,7 @@ notify(f"远程控制托盘程序已启动\n主程序状态: {main_status}\n托�
 logging.info(f"托盘程序启动，主程序状态: {main_status}，托盘状态: {tray_status}{admin_tip}")
 
 # 创建托盘图标
-icon = pystray.Icon("Remote-Controls-Tray", image, "远程控制托盘", menu)
+icon = pystray.Icon("RC-main-Tray", image, "远程控制托盘", menu)
 
 # 在带异常处理的环境中运行托盘程序
 try:

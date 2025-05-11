@@ -15,12 +15,12 @@ import win32com.client
 from typing import Any, Dict, List, Union, Optional
 
 # 创建一个命名的互斥体
-mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "Remote-Controls-GUI")
+# mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "RC-main-GUI")
 
 # 检查互斥体是否已经存在
-if ctypes.windll.kernel32.GetLastError() == 183:
-    messagebox.showerror("错误", "应用程序已在运行。")
-    sys.exit()
+# if ctypes.windll.kernel32.GetLastError() == 183:
+#     messagebox.showerror("错误", "应用程序已在运行。")
+#     sys.exit()
 
 
 # 判断是否拥有管理员权限
@@ -86,14 +86,14 @@ def set_auto_start() -> None:
     中文: 设置开机自启动，程序自动运行
     """
     exe_path = os.path.join(
-        os.path.dirname(os.path.abspath(sys.argv[0])), "Remote-Controls.exe"
+        os.path.dirname(os.path.abspath(sys.argv[0])), "RC-main.exe"
         # and "main.py"
     )
 
     # 检查文件是否存在
     if not os.path.exists(exe_path):
         messagebox.showerror(
-            "错误", "未找到 Remote-Controls.exe 文件\n请检查文件是否存在"
+            "错误", "未找到 RC-main.exe 文件\n请检查文件是否存在"
         )
         return
 
@@ -791,7 +791,7 @@ load_custom_themes()
 root.mainloop()
 
 # 释放互斥体
-ctypes.windll.kernel32.ReleaseMutex(mutex)
+# ctypes.windll.kernel32.ReleaseMutex(mutex)
 
 """
 GUI程序用来生成配置文件(用于Windows系统)
