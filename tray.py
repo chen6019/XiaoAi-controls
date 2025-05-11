@@ -367,62 +367,6 @@ def clean_orphaned_mutex():
         notify(f"清理互斥体失败，详情请查看日志: {tray_log_path}", level="error", show_error=True)
     return False
 
-# @run_in_thread
-# def start_main(icon=None, item=None):
-#     """启动主程序"""
-#     logging.info("执行函数: start_main")
-#     global main_process
-#     logging.info("="*30)
-#     logging.info("开始启动主程序")
-    
-#     # 检查进程是否已在运行
-#     if get_main_proc(MAIN_EXE_OLD):
-#         logging.info("主程序已在运行，不需要重复启动")
-#         notify("主程序已在运行", level="warning")
-#         return
-    
-#     # 如果进程未运行但之前检测到互斥体存在，则可能是互斥体未被正确释放
-#     logging.info("主程序未运行，检查并清理可能残留的互斥体")
-#     clean_orphaned_mutex()
-    
-#     # 选择启动方式
-#     cmd_line = None
-#     try:
-#         if MAIN_EXE_OLD.endswith('.exe') and os.path.exists(MAIN_EXE):
-#             logging.info(f"以可执行文件方式启动: {MAIN_EXE}")
-#             cmd_line = [os.path.abspath(MAIN_EXE)]
-#             main_process = subprocess.Popen(cmd_line, creationflags=subprocess.CREATE_NO_WINDOW)
-#             logging.info(f"启动进程ID: {main_process.pid}")
-#         elif os.path.exists(MAIN_EXE):
-#             logging.info(f"以Python脚本方式启动: {sys.executable} {MAIN_EXE}")
-#             cmd_line = [sys.executable, os.path.abspath(MAIN_EXE)]
-#             main_process = subprocess.Popen(cmd_line, creationflags=subprocess.CREATE_NO_WINDOW)
-#             logging.info(f"启动进程ID: {main_process.pid}")
-#         else:
-#             error_msg = f"未找到主程序文件: {MAIN_EXE}"
-#             logging.error(error_msg)
-#             notify(error_msg, level="error", show_error=True)
-#             messagebox.showerror("错误", f"未找到\"RC-main\"程序\n路径: {os.path.abspath(MAIN_EXE)}")
-#             return
-        
-#         # 检查进程是否成功启动
-#         time.sleep(1)
-#         if main_process.poll() is None:  # 如果进程仍在运行
-#             logging.info(f"主程序启动成功，进程ID: {main_process.pid}")
-#             # notify("主程序已启动", level="info")
-#         else:
-#             exit_code = main_process.returncode
-#             error_msg = f"主程序启动失败，退出码: {exit_code}"
-#             logging.error(error_msg)
-#             notify(error_msg, level="error", show_error=True)
-    
-#     except Exception as e:
-#         cmd = " ".join(cmd_line) if cmd_line else "未知"
-#         logging.error(f"启动主程序时出现异常: {e}")
-#         logging.info(f"启动命令: {cmd}")
-#         # logging.error(f"异常详情: {traceback.format_exc()}")
-#         notify(f"启动主程序失败，详情请查看日志: {tray_log_path}", level="error", show_error=True)
-
 @run_in_thread
 def is_admin_start_main():
     """管理员权限运行主程序"""
@@ -506,15 +450,13 @@ def notify(msg, level="info", show_error=False):
         else:
             print(msg)
 
-def close_exe(name:str):
+def close_exe(name:str,skip_admin:bool=False):
     """关闭指定名称的进程"""
     """关闭程序函数"""
     logging.info(f"执行函数: close_exe; 参数: {name}")
     try:
         is_admin = ctypes.windll.shell32.IsUserAnAdmin() != 0
-        if is_admin:
-            # 尝试创建一个批处理文件并以管理员权限运行
-            # tray_name = os.path.basename(sys.executable) if getattr(sys, "frozen", False) else "python.exe"
+        if is_admin or skip_admin:
             logging.info(f"尝试关闭进程: {name}")
             script_content = f"""
             @echo off
@@ -552,12 +494,12 @@ def close_exe(name:str):
         # 如果出错，仍然尝试正常退出
         threading.Timer(1.0, lambda: os._exit(0)).start()
 
-def close_script(script_name):
+def close_script(script_name,skip_admin:bool=False):
     """关闭脚本函数"""
     logging.info(f"执行函数: close_script; 参数: {script_name}")
     try:
         is_admin = ctypes.windll.shell32.IsUserAnAdmin() != 0
-        if is_admin:
+        if is_admin or skip_admin:
             # 通过名称查找进程（模糊匹配）
             logging.info(f"尝试关闭脚本: {script_name}")
             cmd_find = f'tasklist /FI "IMAGENAME eq python.exe" /FO CSV /NH'
@@ -595,7 +537,7 @@ def close_script(script_name):
 
 @run_in_thread
 def stop_tray():
-    """关闭托盘程序和主程序"""
+    """关闭托盘程序"""
     logging.info("执行函数: stop_tray")
     logging.info("="*30)
     notify("正在关闭托盘程序...")
@@ -609,11 +551,11 @@ def stop_tray():
             logging.error(f"停止托盘图标时出错: {e}")
     tray_name = os.path.basename(sys.executable) if getattr(sys, "frozen", False) else "python.exe"
     if MAIN_EXE_OLD.endswith('.exe') and os.path.exists(MAIN_EXE):
-        close_exe(MAIN_EXE_OLD)
-        close_exe(tray_name)
+        # close_exe(MAIN_EXE_OLD)
+        close_exe(tray_name,True)
     else:
-        close_script(MAIN_EXE_OLD)
-        close_script(tray_name)
+        # close_script(MAIN_EXE_OLD)
+        close_script(tray_name,True)
 
         
 def is_tray_admin():
@@ -638,16 +580,33 @@ def check_tray_admin(icon=None, item=None):
 def close_main():
     """关闭主程序"""
     logging.info(f"执行函数: close_main,{MAIN_EXE}")
-    # main_proc = get_main_proc(MAIN_EXE_OLD)
-    # if main_proc:
-    if MAIN_EXE_OLD.endswith('.exe') and os.path.exists(MAIN_EXE):
-        close_exe(MAIN_EXE_OLD)
-    elif os.path.exists(MAIN_EXE):
-        close_script(MAIN_EXE_OLD)
-    # else:
-        # logging.info("主程序未运行")
-        # notify("主程序未运行", level="warning")
-        # return
+    try:
+        if MAIN_EXE_OLD.endswith('.exe') and os.path.exists(MAIN_EXE):
+            close_exe(MAIN_EXE_OLD)
+        elif os.path.exists(MAIN_EXE):
+            close_script(MAIN_EXE_OLD)
+    except Exception as e:
+        logging.error(f"关闭主程序时出错: {e}")
+        notify(f"关闭主程序时出错: {e}", level="error", show_error=True)
+        
+
+def get_menu_items():
+    """生成动态菜单项列表"""
+    # 检查托盘程序管理员权限状态
+    admin_status = "【已获得管理员权限】" if is_tray_admin() else "【未获得管理员权限】"
+    
+    return [
+        # 显示权限状态的纯文本项（不可点击）
+        pystray.MenuItem(f"托盘状态: {admin_status}", None, enabled=False),
+        # 分隔线
+        pystray.MenuItem("-", None),
+        # 其他功能菜单项
+        pystray.MenuItem("检查主程序管理员权限", check_admin),
+        pystray.MenuItem("打开配置界面", open_gui),
+        pystray.MenuItem("管理员权限启动主程序", is_admin_start_main),
+        pystray.MenuItem("关闭主程序", close_main),
+        pystray.MenuItem("退出托盘（保留主程序）", stop_tray),
+    ]
 
 # 检查主程序状态
 main_status = "未运行"
@@ -660,19 +619,13 @@ tray_status = "以管理员权限运行" if is_tray_admin() else "以普通权�
 # 权限提示
 admin_tip = ""
 if not is_tray_admin():
-    admin_tip = "，无法查看开机自启的主程序状态"
+    admin_tip = "，可能无法查看开机自启的主程序状态"
 
 # 托盘图标设置
 icon_path = resource_path(ICON_FILE)
 image = Image.open(icon_path) if os.path.exists(icon_path) else None
-menu = pystray.Menu(
-        pystray.MenuItem("检查主程序管理员权限", check_admin),
-        pystray.MenuItem("检查托盘程序管理员权限", check_tray_admin),
-        pystray.MenuItem("打开配置界面", open_gui),
-        pystray.MenuItem("管理员权限启动主程序",is_admin_start_main),
-        pystray.MenuItem("关闭主程序", close_main),
-        pystray.MenuItem("退出托盘", stop_tray),
-    )
+# 使用函数生成菜单，每次右键点击时会自动调用该函数刷新菜单
+menu = pystray.Menu(get_menu_items)
 
 # 信号处理函数，用于捕获CTRL+C等中断信号
 def signal_handler(signum, frame):
