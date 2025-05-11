@@ -1,7 +1,7 @@
 """
 打包指令:
-pyinstaller -F -n Remote-Controls --windowed --icon=icon.ico --add-data "icon.ico;."  main.py
-程序名：Remote-Controls.exe
+pyinstaller -F -n RC-main --windowed --icon=icon.ico --add-data "icon.ico;."  main.py
+程序名：RC-main.exe
 运行用户：当前登录用户（通过计划任务启动）
 """
 
@@ -28,7 +28,7 @@ from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
 
 
 # 创建一个命名的互斥体
-mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "Remote-Controls-main")
+mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "RC-main")
 # 检查互斥体是否已经存在
 if ctypes.windll.kernel32.GetLastError() == 183:
     messagebox.showerror("错误", "应用程序已在运行。")
@@ -467,7 +467,7 @@ def tray() -> None:
         # 从资源文件中读取图像
         with open(icon_path, "rb") as f:
             image_data = f.read()
-        icon = pystray.Icon("Remote-Controls", title="远程控制 V1.2.1")
+        icon = pystray.Icon("RC-main", title="远程控制 V1.2.1")
         image = Image.open(io.BytesIO(image_data))
         menu = (
             pystray.MenuItem("打开配置", open_gui),
