@@ -41,13 +41,6 @@ def run_in_thread(func):
         thread.start()
     return wrapper
 
-# 配置
-MAIN_EXE = "RC-main.exe" if getattr(sys, "frozen", False) else "main.py"
-GUI_EXE = "RC-GUI.exe"
-GUI_PY = "GUI.py"
-ICON_FILE = "icon.ico"
-MUTEX_NAME = "RC-main"
-
 # 日志配置
 appdata_dir = os.path.abspath(os.path.dirname(sys.argv[0]))
 logs_dir = os.path.join(appdata_dir, "logs")
@@ -90,6 +83,15 @@ logging.info(f"Python版本: {sys.version}")
 logging.info(f"系统信息: {sys.platform}")
 logging.info("="*50)
 
+# 配置
+MAIN_EXE_OLD = "RC-main.exe" if getattr(sys, "frozen", False) else "main.py"
+GUI_EXE_ = "RC-GUI.exe"
+GUI_PY_ = "GUI.py"
+ICON_FILE = "icon.ico"
+MUTEX_NAME = "RC-main"
+MAIN_EXE = os.path.join(appdata_dir, MAIN_EXE_OLD)
+GUI_EXE = os.path.join(appdata_dir, GUI_EXE_)
+GUI_PY = os.path.join(appdata_dir, GUI_PY_)
 # # 记录详细的系统信息
 # if utils:
 #     utils.log_system_info(detailed=True)
@@ -106,7 +108,8 @@ def resource_path(relative_path):
 
 def is_main_running():
     # 优先按进程检测主程序是否已运行
-    main_proc = get_main_proc()
+    logging.info(f"执行函数: is_main_running")
+    main_proc = get_main_proc(MAIN_EXE_OLD)
     if main_proc:
         return True
     # 回退到互斥体判断
@@ -132,6 +135,7 @@ def run_as_admin(executable_path, parameters=None, working_dir=None, show_cmd=0)
     返回：
     int: ShellExecute的返回值，若小于等于32表示出错
     """
+    logging.info(f"执行函数: run_as_admin；参数: {executable_path}")
     if parameters is None:
         parameters = ''
     if working_dir is None:
@@ -157,6 +161,7 @@ def run_py_in_venv_as_admin_hidden(python_exe_path, script_path, script_args=Non
     script_path (str): 要运行的 Python 脚本路径
     script_args (list): 传递给脚本的参数（可选）
     """
+    logging.info(f"执行函数: run_py_in_venv_as_admin_hidden；参数: {python_exe_path}, {script_path}")
     if not os.path.exists(python_exe_path):
         raise FileNotFoundError(f"Python 解释器未找到: {python_exe_path}")
 
@@ -177,14 +182,14 @@ def run_py_in_venv_as_admin_hidden(python_exe_path, script_path, script_args=Non
         0                   # 窗口模式：0=隐藏
     )
     return result
-def get_main_proc():
+def get_main_proc(process_name):
     """查找主程序进程是否存在"""
-    process_name = MAIN_EXE
+    logging.info(f"执行函数: get_main_proc; 参数: {process_name}")
     
     # 如果不是管理员权限运行，可能无法查看所有进程，记录警告
     if not is_tray_admin():
         logging.warning("托盘程序未以管理员权限运行,可能无法查看所有进程")
-    if MAIN_EXE.endswith('.exe'):
+    if process_name.endswith('.exe'):
         logging.info(f"查找主程序可执行文件: {process_name}")
         # 可执行文件查找方式
         target_user=None
@@ -202,11 +207,13 @@ def get_main_proc():
                 if current_name == process_name:
                     # 未指定用户则直接返回True
                     if target_user is None:
+                        logging.info(f"找到主程序进程: {proc.pid}, 用户: {current_user}")
                         return True
                     # 指定用户时提取用户名部分比较
                     if current_user:
                         user_part = current_user.split('\\')[-1].lower()
                         if user_part == target_user:
+                            logging.info(f"找到主程序进程: {proc.pid}, 用户: {current_user}")
                             return True
             except (psutil.AccessDenied, psutil.NoSuchProcess):
                 continue
@@ -267,6 +274,7 @@ def get_main_proc():
 
 def is_main_admin():
     """检查主程序是否以管理员权限运行"""
+    logging.info("执行函数: is_main_admin")
     # 通过读取主程序写入的状态文件来判断管理员权限
     status_file = os.path.join(logs_dir, "admin_status.txt")
     
@@ -292,6 +300,7 @@ def is_main_admin():
 
 def clean_orphaned_mutex():
     """清理可能未被正确释放的主程序互斥体"""
+    logging.info(f"执行函数: clean_orphaned_mutex")
     logging.info(f"尝试清理互斥体: {MUTEX_NAME}")
     try:
         # 先尝试以普通权限清理
@@ -358,66 +367,68 @@ def clean_orphaned_mutex():
         notify(f"清理互斥体失败，详情请查看日志: {tray_log_path}", level="error", show_error=True)
     return False
 
-@run_in_thread
-def start_main(icon=None, item=None):
-    """启动主程序"""
-    global main_process
-    logging.info("="*30)
-    logging.info("开始启动主程序")
+# @run_in_thread
+# def start_main(icon=None, item=None):
+#     """启动主程序"""
+#     logging.info("执行函数: start_main")
+#     global main_process
+#     logging.info("="*30)
+#     logging.info("开始启动主程序")
     
-    # 检查进程是否已在运行
-    if get_main_proc():
-        logging.info("主程序已在运行，不需要重复启动")
-        notify("主程序已在运行", level="warning")
-        return
+#     # 检查进程是否已在运行
+#     if get_main_proc(MAIN_EXE_OLD):
+#         logging.info("主程序已在运行，不需要重复启动")
+#         notify("主程序已在运行", level="warning")
+#         return
     
-    # 如果进程未运行但之前检测到互斥体存在，则可能是互斥体未被正确释放
-    logging.info("主程序未运行，检查并清理可能残留的互斥体")
-    clean_orphaned_mutex()
+#     # 如果进程未运行但之前检测到互斥体存在，则可能是互斥体未被正确释放
+#     logging.info("主程序未运行，检查并清理可能残留的互斥体")
+#     clean_orphaned_mutex()
     
-    # 选择启动方式
-    cmd_line = None
-    try:
-        if MAIN_EXE.endswith('.exe') and os.path.exists(MAIN_EXE):
-            logging.info(f"以可执行文件方式启动: {MAIN_EXE}")
-            cmd_line = [os.path.abspath(MAIN_EXE)]
-            main_process = subprocess.Popen(cmd_line, creationflags=subprocess.CREATE_NO_WINDOW)
-            logging.info(f"启动进程ID: {main_process.pid}")
-        elif os.path.exists(MAIN_EXE):
-            logging.info(f"以Python脚本方式启动: {sys.executable} {MAIN_EXE}")
-            cmd_line = [sys.executable, os.path.abspath(MAIN_EXE)]
-            main_process = subprocess.Popen(cmd_line, creationflags=subprocess.CREATE_NO_WINDOW)
-            logging.info(f"启动进程ID: {main_process.pid}")
-        else:
-            error_msg = f"未找到主程序文件: {MAIN_EXE}"
-            logging.error(error_msg)
-            notify(error_msg, level="error", show_error=True)
-            messagebox.showerror("错误", f"未找到\"RC-main\"程序\n路径: {os.path.abspath(MAIN_EXE)}")
-            return
+#     # 选择启动方式
+#     cmd_line = None
+#     try:
+#         if MAIN_EXE_OLD.endswith('.exe') and os.path.exists(MAIN_EXE):
+#             logging.info(f"以可执行文件方式启动: {MAIN_EXE}")
+#             cmd_line = [os.path.abspath(MAIN_EXE)]
+#             main_process = subprocess.Popen(cmd_line, creationflags=subprocess.CREATE_NO_WINDOW)
+#             logging.info(f"启动进程ID: {main_process.pid}")
+#         elif os.path.exists(MAIN_EXE):
+#             logging.info(f"以Python脚本方式启动: {sys.executable} {MAIN_EXE}")
+#             cmd_line = [sys.executable, os.path.abspath(MAIN_EXE)]
+#             main_process = subprocess.Popen(cmd_line, creationflags=subprocess.CREATE_NO_WINDOW)
+#             logging.info(f"启动进程ID: {main_process.pid}")
+#         else:
+#             error_msg = f"未找到主程序文件: {MAIN_EXE}"
+#             logging.error(error_msg)
+#             notify(error_msg, level="error", show_error=True)
+#             messagebox.showerror("错误", f"未找到\"RC-main\"程序\n路径: {os.path.abspath(MAIN_EXE)}")
+#             return
         
-        # 检查进程是否成功启动
-        time.sleep(1)
-        if main_process.poll() is None:  # 如果进程仍在运行
-            logging.info(f"主程序启动成功，进程ID: {main_process.pid}")
-            # notify("主程序已启动", level="info")
-        else:
-            exit_code = main_process.returncode
-            error_msg = f"主程序启动失败，退出码: {exit_code}"
-            logging.error(error_msg)
-            notify(error_msg, level="error", show_error=True)
+#         # 检查进程是否成功启动
+#         time.sleep(1)
+#         if main_process.poll() is None:  # 如果进程仍在运行
+#             logging.info(f"主程序启动成功，进程ID: {main_process.pid}")
+#             # notify("主程序已启动", level="info")
+#         else:
+#             exit_code = main_process.returncode
+#             error_msg = f"主程序启动失败，退出码: {exit_code}"
+#             logging.error(error_msg)
+#             notify(error_msg, level="error", show_error=True)
     
-    except Exception as e:
-        cmd = " ".join(cmd_line) if cmd_line else "未知"
-        logging.error(f"启动主程序时出现异常: {e}")
-        logging.info(f"启动命令: {cmd}")
-        # logging.error(f"异常详情: {traceback.format_exc()}")
-        notify(f"启动主程序失败，详情请查看日志: {tray_log_path}", level="error", show_error=True)
+#     except Exception as e:
+#         cmd = " ".join(cmd_line) if cmd_line else "未知"
+#         logging.error(f"启动主程序时出现异常: {e}")
+#         logging.info(f"启动命令: {cmd}")
+#         # logging.error(f"异常详情: {traceback.format_exc()}")
+#         notify(f"启动主程序失败，详情请查看日志: {tray_log_path}", level="error", show_error=True)
 
 @run_in_thread
 def is_admin_start_main():
     """管理员权限运行主程序"""
-    if MAIN_EXE.endswith('.exe') and os.path.exists(MAIN_EXE):
-        close_exe(MAIN_EXE)
+    logging.info("执行函数: is_admin_start_main")
+    if MAIN_EXE_OLD.endswith('.exe') and os.path.exists(MAIN_EXE):
+        # close_exe(MAIN_EXE_OLD)
         logging.info(f"以可执行文件方式启动: {MAIN_EXE}")
         rest=run_as_admin(MAIN_EXE)
         if rest > 32:
@@ -426,7 +437,7 @@ def is_admin_start_main():
             logging.error(f"以管理员权限启动主程序失败，错误码: {rest}")
             notify(f"以管理员权限启动主程序失败，错误码: {rest}", level="error", show_error=True)
     elif os.path.exists(MAIN_EXE):
-        close_script(MAIN_EXE)
+        # close_script(MAIN_EXE_OLD)
         logging.info(f"以Python脚本方式启动: {sys.executable} {MAIN_EXE}")
         rest=run_py_in_venv_as_admin_hidden(sys.executable, MAIN_EXE)
         if rest > 32:
@@ -437,6 +448,8 @@ def is_admin_start_main():
 
 @run_in_thread
 def check_admin(icon=None, item=None):
+    """检查主程序的管理员权限状态"""
+    logging.info("执行函数: check_admin")
     if is_main_running() and is_main_admin():
         logging.info("主程序已获得管理员权限")
         notify("主程序已获得管理员权限")
@@ -449,6 +462,8 @@ def check_admin(icon=None, item=None):
 
 @run_in_thread
 def open_gui(icon=None, item=None):
+    """打开配置界面"""
+    logging.info("执行函数: open_gui")
     if os.path.exists(GUI_EXE):
         subprocess.Popen([GUI_EXE])
         logging.info(f"打开配置界面: {GUI_EXE}")
@@ -469,6 +484,7 @@ def notify(msg, level="info", show_error=False):
     - level: 日志级别 ( "info", "warning", "error", "critical")
     - show_error: 是否在通知失败时显示错误对话框
     """
+    logging.info(f"执行函数: notify")
     # 根据级别记录日志
     log_func = getattr(logging, level.lower())
     log_func(f"通知: {msg}")
@@ -493,6 +509,7 @@ def notify(msg, level="info", show_error=False):
 def close_exe(name:str):
     """关闭指定名称的进程"""
     """关闭程序函数"""
+    logging.info(f"执行函数: close_exe; 参数: {name}")
     try:
         is_admin = ctypes.windll.shell32.IsUserAnAdmin() != 0
         if is_admin:
@@ -536,7 +553,8 @@ def close_exe(name:str):
         threading.Timer(1.0, lambda: os._exit(0)).start()
 
 def close_script(script_name):
-    """关闭脚本"""
+    """关闭脚本函数"""
+    logging.info(f"执行函数: close_script; 参数: {script_name}")
     try:
         is_admin = ctypes.windll.shell32.IsUserAnAdmin() != 0
         if is_admin:
@@ -578,6 +596,7 @@ def close_script(script_name):
 @run_in_thread
 def stop_tray():
     """关闭托盘程序和主程序"""
+    logging.info("执行函数: stop_tray")
     logging.info("="*30)
     notify("正在关闭托盘程序...")
     
@@ -589,16 +608,17 @@ def stop_tray():
         except Exception as e:
             logging.error(f"停止托盘图标时出错: {e}")
     tray_name = os.path.basename(sys.executable) if getattr(sys, "frozen", False) else "python.exe"
-    if MAIN_EXE.endswith('.exe') and os.path.exists(MAIN_EXE):
-        close_exe(MAIN_EXE)
+    if MAIN_EXE_OLD.endswith('.exe') and os.path.exists(MAIN_EXE):
+        close_exe(MAIN_EXE_OLD)
         close_exe(tray_name)
     else:
-        close_script(MAIN_EXE)
+        close_script(MAIN_EXE_OLD)
         close_script(tray_name)
 
         
 def is_tray_admin():
     """检查当前托盘程序是否以管理员权限运行"""
+    logging.info("执行函数: is_tray_admin")
     try:
         # 直接检查当前进程是否有管理员权限
         return ctypes.windll.shell32.IsUserAnAdmin() != 0
@@ -609,6 +629,7 @@ def is_tray_admin():
 @run_in_thread
 def check_tray_admin(icon=None, item=None):
     """检查并通知托盘程序的管理员权限状态"""
+    logging.info("执行函数: check_tray_admin")
     if is_tray_admin():
         notify("托盘程序已获得管理员权限")
     else:
@@ -616,14 +637,17 @@ def check_tray_admin(icon=None, item=None):
         
 def close_main():
     """关闭主程序"""
-    main_proc = get_main_proc()
-    if main_proc:
-        if MAIN_EXE.endswith('.exe') and os.path.exists(MAIN_EXE):
-            close_exe(MAIN_EXE)
-        elif os.path.exists(MAIN_EXE):
-            close_script(MAIN_EXE)
-    else:
-        logging.info("主程序未运行")
+    logging.info(f"执行函数: close_main,{MAIN_EXE}")
+    # main_proc = get_main_proc(MAIN_EXE_OLD)
+    # if main_proc:
+    if MAIN_EXE_OLD.endswith('.exe') and os.path.exists(MAIN_EXE):
+        close_exe(MAIN_EXE_OLD)
+    elif os.path.exists(MAIN_EXE):
+        close_script(MAIN_EXE_OLD)
+    # else:
+        # logging.info("主程序未运行")
+        # notify("主程序未运行", level="warning")
+        # return
 
 # 检查主程序状态
 main_status = "未运行"
@@ -646,7 +670,6 @@ menu = pystray.Menu(
         pystray.MenuItem("检查托盘程序管理员权限", check_tray_admin),
         pystray.MenuItem("打开配置界面", open_gui),
         pystray.MenuItem("管理员权限启动主程序",is_admin_start_main),
-        pystray.MenuItem("打开主程序", start_main),
         pystray.MenuItem("关闭主程序", close_main),
         pystray.MenuItem("退出托盘", stop_tray),
     )
