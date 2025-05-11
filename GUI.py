@@ -108,20 +108,22 @@ def set_auto_start() -> None:
     scheduler.Connect()
     root_folder = scheduler.GetFolder("\\")
     task_definition = root_folder.GetTask("A远程控制").Definition
-
     principal = task_definition.Principal
-    principal.RunLevel = 1
+    # 关键设置：允许与桌面交互，确保媒体控制键可以正常工作
+    principal.LogonType = 1  # 设置为交互式登录
+    principal.RunLevel = 1  # 最高权限
+    task_definition.Settings.MultipleInstances = 1  # 并行运行
+    task_definition.Settings.Hidden = False  # 确保不是隐藏运行
     # SYSTEM用户已经设置，不需要再设置LogonType
-    principal.LogonType = 2 # 1表示使用当前登录用户凭据（不可用），用户为2
-
+    # principal.LogonType = 2 # 1表示使用当前登录用户凭据（不可用），用户为2
     settings = task_definition.Settings
-    settings.DisallowStartIfOnBatteries = False
-    settings.StopIfGoingOnBatteries = False
-    settings.ExecutionTimeLimit = "PT0S"
+    settings.DisallowStartIfOnBatteries = False# 不允许在电池供电时启动
+    settings.StopIfGoingOnBatteries = False# 允许在电池供电时启动
+    settings.ExecutionTimeLimit = "PT0S"# 无限时间限制
     # 设置兼容性为 Windows 10
     task_definition.Settings.Compatibility = 4
 
-    root_folder.RegisterTaskDefinition("A远程控制", task_definition, 6, "", "", 2)# 0表示使用当前登录用户身份（不可用），用户为2，SYSTEM为3
+    root_folder.RegisterTaskDefinition("A远程控制", task_definition, 6, "", "", 2)# 0表示使用交互式登录，用户为2，SYSTEM为3
     check_task()
     if result == 0:
         messagebox.showinfo("提示", "创建任务成功\n已配置为SYSTEM用户运行，任务触发时仅访问本地资源")

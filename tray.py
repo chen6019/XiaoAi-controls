@@ -134,7 +134,12 @@ def is_main_running():
     main_proc = get_main_proc(MAIN_EXE_OLD)
     if main_proc:
         return True
-    # 回退到互斥体判断
+    
+    # 回退到互斥体判断，脚本运行时跳过
+    if is_script_mode:
+        logging.info(f"脚本运行模式，跳过互斥体判断")
+        return False
+        
     mutex = ctypes.windll.kernel32.OpenMutexW(0x100000, False, MUTEX_NAME)
     if mutex:
         ctypes.windll.kernel32.CloseHandle(mutex)
@@ -522,11 +527,13 @@ def get_menu_items():
     global IS_TRAY_ADMIN
     admin_status = "【已获得管理员权限】" if IS_TRAY_ADMIN else "【未获得管理员权限】"
     
+    # 添加运行模式提示
+    mode_info = "【脚本模式】" if is_script_mode else "【EXE模式】"
+    
     return [
-        # 显示权限状态的纯文本项（不可点击）
-        pystray.MenuItem(f"托盘状态: {admin_status}", None, enabled=False),
-        # 分隔线
-        pystray.MenuItem("版本-V2.0.0", None),
+        pystray.MenuItem(f"{mode_info} 版本-V2.0.0", None),
+        # 显示权限状态的纯文本项
+        pystray.MenuItem(f"托盘状态: {admin_status}", None),
         # 其他功能菜单项
         pystray.MenuItem("启动主程序", is_admin_start_main),
         pystray.MenuItem("打开配置界面", open_gui),

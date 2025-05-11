@@ -25,7 +25,11 @@ import ctypes
 import socket
 from comtypes import CLSCTX_ALL
 from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
-from pyautogui import  press as pyautogui_press
+import pyautogui
+from pyautogui import press as pyautogui_press
+
+# 禁用 PyAutoGUI 安全模式，确保即使鼠标在屏幕角落也能执行命令
+pyautogui.FAILSAFE = False
 
 
 # 创建一个命名的互斥体
@@ -159,6 +163,7 @@ def notify_in_thread(message: str) -> None:
     English: Displays a Windows toast notification in a separate thread
     中文: 在单独线程中显示 Windows toast 通知
     """
+    logging.info(f"通知: {message}")
     def notify_message():
         notify(message)
 
@@ -296,38 +301,49 @@ def process_command(command: str, topic: str) -> None:
             notify_in_thread("当前还没有进入睡眠模式哦！")
         elif command == "on":
             execute_command("rundll32.exe powrprof.dll,SetSuspendState 0,1,0")
+    
     elif topic == media:
         # 媒体控制（作为灯泡设备）
-        if command == "off" or command == "1":
-            # 下一曲
-            pyautogui_press('nexttrack')
-            notify_in_thread("已切换到下一曲")
-        elif command == "on" or command == "100":
-            # 上一曲
-            pyautogui_press('prevtrack')
-            notify_in_thread("已切换到上一曲")
-        elif command == "50":
-            # 播放/暂停
-            pyautogui_press('playpause')
-            notify_in_thread("播放/暂停已切换")
-        else:
-            try:
-                value = int(command[3:])
-                if value <= 33:
-                    # 1-33：下一曲
-                    pyautogui_press('nexttrack')
-                    notify_in_thread("已切换到下一曲")
-                elif value <= 66:
-                    # 34-66：播放/暂停
-                    pyautogui_press('playpause')
-                    notify_in_thread("播放/暂停已切换")
-                else:
-                    # 67-100：上一曲
-                    pyautogui_press('prevtrack')
-                    notify_in_thread("已切换到上一曲")
-            except ValueError:
-                notify_in_thread(f"未知的媒体控制命令: {command}")
-                logging.error(f"未知的媒体控制命令: {command}")
+        try:
+            if command == "off" or command == "1":
+                # 下一曲
+                logging.info("执行下一曲操作")
+                pyautogui_press('nexttrack')
+                # notify_in_thread("已切换到下一曲")
+            elif command == "on" or command == "100":
+                # 上一曲
+                logging.info("执行上一曲操作")
+                pyautogui_press('prevtrack')
+                # notify_in_thread("已切换到上一曲")
+            elif command == "50":
+                # 播放/暂停
+                logging.info("执行播放/暂停操作")
+                pyautogui_press('playpause')
+                # notify_in_thread("播放/暂停已切换")
+            else:
+                try:
+                    value = int(command[3:])
+                    if value <= 33:
+                        # 1-33：下一曲
+                        logging.info("执行下一曲操作（值域1-33）")
+                        pyautogui_press('nexttrack')
+                        # notify_in_thread("已切换到下一曲")
+                    elif value <= 66:
+                        # 34-66：播放/暂停
+                        logging.info("执行播放/暂停操作（值域34-66）")
+                        pyautogui_press('playpause')
+                        # notify_in_thread("播放/暂停已切换")
+                    else:
+                        # 67-100：上一曲
+                        logging.info("执行上一曲操作（值域67-100）")
+                        pyautogui_press('prevtrack')
+                        # notify_in_thread("已切换到上一曲")
+                except ValueError:
+                    notify_in_thread(f"未知的媒体控制命令: {command}")
+                    logging.error(f"未知的媒体控制命令: {command}")
+        except Exception as e:
+            logging.error(f"媒体控制执行失败: {e}")
+            notify_in_thread(f"媒体控制执行失败，详情请查看日志")
     else:
         # 未知主题
         notify_in_thread(f"未知主题: {topic}")
