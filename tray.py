@@ -54,17 +54,6 @@ if not os.path.exists(logs_dir):
 
 tray_log_path = os.path.join(logs_dir, "tray.log")
 
-# 检查程序是以脚本形式运行还是打包后的exe运行
-is_script_mode = not getattr(sys, "frozen", False)
-if is_script_mode:
-    # 如果是脚本形式运行，先清空日志文件
-    try:
-        with open(tray_log_path, 'w', encoding='utf-8') as f:
-            f.write('')  # 清空文件内容
-        print(f"已清空日志文件: {tray_log_path}")
-    except Exception as e:
-        print(f"清空日志文件失败: {e}")
-
 # 配置日志处理器，启用日志轮转
 log_handler = RotatingFileHandler(
     tray_log_path, 
@@ -84,6 +73,19 @@ log_handler.setFormatter(log_formatter)
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 logger.addHandler(log_handler)
+
+# 检查程序是以脚本形式运行还是打包后的exe运行
+is_script_mode = not getattr(sys, "frozen", False)
+if is_script_mode:
+    # 如果是脚本形式运行，先清空日志文件
+    try:
+        with open(tray_log_path, 'w', encoding='utf-8') as f:
+            f.write('')  # 清空文件内容
+        logging.info(f"已清空日志文件: {tray_log_path}")
+        print(f"已清空日志文件: {tray_log_path}")
+    except Exception as e:
+        logging.error(f"清空日志文件失败: {e}")
+        print(f"清空日志文件失败: {e}")
 
 # 记录程序启动信息
 logging.info("="*50)
@@ -291,7 +293,6 @@ def get_main_proc(process_name):
     
     logging.info("未找到主程序进程")
     return None
-        
 
 def is_main_admin():
     """检查主程序是否以管理员权限运行"""
@@ -317,76 +318,6 @@ def is_main_admin():
     else:
         logging.warning(f"权限状态文件不存在: {status_file}")
         return False
-    
-
-def clean_orphaned_mutex():
-    """清理可能未被正确释放的主程序互斥体"""
-    logging.info(f"执行函数: clean_orphaned_mutex")
-    logging.info(f"尝试清理互斥体: {MUTEX_NAME}")
-    try:
-        # 先尝试以普通权限清理
-        mutex = ctypes.windll.kernel32.CreateMutexW(None, False, MUTEX_NAME)
-        if mutex:
-            # 释放并关闭互斥体
-            ctypes.windll.kernel32.ReleaseMutex(mutex)
-            ctypes.windll.kernel32.CloseHandle(mutex)
-            logging.info("成功以普通权限清理互斥体")
-            return True
-            
-        # 如果普通权限清理失败，可能是权限问题，尝试提权清理
-        error_code = ctypes.windll.kernel32.GetLastError()
-        logging.warning(f"普通权限清理互斥体失败，错误码: {error_code}，尝试提权清理")
-        
-        # 创建清理脚本
-        script_content = f"""
-        @echo off
-        echo 正在尝试清理互斥体...
-        
-        REM 使用PowerShell尝试清理互斥体
-        powershell -Command "$mutex = New-Object System.Threading.Mutex($false, '{MUTEX_NAME}'); if ($mutex) {{ $mutex.Close(); $mutex.Dispose(); Write-Host 'PowerShell清理成功' }}"
-        
-        REM 使用系统API尝试重置事件
-        handle -c -y "{MUTEX_NAME}"
-        
-        exit
-        """
-        
-        temp_script = os.path.join(os.environ.get('TEMP', '.'), 'clean_mutex.bat')
-        with open(temp_script, 'w') as f:
-            f.write(script_content)
-        
-        # 以管理员权限运行清理脚本
-        logging.info(f"创建临时清理脚本: {temp_script}")
-        result = ctypes.windll.shell32.ShellExecuteW(
-            None, "runas", "cmd.exe", f"/c {temp_script}", None, 0
-        )
-        
-        if result > 32:  # 成功启动
-            logging.info("清理脚本启动成功，等待执行")
-            time.sleep(2)  # 等待脚本执行
-            # 再次检查互斥体是否已被清理
-            mutex = ctypes.windll.kernel32.CreateMutexW(None, False, MUTEX_NAME)
-            if mutex:
-                ctypes.windll.kernel32.ReleaseMutex(mutex)
-                ctypes.windll.kernel32.CloseHandle(mutex)
-                logging.info("提权清理互斥体成功")
-                return True
-            else:
-                # 如果仍然无法创建，可能互斥体仍然存在
-                error_code = ctypes.windll.kernel32.GetLastError()
-                if error_code == 183:  # ERROR_ALREADY_EXISTS
-                    logging.warning(f"提权清理后互斥体仍然存在，错误码: {error_code}")
-                else:
-                    logging.error(f"提权后检查互斥体状态失败，错误码: {error_code}")
-                return False
-        else:
-            logging.error(f"提权清理互斥体失败，启动脚本失败，错误码: {result}")
-            return False
-    except Exception as e:
-        logging.error(f"清理互斥体出现异常: {e}")
-        # logging.error(f"异常详情: {traceback.format_exc()}")
-        notify(f"清理互斥体失败，详情请查看日志: {tray_log_path}", level="error", show_error=True)
-    return False
 
 @run_in_thread
 def is_admin_start_main():
@@ -415,12 +346,13 @@ def is_admin_start_main():
 def check_admin(icon=None, item=None):
     """检查主程序的管理员权限状态"""
     logging.info("执行函数: check_admin")
-    if is_main_running() and is_main_admin():
-        # logging.info("主程序已获得管理员权限")
-        notify("主程序已获得管理员权限")
-    elif is_main_running():
-        # logging.info("主程序未获得管理员权限")
-        notify("主程序未获得管理员权限")
+    if is_main_running():
+        if is_main_admin():
+            # logging.info("主程序已获得管理员权限")
+            notify("主程序已获得管理员权限")
+        else:
+            # logging.info("主程序未获得管理员权限")
+            notify("主程序未获得管理员权限")
     else:
         # logging.info("主程序未运行")
         notify("主程序未运行")
@@ -571,16 +503,6 @@ def stop_tray():
     else:
         close_script(tray_name,True)
 
-@run_in_thread
-def check_tray_admin(icon=None, item=None):
-    """检查并通知托盘程序的管理员权限状态"""
-    logging.info("执行函数: check_tray_admin")
-    global IS_TRAY_ADMIN
-    if IS_TRAY_ADMIN:
-        notify("托盘程序已获得管理员权限")
-    else:
-        notify("托盘程序未获得管理员权限")
-        
 def close_main():
     """关闭主程序"""
     logging.info(f"执行函数: close_main,{MAIN_EXE}")
