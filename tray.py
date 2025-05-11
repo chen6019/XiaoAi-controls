@@ -83,6 +83,14 @@ logging.info(f"Python版本: {sys.version}")
 logging.info(f"系统信息: {sys.platform}")
 logging.info("="*50)
 
+# 在程序启动时查询托盘程序的管理员权限状态并保存为全局变量
+IS_TRAY_ADMIN = False
+try:
+    IS_TRAY_ADMIN = ctypes.windll.shell32.IsUserAnAdmin() != 0
+    logging.info(f"托盘程序管理员权限状态: {'已获得' if IS_TRAY_ADMIN else '未获得'}")
+except Exception as e:
+    logging.error(f"检查托盘程序管理员权限时出错: {e}")
+    IS_TRAY_ADMIN = False
 # 配置
 MAIN_EXE_OLD = "RC-main.exe" if getattr(sys, "frozen", False) else "main.py"
 GUI_EXE_ = "RC-GUI.exe"
@@ -187,7 +195,8 @@ def get_main_proc(process_name):
     logging.info(f"执行函数: get_main_proc; 参数: {process_name}")
     
     # 如果不是管理员权限运行，可能无法查看所有进程，记录警告
-    if not is_tray_admin():
+    global IS_TRAY_ADMIN
+    if not IS_TRAY_ADMIN:
         logging.warning("托盘程序未以管理员权限运行,可能无法查看所有进程")
     if process_name.endswith('.exe'):
         logging.info(f"查找主程序可执行文件: {process_name}")
@@ -558,21 +567,19 @@ def stop_tray():
         close_script(tray_name,True)
 
         
-def is_tray_admin():
-    """检查当前托盘程序是否以管理员权限运行"""
-    logging.info("执行函数: is_tray_admin")
-    try:
-        # 直接检查当前进程是否有管理员权限
-        return ctypes.windll.shell32.IsUserAnAdmin() != 0
-    except Exception as e:
-        logging.error(f"检查托盘程序管理员权限时出错: {e}")
-        return False
+# def is_tray_admin():
+#     """检查当前托盘程序是否以管理员权限运行"""
+#     logging.info("执行函数: is_tray_admin")
+#     # 直接返回启动时检查的管理员权限状态
+#     global IS_TRAY_ADMIN
+#     return IS_TRAY_ADMIN
 
 @run_in_thread
 def check_tray_admin(icon=None, item=None):
     """检查并通知托盘程序的管理员权限状态"""
     logging.info("执行函数: check_tray_admin")
-    if is_tray_admin():
+    global IS_TRAY_ADMIN
+    if IS_TRAY_ADMIN:
         notify("托盘程序已获得管理员权限")
     else:
         notify("托盘程序未获得管理员权限")
@@ -588,12 +595,13 @@ def close_main():
     except Exception as e:
         logging.error(f"关闭主程序时出错: {e}")
         notify(f"关闭主程序时出错: {e}", level="error", show_error=True)
-        
 
 def get_menu_items():
     """生成动态菜单项列表"""
+    logging.info("执行函数: get_menu_items")
     # 检查托盘程序管理员权限状态
-    admin_status = "【已获得管理员权限】" if is_tray_admin() else "【未获得管理员权限】"
+    global IS_TRAY_ADMIN
+    admin_status = "【已获得管理员权限】" if IS_TRAY_ADMIN else "【未获得管理员权限】"
     
     return [
         # 显示权限状态的纯文本项（不可点击）
@@ -614,18 +622,19 @@ if is_main_running():
     main_status = "以管理员权限运行" if is_main_admin() else "以普通权限运行"
 
 # 检查托盘程序状态
-tray_status = "以管理员权限运行" if is_tray_admin() else "以普通权限运行"
+tray_status = "以管理员权限运行" if IS_TRAY_ADMIN else "以普通权限运行"
 
 # 权限提示
 admin_tip = ""
-if not is_tray_admin():
+if not IS_TRAY_ADMIN:
     admin_tip = "，可能无法查看开机自启的主程序状态"
 
 # 托盘图标设置
 icon_path = resource_path(ICON_FILE)
 image = Image.open(icon_path) if os.path.exists(icon_path) else None
-# 使用函数生成菜单，每次右键点击时会自动调用该函数刷新菜单
-menu = pystray.Menu(get_menu_items)
+# 创建静态菜单项，只在程序启动时生成一次
+menu_items = get_menu_items()
+menu = pystray.Menu(*menu_items)
 
 # 信号处理函数，用于捕获CTRL+C等中断信号
 def signal_handler(signum, frame):
