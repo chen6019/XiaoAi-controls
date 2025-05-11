@@ -414,7 +414,6 @@ def admin() -> None:
     thread2.daemon = True
     thread2.start()
 
-   
 def open_gui() -> None:
     """
     English: Attempts to open GUI.py or RC-GUI.exe, else shows an error message
@@ -557,8 +556,17 @@ os.chdir(application_path)
 
 # 配置文件和日志文件路径改为当前工作目录
 appdata_path = os.path.abspath(os.path.dirname(sys.argv[0]))
+logs_dir = os.path.join(appdata_path, "logs")
 
-log_path = os.path.join(appdata_path, "RC.log")
+# 确保日志目录存在
+if not os.path.exists(logs_dir):
+    try:
+        os.makedirs(logs_dir)
+    except Exception as e:
+        print(f"创建日志目录失败: {e}")
+        logs_dir = appdata_path
+
+log_path = os.path.join(logs_dir, "RC.log")
 config_path = os.path.join(appdata_path, "config.json")
 
 # 先进行日志文件轮转，再配置日志系统
