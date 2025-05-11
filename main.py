@@ -22,9 +22,9 @@ import subprocess
 import time
 import ctypes
 import socket
-from ctypes import cast, POINTER
 from comtypes import CLSCTX_ALL
 from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
+from pyautogui import  press as pyautogui_press
 
 
 # 创建一个命名的互斥体
@@ -147,7 +147,7 @@ def set_volume(value: int) -> None:
     """
     devices = AudioUtilities.GetSpeakers()
     interface = devices.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
-    volume = cast(interface, POINTER(IAudioEndpointVolume))
+    volume = ctypes.cast(interface, ctypes.POINTER(IAudioEndpointVolume))
 
     # 控制音量在 0.0 - 1.0 之间
     volume.SetMasterVolumeLevelScalar(value / 100, None)  # type: ignore
@@ -295,6 +295,38 @@ def process_command(command: str, topic: str) -> None:
             notify_in_thread("当前还没有进入睡眠模式哦！")
         elif command == "on":
             execute_command("rundll32.exe powrprof.dll,SetSuspendState 0,1,0")
+    elif topic == media:
+        # 媒体控制（作为灯泡设备）
+        if command == "off" or command == "1":
+            # 下一曲
+            pyautogui_press('nexttrack')
+            notify_in_thread("已切换到下一曲")
+        elif command == "on" or command == "100":
+            # 上一曲
+            pyautogui_press('prevtrack')
+            notify_in_thread("已切换到上一曲")
+        elif command == "50":
+            # 播放/暂停
+            pyautogui_press('playpause')
+            notify_in_thread("播放/暂停已切换")
+        else:
+            try:
+                value = int(command[3:])
+                if value <= 33:
+                    # 1-33：下一曲
+                    pyautogui_press('nexttrack')
+                    notify_in_thread("已切换到下一曲")
+                elif value <= 66:
+                    # 34-66：播放/暂停
+                    pyautogui_press('playpause')
+                    notify_in_thread("播放/暂停已切换")
+                else:
+                    # 67-100：上一曲
+                    pyautogui_press('prevtrack')
+                    notify_in_thread("已切换到上一曲")
+            except ValueError:
+                notify_in_thread(f"未知的媒体控制命令: {command}")
+                logging.error(f"未知的媒体控制命令: {command}")
     else:
         # 未知主题
         notify_in_thread(f"未知主题: {topic}")
@@ -639,6 +671,7 @@ Computer = load_theme("Computer")
 screen = load_theme("screen")
 volume = load_theme("volume")
 sleep = load_theme("sleep")
+media = load_theme("media")
 
 # 加载应用程序主题到应用程序列表
 applications = []
@@ -665,7 +698,7 @@ for i in range(1, 50):
 logging.info(f"读取的服务列表: {serves}\n")
 
 # 如果主题不为空，将其记录到日志中
-for key in ["Computer", "screen", "volume", "sleep"]:
+for key in ["Computer", "screen", "volume", "sleep", "media"]:
     if config.get(key):
         logging.info(f'主题"{config.get(key)}"')
 
