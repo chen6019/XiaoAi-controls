@@ -1,20 +1,9 @@
 """
-依赖安装指令:
-pip install paho-mqtt wmi win11toast pillow pystray comtypes pycaw
-pip install --upgrade setuptools
-
-注意:
-python 13 使用虚拟环境需要将 C:\\Program Files\\Python313\\tcl\\tcl8.6 和 C:\\Program Files\\Python313\\tcl\\tk8.6 两个文件夹
-复制到
-C:\\Program Files\\Python313\\Lib 文件夹下
-否则报错: _tkinter.TclError: Can't find a usable init.tcl
-
 打包指令:
 pyinstaller -F -n Remote-Controls --windowed --icon=icon.ico --add-data "icon.ico;."  main.py
 程序名：Remote-Controls.exe
-运行用户：SYSTEM or 当前登录用户（可能有管理员权限）
+运行用户：当前登录用户（通过计划任务启动）
 """
-
 
 #导入各种必要的模块
 import io
@@ -32,7 +21,6 @@ import threading
 import subprocess
 import time
 import ctypes
-from ctypes import wintypes
 import socket
 from ctypes import cast, POINTER
 from comtypes import CLSCTX_ALL
@@ -41,7 +29,6 @@ from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
 
 # 创建一个命名的互斥体
 mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "Remote-Controls-main")
-
 # 检查互斥体是否已经存在
 if ctypes.windll.kernel32.GetLastError() == 183:
     messagebox.showerror("错误", "应用程序已在运行。")
@@ -451,13 +438,13 @@ def exit_program() -> None:
     English: Stops the MQTT loop and exits the program
     中文: 停止 MQTT 循环，并退出程序
     """
+    logging.info("正在退出程序...")
     try:
         mqttc.loop_stop()
         mqttc.disconnect()
     except Exception as e:
         logging.error(f"程序停止时出错: {e}")
     finally:
-        # 释放互斥体
         try:
             ctypes.windll.kernel32.ReleaseMutex(mutex)
             ctypes.windll.kernel32.CloseHandle(mutex)
@@ -688,6 +675,27 @@ for serve, serve_name in serves:
     logging.info(f'主题"{serve}"，值："{serve_name}"')
 
 # tray()  # 托盘图标
+admin_status = is_admin()
+if admin_status:
+    logging.info("当前程序以管理员权限运行")
+    # 将管理员权限状态写入文件，方便其他程序查询
+    try:
+        status_file = os.path.join(logs_dir, "admin_status.txt")
+        with open(status_file, "w", encoding="utf-8") as f:
+            f.write("admin=1")
+        logging.info(f"管理员权限状态已写入文件: {status_file}")
+    except Exception as e:
+        logging.error(f"写入管理员权限状态文件失败: {e}")
+else:
+    logging.info("当前程序以普通权限运行")
+    # 将普通权限状态写入文件
+    try:
+        status_file = os.path.join(logs_dir, "admin_status.txt")
+        with open(status_file, "w", encoding="utf-8") as f:
+            f.write("admin=0")
+        logging.info(f"权限状态已写入文件: {status_file}")
+    except Exception as e:
+        logging.error(f"写入权限状态文件失败: {e}")
 
 # 初始化MQTT客户端
 mqttc = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2) # type: ignore
@@ -724,8 +732,8 @@ except Exception as e:
 
 logging.info(f"总共收到以下消息: {mqttc.user_data_get()}")
 
-# 确保在程序退出前释放互斥体
 try:
+    logging.info("释放互斥体")
     ctypes.windll.kernel32.ReleaseMutex(mutex)
     ctypes.windll.kernel32.CloseHandle(mutex)
 except Exception as e:

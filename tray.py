@@ -4,9 +4,6 @@
 pyinstaller -F -n RC-tray --windowed --icon=icon.ico --add-data "icon.ico;."  tray.py
 """
 
-
-from email import message
-from math import log
 import os
 import sys
 import subprocess
@@ -16,7 +13,7 @@ import ctypes
 import logging
 from logging.handlers import RotatingFileHandler
 import traceback
-from tkinter import messagebox
+from tkinter import N, messagebox
 import pystray
 from PIL import Image
 import psutil
@@ -109,16 +106,18 @@ def resource_path(relative_path):
 
 def is_main_running():
     # 优先按进程检测主程序是否已运行
-    if get_main_proc():
+    main_proc = get_main_proc()
+    if main_proc:
         return True
     # 回退到互斥体判断
     mutex = ctypes.windll.kernel32.OpenMutexW(0x100000, False, MUTEX_NAME)
     if mutex:
         ctypes.windll.kernel32.CloseHandle(mutex)
-        logging.info(f"互斥体存在，主程序可能正在运行")
+        logging.info(f"互斥体存在，主程序正在运行")
         return True
-    logging.info(f"互斥体不存在，主程序未运行")
-    return False
+    else:
+        logging.info(f"互斥体不存在，主程序未运行")
+        return False
 
 def run_as_admin(executable_path, parameters=None, working_dir=None, show_cmd=0):
     """
@@ -177,51 +176,62 @@ def run_py_in_venv_as_admin_hidden(python_exe_path, script_path, script_args=Non
         0                   # 窗口模式：0=隐藏
     )
     return result
-
 def get_main_proc():
     """查找主程序进程是否存在"""
-    # 方法1：使用psutil尝试直接获取进程信息
-    for p in psutil.process_iter(['pid', 'name', 'exe', 'cmdline']):
+    process_name = MAIN_EXE
+    
+    # 如果不是管理员权限运行，可能无法查看所有进程，记录警告
+    if not is_tray_admin():
+        logging.warning("托盘程序未以管理员权限运行,可能无法查看所有进程")
+    if MAIN_EXE.endswith('.exe'):
+        logging.info(f"查找主程序可执行文件: {process_name}")
+        # 可执行文件查找方式
+        target_user=None
+        process_name = process_name.lower()
+        target_user = target_user.lower() if target_user else None
+
+        for proc in psutil.process_iter(['name', 'username']):
+            try:
+                # 获取进程信息
+                proc_info = proc.info
+                current_name = proc_info['name'].lower()
+                current_user = proc_info['username']
+
+                # 匹配进程名
+                if current_name == process_name:
+                    # 未指定用户则直接返回True
+                    if target_user is None:
+                        return True
+                    # 指定用户时提取用户名部分比较
+                    if current_user:
+                        user_part = current_user.split('\\')[-1].lower()
+                        if user_part == target_user:
+                            return True
+            except (psutil.AccessDenied, psutil.NoSuchProcess):
+                continue
+        # 如果找不到进程，记录信息
+        logging.info(f"未找到主程序进程: {process_name}")
+        return None
+    else:
+        # Python脚本查找方式
+        logging.info(f"查找Python脚本主程序: {process_name}")
+        
+        # 尝试查找命令行中包含脚本名的Python进程
+        for proc in psutil.process_iter(['pid', 'name', 'cmdline', 'username']):
+            try:
+                proc_info = proc.info
+                if proc_info['name'] and proc_info['name'].lower() in ('python.exe', 'pythonw.exe'):
+                    cmdline = ' '.join(proc_info['cmdline']) if proc_info['cmdline'] else ""
+                    if process_name in cmdline:
+                        logging.info(f"找到主程序Python进程: {proc.pid}, 命令行: {cmdline}")
+                        return proc
+            except (psutil.AccessDenied, psutil.NoSuchProcess, Exception) as e:
+                logging.error(f"获取Python进程信息失败: {e}")
+                continue
+        
+        # 如果常规方法找不到，尝试使用wmic命令行工具
+        logging.info("常规方法未找到Python进程，尝试使用wmic命令行工具")
         try:
-            if MAIN_EXE.endswith('.exe'):
-                if p.info['name'] == MAIN_EXE or (p.info['exe'] and os.path.basename(p.info['exe']) == MAIN_EXE):
-                    logging.info(f"找到主程序进程: {p.info}")
-                    return p
-                else:
-                    logging.info(f"未找到主程序进程")
-                    return None
-            else:
-                if p.info['cmdline'] and MAIN_EXE in ' '.join(p.info['cmdline']):
-                    logging.info(f"找到主程序进程: {p.info}")
-                    return p
-                else:
-                    logging.info(f"未找到主程序进程")
-                    return None
-        except Exception as e:
-            logging.error(f"获取进程信息失败: {e}")
-            continue
-            
-    # 方法2：使用wmic命令行工具查找进程，可以检测管理员权限运行的进程
-    try:
-        if MAIN_EXE.endswith('.exe'):
-            logging.info("主程序是可执行文件，尝试使用wmic查找")
-            process_name = MAIN_EXE
-            cmd = f'wmic process where "name=\'{process_name}\'" get ProcessId /value'
-            result = subprocess.run(cmd, capture_output=True, text=True, shell=True)
-            if "ProcessId=" in result.stdout:
-                pid_lines = [line for line in result.stdout.strip().split('\n') if "ProcessId=" in line]
-                for pid_line in pid_lines:
-                    try:
-                        pid = int(pid_line.strip().split("=")[1])
-                        # 尝试通过pid获取进程对象
-                        logging.info(f"找到主程序进程: {pid}")
-                        return psutil.Process(pid)
-                    except (psutil.NoSuchProcess, ValueError):
-                        logging.error(f"获取进程对象失败，PID: {pid_line}")
-                        continue
-        else:
-            logging.info("主程序是Python脚本，尝试查找所有python进程")
-            # 如果是Python脚本，尝试查找所有python进程并检查命令行
             cmd = 'wmic process where "name=\'python.exe\' or name=\'pythonw.exe\'" get ProcessId,CommandLine /value'
             result = subprocess.run(cmd, capture_output=True, text=True, shell=True)
             lines = result.stdout.strip().split('\n')
@@ -235,69 +245,50 @@ def get_main_proc():
                     continue
                     
                 if line.startswith("CommandLine="):
-                    logging.info(f"检查命令行: {line}")
                     current_cmd = line[12:]
                 elif line.startswith("ProcessId="):
-                    logging.info(f"检查进程ID: {line}")
                     current_pid = line[10:]
                     
-                    if current_cmd and current_pid and MAIN_EXE in current_cmd:
+                    if current_cmd and current_pid and process_name in current_cmd:
                         try:
-                            logging.info(f"找到主程序进程: {current_pid}, {current_cmd}")
+                            logging.info(f"wmic找到主程序Python进程: {current_pid}, 命令行: {current_cmd}")
                             return psutil.Process(int(current_pid))
-                        except (psutil.NoSuchProcess, ValueError):
-                            logging.error(f"获取进程对象失败，PID: {current_pid}")
-                            pass
+                        except (psutil.NoSuchProcess, ValueError) as e:
+                            logging.error(f"获取进程对象失败，PID: {current_pid}, 错误: {e}")
+                    
                     current_pid = None
                     current_cmd = None
-            
-    except Exception as e:
-        logging.error(f"使用wmic查找进程失败: {e}")
+        except Exception as e:
+            logging.error(f"使用wmic查找Python进程失败: {e}")
+    
+    logging.info("未找到主程序进程")
     return None
         
 
 def is_main_admin():
     """检查主程序是否以管理员权限运行"""
-    proc = get_main_proc()
-    if not proc:
-        return False
-    try:
-        # 检查进程用户
-        if hasattr(proc, 'username') and callable(proc.username):
-            username = proc.username()
-            if username.endswith("SYSTEM") or "Administrator" in username:
-                return True
-        
-        # 如果无法确定用户，尝试其他方法
-        # 使用WMIC检查进程权限
-        if hasattr(proc, 'pid'):
-            try:
-                cmd = f'wmic process where ProcessId={proc.pid} get ExecutablePath /value'
-                result = subprocess.run(cmd, capture_output=True, text=True, shell=True)
-                exec_path = ""
-                if "ExecutablePath=" in result.stdout:
-                    exec_path = result.stdout.strip().split("=")[1]
-                    
-                # 检查程序是否在系统目录或Program Files
-                system_dirs = ["\\Windows\\", "\\Program Files\\", "\\Program Files (x86)\\"]
-                if any(sys_dir in exec_path for sys_dir in system_dirs):
-                    return True
-            except Exception:
-                pass
-                
-        # 如果上述方法都无法确定，检查互斥体
-        mutex = ctypes.windll.kernel32.OpenMutexW(0x1F0001, False, MUTEX_NAME)
-        if mutex:
-            ctypes.windll.kernel32.CloseHandle(mutex)
-            # 如果我们能打开互斥体但psutil无法完全访问进程，可能是权限问题
-            if not (hasattr(proc, 'username') and callable(proc.username)):
-                return True
-    except Exception as e:
-        logging.error(f"检查管理员权限时出错: {e}")
+    # 通过读取主程序写入的状态文件来判断管理员权限
+    status_file = os.path.join(logs_dir, "admin_status.txt")
     
-    return False
-
-main_process = None
+    # 首先检查文件是否存在
+    if os.path.exists(status_file):
+        try:
+            with open(status_file, "r", encoding="utf-8") as f:
+                content = f.read().strip()
+                logging.info(f"读取主程序权限状态文件: {content}")
+                # 检查文件内容
+                if content == "admin=1":
+                    return True
+                elif content == "admin=0":
+                    return False
+                else:
+                    logging.warning(f"权限状态文件内容格式错误: {content}")
+        except Exception as e:
+            logging.error(f"读取权限状态文件时出错: {e}")
+    else:
+        logging.warning(f"权限状态文件不存在: {status_file}")
+        return False
+    
 
 def clean_orphaned_mutex():
     """清理可能未被正确释放的主程序互斥体"""
@@ -454,6 +445,7 @@ def open_gui(icon=None, item=None):
         logging.error(f"未找到配置界面: {GUI_EXE} 或 {GUI_PY}")
         notify("未找到配置界面")
 
+@run_in_thread
 def notify(msg, level="info", show_error=False):
     """
     发送通知并记录日志
@@ -484,25 +476,23 @@ def notify(msg, level="info", show_error=False):
         else:
             print(msg)
 
-def stop_tray():
-    """关闭托盘程序自身"""
-    logging.info("关闭托盘程序自身")
-    notify("正在关闭托盘程序...")
-    
-    # 检查是否以管理员权限运行
+def close_(name:str):
+    """关闭指定名称的进程"""
+    """关闭程序函数"""
     try:
         is_admin = ctypes.windll.shell32.IsUserAnAdmin() != 0
         if not is_admin:
             # 尝试创建一个批处理文件并以管理员权限运行
-            tray_name = os.path.basename(sys.executable) if getattr(sys, "frozen", False) else "python.exe"
+            # tray_name = os.path.basename(sys.executable) if getattr(sys, "frozen", False) else "python.exe"
+            logging.info(f"尝试关闭进程: {name}")
             script_content = f"""
             @echo off
             echo 正在关闭托盘程序...
-            taskkill /im "{tray_name}" /f
+            taskkill /im "{name}" /f
             if %errorlevel% equ 0 (
-                echo 成功关闭进程 "{tray_name}".
+                echo 成功关闭进程 "{name}".
             ) else (
-                echo 进程 "{tray_name}" 未运行或关闭失败.
+                echo 进程 "{name}" 未运行或关闭失败.
             )
             exit
             """
@@ -511,16 +501,39 @@ def stop_tray():
                 f.write(script_content)
             
             # 以管理员权限运行批处理
-            result = ctypes.windll.shell32.ShellExecuteW(
+            rest=ctypes.windll.shell32.ShellExecuteW(
                 None, "runas", "cmd.exe", f"/c {temp_script}", None, 0
             )
+            if rest > 32:
+                logging.info(f"成功关闭进程，PID: {rest}")
+            else:
+                logging.error(f"关闭进程失败，错误码: {rest}")
+                notify(f"关闭进程失败，错误码: {rest}", level="error", show_error=True)
+                return
         # 退出当前实例
         threading.Timer(1.0, lambda: os._exit(0)).start()
     except Exception as e:
-        logging.error(f"关闭托盘时出错: {e}")
+        logging.error(f"关闭{name}时出错: {e}")
         # 如果出错，仍然尝试正常退出
         threading.Timer(1.0, lambda: os._exit(0)).start()
 
+@run_in_thread
+def stop_tray():
+    """关闭托盘程序和主程序"""
+    logging.info("="*30)
+    notify("正在关闭托盘程序...")
+    
+    # 安全停止托盘图标
+    if 'icon' in globals() and icon:
+        try:
+            icon.stop()
+            logging.info("托盘图标已停止")
+        except Exception as e:
+            logging.error(f"停止托盘图标时出错: {e}")
+    close_(MAIN_EXE)
+    tray_name = os.path.basename(sys.executable) if getattr(sys, "frozen", False) else "python.exe"
+    close_(tray_name)
+        
 def is_tray_admin():
     """检查当前托盘程序是否以管理员权限运行"""
     try:
@@ -546,6 +559,11 @@ if is_main_running():
 # 检查托盘程序状态
 tray_status = "以管理员权限运行" if is_tray_admin() else "以普通权限运行"
 
+# 权限提示
+admin_tip = ""
+if not is_tray_admin():
+    admin_tip = "，无法查看开机自启的主程序状态"
+
 # 托盘图标设置
 icon_path = resource_path(ICON_FILE)
 image = Image.open(icon_path) if os.path.exists(icon_path) else None
@@ -558,10 +576,38 @@ menu = pystray.Menu(
         pystray.MenuItem("退出托盘", stop_tray),
     )
 
-# 启动前通知
-notify(f"远程控制托盘程序已启动，主程序状态: {main_status}，托盘状态: {tray_status}")
-logging.info(f"托盘程序启动，主程序状态: {main_status}，托盘状态: {tray_status}")
+# 信号处理函数，用于捕获CTRL+C等中断信号
+def signal_handler(signum, frame):
+    logging.info(f"接收到信号: {signum}，正在优雅退出")
+    stop_tray()
 
-# 启动托盘图标
+# 注册信号处理器
+try:
+    import signal
+    signal.signal(signal.SIGINT, signal_handler)  # 处理 Ctrl+C
+    signal.signal(signal.SIGTERM, signal_handler)  # 处理终止信号
+    logging.info("已注册信号处理器")
+except (ImportError, AttributeError) as e:
+    logging.warning(f"无法注册信号处理器: {e}")
+
+# 启动前通知
+notify(f"远程控制托盘程序已启动\n主程序状态: {main_status}\n托盘状态: {tray_status}{admin_tip}")
+logging.info(f"托盘程序启动，主程序状态: {main_status}，托盘状态: {tray_status}{admin_tip}")
+
+# 创建托盘图标
 icon = pystray.Icon("Remote-Controls-Tray", image, "远程控制托盘", menu)
-icon.run()
+
+# 在带异常处理的环境中运行托盘程序
+try:
+    logging.info("开始运行托盘图标")
+    icon.run()
+except KeyboardInterrupt:
+    logging.info("检测到键盘中断，正在退出")
+    if icon:
+        icon.stop()
+except Exception as e:
+    logging.error(f"托盘图标运行时出错: {e}")
+    logging.error(traceback.format_exc())
+finally:
+    logging.info("托盘程序正在退出")
+    os._exit(0)
