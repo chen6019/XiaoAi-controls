@@ -54,6 +54,17 @@ if not os.path.exists(logs_dir):
 
 tray_log_path = os.path.join(logs_dir, "tray.log")
 
+# 检查程序是以脚本形式运行还是打包后的exe运行
+is_script_mode = not getattr(sys, "frozen", False)
+if is_script_mode:
+    # 如果是脚本形式运行，先清空日志文件
+    try:
+        with open(tray_log_path, 'w', encoding='utf-8') as f:
+            f.write('')  # 清空文件内容
+        print(f"已清空日志文件: {tray_log_path}")
+    except Exception as e:
+        print(f"清空日志文件失败: {e}")
+
 # 配置日志处理器，启用日志轮转
 log_handler = RotatingFileHandler(
     tray_log_path, 
@@ -79,6 +90,7 @@ logging.info("="*50)
 logging.info("远程控制托盘程序启动")
 logging.info(f"程序路径: {os.path.abspath(__file__)}")
 logging.info(f"工作目录: {os.getcwd()}")
+logging.info(f"运行模式: {'脚本模式' if is_script_mode else 'EXE模式'}")
 logging.info(f"Python版本: {sys.version}")
 logging.info(f"系统信息: {sys.platform}")
 logging.info("="*50)
@@ -387,7 +399,7 @@ def is_admin_start_main():
         if rest > 32:
             logging.info(f"成功以管理员权限启动主程序，PID: {rest}")
         else:
-            logging.error(f"以管理员权限启动主程序失败，错误码: {rest}")
+            # logging.error(f"以管理员权限启动主程序失败，错误码: {rest}")
             notify(f"以管理员权限启动主程序失败，错误码: {rest}", level="error", show_error=True)
     elif os.path.exists(MAIN_EXE):
         # close_script(MAIN_EXE_OLD)
@@ -396,7 +408,7 @@ def is_admin_start_main():
         if rest > 32:
             logging.info(f"成功以管理员权限启动主程序，PID: {rest}")
         else:
-            logging.error(f"以管理员权限启动主程序失败，错误码: {rest}")
+            # logging.error(f"以管理员权限启动主程序失败，错误码: {rest}")
             notify(f"以管理员权限启动主程序失败，错误码: {rest}", level="error", show_error=True)
 
 @run_in_thread
@@ -404,13 +416,13 @@ def check_admin(icon=None, item=None):
     """检查主程序的管理员权限状态"""
     logging.info("执行函数: check_admin")
     if is_main_running() and is_main_admin():
-        logging.info("主程序已获得管理员权限")
+        # logging.info("主程序已获得管理员权限")
         notify("主程序已获得管理员权限")
     elif is_main_running():
-        logging.info("主程序未获得管理员权限")
+        # logging.info("主程序未获得管理员权限")
         notify("主程序未获得管理员权限")
     else:
-        logging.info("主程序未运行")
+        # logging.info("主程序未运行")
         notify("主程序未运行")
 
 @run_in_thread
@@ -437,7 +449,6 @@ def notify(msg, level="info", show_error=False):
     - level: 日志级别 ( "info", "warning", "error", "critical")
     - show_error: 是否在通知失败时显示错误对话框
     """
-    logging.info(f"执行函数: notify")
     # 根据级别记录日志
     log_func = getattr(logging, level.lower())
     log_func(f"通知: {msg}")
@@ -448,20 +459,16 @@ def notify(msg, level="info", show_error=False):
         threading.Thread(target=lambda: toast(msg)).start()
     except Exception as e:
         logging.error(f"发送通知失败: {e}")
-        # logging.error(f"通知失败详情: {traceback.format_exc()}")
-        
         if show_error:
             try:
                 messagebox.showinfo("通知", msg)
             except Exception as e2:
                 logging.error(f"显示消息框也失败: {e2}")
-                print(msg)  # 最后的后备方案，打印到控制台
         else:
             print(msg)
 
 def close_exe(name:str,skip_admin:bool=False):
     """关闭指定名称的进程"""
-    """关闭程序函数"""
     logging.info(f"执行函数: close_exe; 参数: {name}")
     try:
         is_admin = ctypes.windll.shell32.IsUserAnAdmin() != 0
@@ -489,14 +496,14 @@ def close_exe(name:str,skip_admin:bool=False):
             if rest > 32:
                 logging.info(f"成功关闭进程，PID: {rest}")
             else:
-                logging.error(f"关闭进程失败，错误码: {rest}")
+                # logging.error(f"关闭进程失败，错误码: {rest}")
                 notify(f"关闭进程失败，错误码: {rest}", level="error", show_error=True)
                 return
         else:
-            logging.warning(f"当前用户没有管理员权限，无法关闭进程{name}")
+            # logging.warning(f"当前用户没有管理员权限，无法关闭进程{name}")
             notify(f"当前用户没有管理员权限，无法关闭进程{name}", level="warning")
     except FileNotFoundError:
-        logging.error(f"未找到进程文件: {name}")
+        # logging.error(f"未找到进程文件: {name}")
         notify(f"未找到进程文件: {name}", level="error", show_error=True)
     except Exception as e:
         logging.error(f"关闭{name}时出错: {e}")
@@ -536,10 +543,10 @@ def close_script(script_name,skip_admin:bool=False):
                 except subprocess.CalledProcessError:
                     print(f"无法终止进程 PID: {pid}（可能需要管理员权限）")
         else:
-            logging.warning(f"当前用户没有管理员权限，无法关闭脚本{script_name}")
+            # logging.warning(f"当前用户没有管理员权限，无法关闭脚本{script_name}")
             notify(f"当前用户没有管理员权限，无法关闭脚本{script_name}", level="warning")
     except FileNotFoundError:
-        logging.error(f"未找到脚本文件: {script_name}")
+        # logging.error(f"未找到脚本文件: {script_name}")
         notify(f"未找到脚本文件: {script_name}", level="error", show_error=True)
     except Exception as e:
         logging.error(f"关闭脚本{script_name}时出错: {e}")
@@ -560,19 +567,9 @@ def stop_tray():
             logging.error(f"停止托盘图标时出错: {e}")
     tray_name = os.path.basename(sys.executable) if getattr(sys, "frozen", False) else "python.exe"
     if MAIN_EXE_OLD.endswith('.exe') and os.path.exists(MAIN_EXE):
-        # close_exe(MAIN_EXE_OLD)
         close_exe(tray_name,True)
     else:
-        # close_script(MAIN_EXE_OLD)
         close_script(tray_name,True)
-
-        
-# def is_tray_admin():
-#     """检查当前托盘程序是否以管理员权限运行"""
-#     logging.info("执行函数: is_tray_admin")
-#     # 直接返回启动时检查的管理员权限状态
-#     global IS_TRAY_ADMIN
-#     return IS_TRAY_ADMIN
 
 @run_in_thread
 def check_tray_admin(icon=None, item=None):
@@ -593,7 +590,7 @@ def close_main():
         elif os.path.exists(MAIN_EXE):
             close_script(MAIN_EXE_OLD)
     except Exception as e:
-        logging.error(f"关闭主程序时出错: {e}")
+        # logging.error(f"关闭主程序时出错: {e}")
         notify(f"关闭主程序时出错: {e}", level="error", show_error=True)
 
 def get_menu_items():
@@ -609,9 +606,9 @@ def get_menu_items():
         # 分隔线
         pystray.MenuItem("-", None),
         # 其他功能菜单项
-        pystray.MenuItem("检查主程序管理员权限", check_admin),
+        pystray.MenuItem("启动主程序", is_admin_start_main),
         pystray.MenuItem("打开配置界面", open_gui),
-        pystray.MenuItem("管理员权限启动主程序", is_admin_start_main),
+        pystray.MenuItem("检查主程序管理员权限", check_admin),
         pystray.MenuItem("关闭主程序", close_main),
         pystray.MenuItem("退出托盘（保留主程序）", stop_tray),
     ]
@@ -651,8 +648,8 @@ except (ImportError, AttributeError) as e:
     logging.warning(f"无法注册信号处理器: {e}")
 
 # 启动前通知
-notify(f"远程控制托盘程序已启动\n主程序状态: {main_status}\n托盘状态: {tray_status}{admin_tip}")
-logging.info(f"托盘程序启动，主程序状态: {main_status}，托盘状态: {tray_status}{admin_tip}")
+run_mode_info = "（脚本模式）" if is_script_mode else "（EXE模式）"
+notify(f"远程控制托盘程序已启动{run_mode_info}\n主程序状态: {main_status}\n托盘状态: {tray_status}{admin_tip}")
 
 # 创建托盘图标
 icon = pystray.Icon("RC-main-Tray", image, "远程控制托盘", menu)
