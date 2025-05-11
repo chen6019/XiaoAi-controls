@@ -541,6 +541,7 @@ def close_script(script_name):
         is_admin = ctypes.windll.shell32.IsUserAnAdmin() != 0
         if is_admin:
             # 通过名称查找进程（模糊匹配）
+            logging.info(f"尝试关闭脚本: {script_name}")
             cmd_find = f'tasklist /FI "IMAGENAME eq python.exe" /FO CSV /NH'
             output = subprocess.check_output(cmd_find, shell=True).decode('utf-8')
             
@@ -612,6 +613,17 @@ def check_tray_admin(icon=None, item=None):
         notify("托盘程序已获得管理员权限")
     else:
         notify("托盘程序未获得管理员权限")
+        
+def close_main():
+    """关闭主程序"""
+    main_proc = get_main_proc()
+    if main_proc:
+        if MAIN_EXE.endswith('.exe') and os.path.exists(MAIN_EXE):
+            close_exe(MAIN_EXE)
+        elif os.path.exists(MAIN_EXE):
+            close_script(MAIN_EXE)
+    else:
+        logging.info("主程序未运行")
 
 # 检查主程序状态
 main_status = "未运行"
@@ -635,6 +647,7 @@ menu = pystray.Menu(
         pystray.MenuItem("打开配置界面", open_gui),
         pystray.MenuItem("管理员权限启动主程序",is_admin_start_main),
         pystray.MenuItem("打开主程序", start_main),
+        pystray.MenuItem("关闭主程序", close_main),
         pystray.MenuItem("退出托盘", stop_tray),
     )
 
