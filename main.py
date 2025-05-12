@@ -1,6 +1,6 @@
 """
 打包指令:
-pyinstaller -F -n RC-main --windowed --icon=icon.ico --add-data "icon.ico;."  main.py
+pyinstaller -F -n RC-main --windowed --icon=res\\icon.ico --add-data "res\\icon.ico;."  main.py
 程序名：RC-main.exe
 运行用户：当前登录用户（通过计划任务启动）
 """
@@ -269,26 +269,35 @@ def process_command(command: str, topic: str) -> None:
             notify_in_thread("电脑将在15秒后重启")
     elif topic == screen:
         # 屏幕亮度控制
-        if command == "off" or command == "1":
+        if command == "off":
             set_brightness(0)
+        
         elif command == "on":
             set_brightness(100)
-        else:
+        elif command.startswith("on#"):
             try:
-                brightness = int(command[3:])
+                # 解析百分比值
+                brightness = int(command.split("#")[1])
                 set_brightness(brightness)
             except ValueError:
                 notify_in_thread("亮度值无效")
                 logging.error("亮度值无效")
+            except Exception as e:
+                notify_in_thread(f"设置亮度时发生未知错误，请查看日志")
+                logging.error(f"设置亮度时出错: {e}")
+        else:
+            notify_in_thread(f"未知的亮度控制命令: {command}")
+            logging.error(f"未知的亮度控制命令: {command}")
     elif topic == volume:
         # 音量控制
-        if command == "off" or command == "1":
+        if command == "off":
             set_volume(0)
         elif command == "on":
             set_volume(100)
-        else:
+        elif command.startswith("on#"):
             try:
-                volume_value = int(command[3:])
+                # 解析百分比值
+                volume_value = int(command.split("#")[1])
                 set_volume(volume_value)
             except ValueError:
                 notify_in_thread("音量值无效")
@@ -296,51 +305,47 @@ def process_command(command: str, topic: str) -> None:
             except Exception as e:
                 notify_in_thread(f"设置音量时发生未知错误，请查看日志")
                 logging.error(f"设置音量时出错: {e}")
+        else:
+            notify_in_thread(f"未知的音量控制命令: {command}")
+            logging.error(f"未知的音量控制命令: {command}")
     elif topic == sleep:
         if command == "off":
             notify_in_thread("当前还没有进入睡眠模式哦！")
         elif command == "on":
             execute_command("rundll32.exe powrprof.dll,SetSuspendState 0,1,0")
-    
     elif topic == media:
-        # 媒体控制（作为灯泡设备）
+        # 媒体控制（作为窗帘设备）
         try:
-            if command == "off" or command == "1":
+            if command == "off":
                 # 下一曲
                 logging.info("执行下一曲操作")
                 pyautogui_press('nexttrack')
-                # notify_in_thread("已切换到下一曲")
-            elif command == "on" or command == "100":
+            elif command == "on":
                 # 上一曲
                 logging.info("执行上一曲操作")
                 pyautogui_press('prevtrack')
-                # notify_in_thread("已切换到上一曲")
-            elif command == "50":
+            elif command == "pause":
                 # 播放/暂停
                 logging.info("执行播放/暂停操作")
                 pyautogui_press('playpause')
-                # notify_in_thread("播放/暂停已切换")
-            else:
-                try:
-                    value = int(command[3:])
+            elif command.startswith("on#"):
+                    # 解析百分比值
+                    value = int(command.split("#")[1])
                     if value <= 33:
                         # 1-33：下一曲
-                        logging.info("执行下一曲操作（值域1-33）")
+                        logging.info(f"执行下一曲操作（百分比:{value}）")
                         pyautogui_press('nexttrack')
-                        # notify_in_thread("已切换到下一曲")
                     elif value <= 66:
                         # 34-66：播放/暂停
-                        logging.info("执行播放/暂停操作（值域34-66）")
+                        logging.info(f"执行播放/暂停操作（百分比:{value}）")
                         pyautogui_press('playpause')
-                        # notify_in_thread("播放/暂停已切换")
                     else:
                         # 67-100：上一曲
-                        logging.info("执行上一曲操作（值域67-100）")
+                        logging.info(f"执行上一曲操作（百分比:{value}）")
                         pyautogui_press('prevtrack')
-                        # notify_in_thread("已切换到上一曲")
-                except ValueError:
-                    notify_in_thread(f"未知的媒体控制命令: {command}")
-                    logging.error(f"未知的媒体控制命令: {command}")
+            else:
+                notify_in_thread(f"未知的媒体控制命令: {command}")
+                logging.error(f"未知的媒体控制命令: {command}")
         except Exception as e:
             logging.error(f"媒体控制执行失败: {e}")
             notify_in_thread(f"媒体控制执行失败，详情请查看日志")
@@ -512,7 +517,7 @@ def exit_program() -> None:
 def tray() -> None:
     try:
         # 初始化系统托盘图标和菜单
-        icon_path = resource_path("icon.ico")
+        icon_path = resource_path("icon.ico" if getattr(sys, "frozen", False) else "res\\icon.ico")
         # 从资源文件中读取图像
         with open(icon_path, "rb") as f:
             image_data = f.read()
