@@ -24,7 +24,7 @@
 依赖安装指令：
 
 ```bash
-pip install paho-mqtt wmi win11toast pillow pystray comtypes pycaw
+pip install paho-mqtt wmi win11toast pillow pystray comtypes pycaw psutil
 pip install --upgrade setuptools
 ```
 
@@ -35,8 +35,14 @@ pip install --upgrade setuptools
 如需打包为 exe，推荐使用 PyInstaller：
 
 ```bash
-pyinstaller -F -n GUI --noconsole --icon=icon_GUI.ico GUI.py
-pyinstaller --onefile -n XiaoAi-controls --windowed --icon=icon.ico --add-data "icon.ico;." main.py
+# 打包GUI程序
+pyinstaller -F -n RC-GUI --noconsole --icon=res\icon_GUI.ico GUI.py
+
+# 打包主程序
+pyinstaller --onefile -n RC-main --windowed --icon=res\icon.ico --add-data "res\icon.ico;." main.py
+
+# 打包托盘程序
+pyinstaller -F -n RC-tray --windowed --icon=res\icon.ico --add-data "res\icon.ico;." tray.py
 ```
 
 ## 教程（参考）
@@ -46,23 +52,51 @@ pyinstaller --onefile -n XiaoAi-controls --windowed --icon=icon.ico --add-data "
 修改你的巴法云订阅和密钥，并创建相应主题（记得修改主题昵称） 具体主题命名规则可以看巴法云接入文档（右上角里面智能音箱部分）[接入文档](https://cloud.bemfa.com/docs/src/speaker_mi.html)  
 例如：（记得复制密钥备用）
 
-- ![image](巴法云.png)
+- ![巴法云配置](res/巴法云.png)
 
 ### 2. 启动程序
 
-可以直接下载 dist 文件夹下两个 exe 文件  
-也可以下载源码自行编译  
-打开 GUI 程序，输入巴法云密钥等信息，点击保存
+可以直接下载 dist 文件夹下的执行文件，也可以下载源码自行编译：  
+- `RC-GUI.exe`：配置界面程序
+- `RC-main.exe`：主程序，负责MQTT连接和控制功能
+- `RC-tray.exe`：托盘程序，用于管理和监控主程序
+
+打开 GUI 程序，输入巴法云密钥等信息，点击保存。
 例：（可分别启用主题（test 模式可不启用主题））
 
-- ![image](GUI.png)
+- ![GUI配置界面](res/GUI.png)
 
 ### 3. 米家绑定巴法云账号
 
 绑定后同步设备，小爱就能控制了
 
-- ![image](米家.jpg)
-- ![image](小爱同学.jpg)
+- ![米家绑定](res/米家.jpg)
+- ![小爱同学](res/小爱同学.jpg)
+
+## 项目文件说明
+
+本项目由以下主要组件构成：
+
+- `main.py` / `RC-main.exe`：主程序，负责MQTT连接和执行控制命令
+- `GUI.py` / `RC-GUI.exe`：配置界面，用于设置MQTT参数和自定义主题
+- `tray.py` / `RC-tray.exe`：系统托盘程序，用于监控和管理主程序
+- `config.json`：配置文件，存储MQTT连接信息和自定义主题设置
+
+## 托盘程序使用说明
+
+托盘程序(`RC-tray.exe`)提供了便捷的主程序管理功能：
+
+1. **运行方式**：双击`RC-tray.exe`启动，推荐以管理员权限运行
+2. **功能菜单**：
+   - 显示当前运行模式(EXE/脚本)和权限状态
+   - 打开配置界面：快速访问GUI配置工具
+   - 检查主程序管理员权限：查看主程序是否具有管理员权限
+   - 启动主程序：以管理员权限启动主程序
+   - 重启主程序：重新启动主程序(先关闭后启动)
+   - 关闭主程序：停止主程序运行
+   - 退出托盘程序：关闭托盘但保留主程序运行
+
+3. **自动管理**：托盘程序会自动检测主程序是否运行，如未运行则自动启动
 
 ## 常见问题（FAQ）
 
@@ -77,6 +111,24 @@ pyinstaller --onefile -n XiaoAi-controls --windowed --icon=icon.ico --add-data "
 ```
 - Q: MQTT 无法连接？
   A: 检查服务器地址、端口、密钥是否正确，网络是否畅通。
+- Q: 托盘程序无法检测到主程序？
+  A: 请尝试以管理员权限运行托盘程序，可能是权限问题导致。
+- Q: 脚本无法启动？
+  A: 检查脚本路径是否正确，以及是否有运行所需的权限。
+
+## 更新日志
+
+### v2.0.0 (2025-05-12)
+- 添加托盘程序功能，方便监控和管理主程序
+- 改进管理员权限检测机制
+- 优化进程管理和启动流程
+- 修复已知问题和稳定性改进
+
+### v1.0.0
+- 初始版本发布
+- 基本的MQTT远程控制功能
+- GUI配置界面
+- 自定义主题支持
 
 ## 反馈与交流
 

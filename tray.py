@@ -1,7 +1,7 @@
 """
 程序文件名RC-tray.exe
 运行用户：当前登录用户（可能有管理员权限）
-pyinstaller -F -n RC-tray --windowed --icon=icon.ico --add-data "icon.ico;."  tray.py
+pyinstaller -F -n RC-tray --windowed --icon=res\\icon.ico --add-data "res\\icon.ico;."  tray.py
 """
 
 import os
@@ -18,25 +18,6 @@ import pystray
 from win11toast import notify as toast
 from PIL import Image
 import psutil
-
-# 线程装饰器
-def run_in_thread(func):
-    """
-    装饰器：将被装饰的函数在单独的线程中执行
-    确保菜单函数不会阻塞主UI线程
-
-    参数：
-    - func: 要在线程中执行的函数
-    
-    返回：
-    - wrapper: 包装后的函数，它会在新线程中执行原函数
-    """
-    def wrapper(*args, **kwargs):
-        logging.info(f"在单独线程中执行: {func.__name__}")
-        thread = threading.Thread(target=func, args=args, kwargs=kwargs)
-        thread.daemon = True
-        thread.start()
-    return wrapper
 
 # 日志配置
 appdata_dir = os.path.abspath(os.path.dirname(sys.argv[0]))
@@ -106,7 +87,7 @@ except Exception as e:
 MAIN_EXE_NAME = "RC-main.exe" if getattr(sys, "frozen", False) else "main.py"
 GUI_EXE_ = "RC-GUI.exe"
 GUI_PY_ = "GUI.py"
-ICON_FILE = "icon.ico"
+ICON_FILE = "icon.ico" if getattr(sys, "frozen", False) else "res\\icon.ico"
 MUTEX_NAME = "RC-main"
 MAIN_EXE = os.path.join(appdata_dir, MAIN_EXE_NAME)
 GUI_EXE = os.path.join(appdata_dir, GUI_EXE_)
@@ -589,8 +570,8 @@ def get_menu_items():
 # 托盘启动时检查主程序状态，使用单独线程处理主程序启动/重启，避免阻塞UI
 def init_main_program():
     if is_main_running():
-        logging.info("托盘启动时发现主程序正在运行")
-        # 不再自动重启主程序
+        logging.info("托盘启动时发现主程序正在运行,准备重启...")
+        restart_main()
     else:
         logging.info("托盘启动时未发现主程序运行，准备启动...")
         is_admin_start_main()
