@@ -520,6 +520,19 @@ def close_main():
         # logging.error(f"关闭主程序时出错: {e}")
         notify(f"关闭主程序时出错: {e}", level="error", show_error=True)
 
+@run_in_thread
+def restart_main():
+    """重启主程序（先关闭再启动）"""
+    logging.info("执行函数: restart_main")
+    # 先关闭主程序
+    close_main()
+    # 等待一会儿确保进程完全关闭
+    time.sleep(2)
+    # 再启动主程序
+    is_admin_start_main()
+    logging.info("主程序重启完成")
+    notify("主程序已重启")
+
 def get_menu_items():
     """生成动态菜单项列表"""
     logging.info("执行函数: get_menu_items")
@@ -539,6 +552,7 @@ def get_menu_items():
         pystray.MenuItem("打开配置界面", open_gui),
         pystray.MenuItem("检查主程序管理员权限", check_admin),
         pystray.MenuItem("关闭主程序", close_main),
+        pystray.MenuItem("重启主程序", restart_main),
         pystray.MenuItem("退出托盘（保留主程序）", stop_tray),
     ]
 
@@ -579,6 +593,14 @@ except (ImportError, AttributeError) as e:
 # 启动前通知
 run_mode_info = "（脚本模式）" if is_script_mode else "（EXE模式）"
 notify(f"远程控制托盘程序已启动{run_mode_info}\n主程序状态: {main_status}\n托盘状态: {tray_status}{admin_tip}")
+
+# 托盘启动时自动重启主程序
+if is_main_running():
+    logging.info("托盘启动时发现主程序正在运行，准备重启...")
+    restart_main()
+else:
+    logging.info("托盘启动时未发现主程序运行，准备启动...")
+    is_admin_start_main()
 
 # 创建托盘图标
 icon = pystray.Icon("RC-main-Tray", image, "远程控制托盘V2.0.0", menu)
