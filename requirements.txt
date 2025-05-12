@@ -1,16 +1,32 @@
+# 远程控制工具(RC-remote-controls)依赖项
+# 更新日期: 2025-05-12
+
 """
 注意:
-python 13 使用虚拟环境需要将 C:\\Program Files\\Python313\\tcl\\tcl8.6 和 C:\\Program Files\\Python313\\tcl\\tk8.6 两个文件夹
-复制到
+Python 3.13使用虚拟环境时，如遇tkinter相关错误，需要将以下文件夹:
+C:\\Program Files\\Python313\\tcl\\tcl8.6
+C:\\Program Files\\Python313\\tcl\\tk8.6
+复制到:
 C:\\Program Files\\Python313\\Lib 文件夹下
 否则报错: _tkinter.TclError: Can't find a usable init.tcl
 """
-paho-mqtt
-wmi
-win11toast
-pillow
-pystray
-comtypes
-pycaw
-setuptools
-pywin32
+
+# 基础依赖
+paho-mqtt>=1.6.1     # MQTT通信
+wmi>=1.5.1           # Windows管理工具
+pillow>=10.0.0       # 图像处理
+pystray>=0.19.4      # 系统托盘图标
+setuptools>=65.5.1   # 安装工具
+
+# 系统交互
+pywin32>=305         # Windows API访问
+psutil>=5.9.5        # 进程和系统监控
+comtypes>=1.2.0      # COM组件接口
+pycaw>=20230407      # 音量控制
+
+# 通知和用户界面
+win11toast>=0.34     # Windows通知
+pyautogui>=0.9.54    # 自动化控制
+
+# 可选依赖
+# Tkinter已内置在Python标准库中，用于GUI界面
