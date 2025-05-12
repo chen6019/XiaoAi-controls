@@ -15,12 +15,9 @@ from logging.handlers import RotatingFileHandler
 import traceback
 from tkinter import N, messagebox
 import pystray
+from win11toast import notify as toast
 from PIL import Image
 import psutil
-# try:
-#     import utils  # 尝试导入工具模块
-# except ImportError:
-#     utils = None
 
 # 线程装饰器
 def run_in_thread(func):
@@ -106,32 +103,44 @@ except Exception as e:
     logging.error(f"检查托盘程序管理员权限时出错: {e}")
     IS_TRAY_ADMIN = False
 # 配置
-MAIN_EXE_OLD = "RC-main.exe" if getattr(sys, "frozen", False) else "main.py"
+MAIN_EXE_NAME = "RC-main.exe" if getattr(sys, "frozen", False) else "main.py"
 GUI_EXE_ = "RC-GUI.exe"
 GUI_PY_ = "GUI.py"
 ICON_FILE = "icon.ico"
 MUTEX_NAME = "RC-main"
-MAIN_EXE = os.path.join(appdata_dir, MAIN_EXE_OLD)
+MAIN_EXE = os.path.join(appdata_dir, MAIN_EXE_NAME)
 GUI_EXE = os.path.join(appdata_dir, GUI_EXE_)
 GUI_PY = os.path.join(appdata_dir, GUI_PY_)
-# # 记录详细的系统信息
-# if utils:
-#     utils.log_system_info(detailed=True)
-#     # 启动定期状态记录（每小时记录一次系统状态）
-#     status_thread = utils.log_periodic_status(interval=3600)
-#     logging.info("已启用系统状态定期记录")
-# else:
-#     logging.warning("未能加载utils模块，系统信息记录功能不可用")
 
 def resource_path(relative_path):
     base_path = getattr(sys, "_MEIPASS", os.path.abspath("."))
     return os.path.join(base_path, relative_path)
 
+# 信号处理函数，用于捕获CTRL+C等中断信号
+def signal_handler(signum, frame):
+    logging.info(f"接收到信号: {signum}，正在退出")
+    # 直接调用停止托盘图标和退出
+    if 'icon' in globals() and icon:
+        try:
+            icon.stop()
+            logging.info("托盘图标已停止")
+        except Exception as e:
+            logging.error(f"停止托盘图标时出错: {e}")
+    logging.info("托盘程序收到信号正常退出")
+    os._exit(0)
+# 注册信号处理器
+try:
+    import signal
+    signal.signal(signal.SIGINT, signal_handler)  # 处理 Ctrl+C
+    signal.signal(signal.SIGTERM, signal_handler)  # 处理终止信号
+    logging.info("已注册信号处理器")
+except (ImportError, AttributeError) as e:
+    logging.warning(f"无法注册信号处理器: {e}")
 
 def is_main_running():
     # 优先按进程检测主程序是否已运行
     logging.info(f"执行函数: is_main_running")
-    main_proc = get_main_proc(MAIN_EXE_OLD)
+    main_proc = get_main_proc(MAIN_EXE_NAME)
     if main_proc:
         return True
     
@@ -324,45 +333,44 @@ def is_main_admin():
         logging.warning(f"权限状态文件不存在: {status_file}")
         return False
 
-@run_in_thread
-def is_admin_start_main():
+def is_admin_start_main(icon=None, item=None):
     """管理员权限运行主程序"""
     logging.info("执行函数: is_admin_start_main")
-    if MAIN_EXE_OLD.endswith('.exe') and os.path.exists(MAIN_EXE):
-        # close_exe(MAIN_EXE_OLD)
+    # 使用线程池中的一个工作线程执行，而不是每次创建新线程
+    threading.Thread(target=_admin_start_main_worker).start()
+
+def _admin_start_main_worker():
+    """管理员权限运行主程序的实际工作函数"""
+    notify("正在启动主程序...")
+    if MAIN_EXE_NAME.endswith('.exe') and os.path.exists(MAIN_EXE):
         logging.info(f"以可执行文件方式启动: {MAIN_EXE}")
         rest=run_as_admin(MAIN_EXE)
         if rest > 32:
             logging.info(f"成功以管理员权限启动主程序，PID: {rest}")
         else:
-            # logging.error(f"以管理员权限启动主程序失败，错误码: {rest}")
             notify(f"以管理员权限启动主程序失败，错误码: {rest}", level="error", show_error=True)
     elif os.path.exists(MAIN_EXE):
-        # close_script(MAIN_EXE_OLD)
         logging.info(f"以Python脚本方式启动: {sys.executable} {MAIN_EXE}")
         rest=run_py_in_venv_as_admin_hidden(sys.executable, MAIN_EXE)
         if rest > 32:
             logging.info(f"成功以管理员权限启动主程序，PID: {rest}")
         else:
-            # logging.error(f"以管理员权限启动主程序失败，错误码: {rest}")
             notify(f"以管理员权限启动主程序失败，错误码: {rest}", level="error", show_error=True)
 
-@run_in_thread
 def check_admin(icon=None, item=None):
     """检查主程序的管理员权限状态"""
     logging.info("执行函数: check_admin")
     if is_main_running():
         if is_main_admin():
-            # logging.info("主程序已获得管理员权限")
             notify("主程序已获得管理员权限")
+            return
         else:
-            # logging.info("主程序未获得管理员权限")
             notify("主程序未获得管理员权限")
+            return
     else:
-        # logging.info("主程序未运行")
         notify("主程序未运行")
+        return
 
-@run_in_thread
 def open_gui(icon=None, item=None):
     """打开配置界面"""
     logging.info("执行函数: open_gui")
@@ -376,7 +384,6 @@ def open_gui(icon=None, item=None):
         logging.error(f"未找到配置界面: {GUI_EXE} 或 {GUI_PY}")
         notify("未找到配置界面")
 
-@run_in_thread
 def notify(msg, level="info", show_error=False):
     """
     发送通知并记录日志
@@ -390,19 +397,24 @@ def notify(msg, level="info", show_error=False):
     log_func = getattr(logging, level.lower())
     log_func(f"通知: {msg}")
     
-    # 发送Win11通知
-    try:
-        from win11toast import notify as toast
-        threading.Thread(target=lambda: toast(msg)).start()
-    except Exception as e:
-        logging.error(f"发送通知失败: {e}")
-        if show_error:
-            try:
-                messagebox.showinfo("通知", msg)
-            except Exception as e2:
-                logging.error(f"显示消息框也失败: {e2}")
-        else:
-            print(msg)
+    # 在单独的线程中发送通知，避免阻塞主线程
+    def _show_toast_in_thread():
+        try:
+            toast(msg)
+        except Exception as e:
+            logging.error(f"发送通知失败: {e}")
+            if show_error:
+                try:
+                    messagebox.showinfo("通知", msg)
+                except Exception as e2:
+                    logging.error(f"显示消息框也失败: {e2}")
+            else:
+                print(msg)
+    
+    # 启动一个守护线程来显示通知
+    t = threading.Thread(target=_show_toast_in_thread)
+    t.daemon = True
+    t.start()
 
 def close_exe(name:str,skip_admin:bool=False):
     """关闭指定名称的进程"""
@@ -488,12 +500,10 @@ def close_script(script_name,skip_admin:bool=False):
     except Exception as e:
         logging.error(f"关闭脚本{script_name}时出错: {e}")
 
-@run_in_thread
 def stop_tray():
     """关闭托盘程序"""
     logging.info("执行函数: stop_tray")
     logging.info("="*30)
-    notify("正在关闭托盘程序...")
     
     # 安全停止托盘图标
     if 'icon' in globals() and icon:
@@ -502,36 +512,56 @@ def stop_tray():
             logging.info("托盘图标已停止")
         except Exception as e:
             logging.error(f"停止托盘图标时出错: {e}")
-    tray_name = os.path.basename(sys.executable) if getattr(sys, "frozen", False) else "python.exe"
-    if MAIN_EXE_OLD.endswith('.exe') and os.path.exists(MAIN_EXE):
-        close_exe(tray_name,True)
-    else:
-        close_script(tray_name,True)
+
+    threading.Timer(1.0, lambda: os._exit(0)).start()
 
 def close_main():
     """关闭主程序"""
     logging.info(f"执行函数: close_main,{MAIN_EXE}")
     try:
-        if MAIN_EXE_OLD.endswith('.exe') and os.path.exists(MAIN_EXE):
-            close_exe(MAIN_EXE_OLD)
+        if MAIN_EXE_NAME.endswith('.exe') and os.path.exists(MAIN_EXE):
+            close_exe(MAIN_EXE_NAME)
         elif os.path.exists(MAIN_EXE):
-            close_script(MAIN_EXE_OLD)
+            close_script(MAIN_EXE_NAME)
     except Exception as e:
         # logging.error(f"关闭主程序时出错: {e}")
         notify(f"关闭主程序时出错: {e}", level="error", show_error=True)
 
-@run_in_thread
-def restart_main():
+def restart_main(icon=None, item=None):
     """重启主程序（先关闭再启动）"""
+    # 使用单个线程执行重启过程，避免创建多个线程
+    threading.Thread(target=_restart_main_worker).start()
+
+def _restart_main_worker():
+    """重启主程序的实际工作函数"""
     logging.info("执行函数: restart_main")
+    notify("正在重启主程序...")
     # 先关闭主程序
     close_main()
     # 等待一会儿确保进程完全关闭
-    time.sleep(2)
+    time.sleep(1)
     # 再启动主程序
-    is_admin_start_main()
+    _admin_start_main_worker()
     logging.info("主程序重启完成")
-    notify("主程序已重启")
+
+def start_notify():
+    """启动时发送通知"""
+    logging.info("执行函数: start_notify")
+    # 检查主程序状态
+    main_status = "未运行"
+    if is_main_running():
+        main_status = "以管理员权限运行" if is_main_admin() else "以普通权限运行"
+
+    # 检查托盘程序状态
+    tray_status = "以管理员权限运行" if IS_TRAY_ADMIN else "以普通权限运行"
+
+    # 权限提示
+    admin_tip = ""
+    if not IS_TRAY_ADMIN:
+        admin_tip = "，可能无法查看开机自启的主程序状态"
+
+    run_mode_info = "（脚本模式）" if is_script_mode else "（EXE模式）"
+    notify(f"远程控制托盘程序已启动{run_mode_info}\n主程序状态: {main_status}\n托盘状态: {tray_status}{admin_tip}")
 
 def get_menu_items():
     """生成动态菜单项列表"""
@@ -548,26 +578,25 @@ def get_menu_items():
         # 显示权限状态的纯文本项
         pystray.MenuItem(f"托盘状态: {admin_status}", None),
         # 其他功能菜单项
-        pystray.MenuItem("启动主程序", is_admin_start_main),
         pystray.MenuItem("打开配置界面", open_gui),
         pystray.MenuItem("检查主程序管理员权限", check_admin),
+        pystray.MenuItem("启动主程序", is_admin_start_main),
+        pystray.MenuItem("重启主程序", restart_main),        
         pystray.MenuItem("关闭主程序", close_main),
-        pystray.MenuItem("重启主程序", restart_main),
-        pystray.MenuItem("退出托盘（保留主程序）", stop_tray),
+        pystray.MenuItem("退出托盘（保留主程序）", lambda icon, item: stop_tray()),
     ]
 
-# 检查主程序状态
-main_status = "未运行"
-if is_main_running():
-    main_status = "以管理员权限运行" if is_main_admin() else "以普通权限运行"
+# 托盘启动时检查主程序状态，使用单独线程处理主程序启动/重启，避免阻塞UI
+def init_main_program():
+    if is_main_running():
+        logging.info("托盘启动时发现主程序正在运行")
+        # 不再自动重启主程序
+    else:
+        logging.info("托盘启动时未发现主程序运行，准备启动...")
+        is_admin_start_main()
 
-# 检查托盘程序状态
-tray_status = "以管理员权限运行" if IS_TRAY_ADMIN else "以普通权限运行"
-
-# 权限提示
-admin_tip = ""
-if not IS_TRAY_ADMIN:
-    admin_tip = "，可能无法查看开机自启的主程序状态"
+# 在单独的线程中处理主程序初始化
+threading.Thread(target=init_main_program, daemon=True).start()
 
 # 托盘图标设置
 icon_path = resource_path(ICON_FILE)
@@ -576,34 +605,13 @@ image = Image.open(icon_path) if os.path.exists(icon_path) else None
 menu_items = get_menu_items()
 menu = pystray.Menu(*menu_items)
 
-# 信号处理函数，用于捕获CTRL+C等中断信号
-def signal_handler(signum, frame):
-    logging.info(f"接收到信号: {signum}，正在优雅退出")
-    stop_tray()
-
-# 注册信号处理器
-try:
-    import signal
-    signal.signal(signal.SIGINT, signal_handler)  # 处理 Ctrl+C
-    signal.signal(signal.SIGTERM, signal_handler)  # 处理终止信号
-    logging.info("已注册信号处理器")
-except (ImportError, AttributeError) as e:
-    logging.warning(f"无法注册信号处理器: {e}")
-
-# 启动前通知
-run_mode_info = "（脚本模式）" if is_script_mode else "（EXE模式）"
-notify(f"远程控制托盘程序已启动{run_mode_info}\n主程序状态: {main_status}\n托盘状态: {tray_status}{admin_tip}")
-
-# 托盘启动时自动重启主程序
-if is_main_running():
-    logging.info("托盘启动时发现主程序正在运行，准备重启...")
-    restart_main()
-else:
-    logging.info("托盘启动时未发现主程序运行，准备启动...")
-    is_admin_start_main()
-
 # 创建托盘图标
 icon = pystray.Icon("RC-main-Tray", image, "远程控制托盘V2.0.0", menu)
+
+# 使用定时器延迟执行通知，不会阻塞主线程
+timer = threading.Timer(3.0, start_notify)
+timer.daemon = True  # 设置为守护线程，程序退出时自动结束
+timer.start()
 
 # 在带异常处理的环境中运行托盘程序
 try:
@@ -611,10 +619,14 @@ try:
     icon.run()
 except KeyboardInterrupt:
     logging.info("检测到键盘中断，正在退出")
-    stop_tray()
+    if 'icon' in globals() and icon:
+        try:
+            icon.stop()
+        except Exception as e:
+            logging.error(f"停止托盘图标时出错: {e}")
 except Exception as e:
     logging.error(f"托盘图标运行时出错: {e}")
     logging.error(traceback.format_exc())
 finally:
-    logging.info("托盘程序正在退出")
+    logging.warning("托盘程序正在退出")
     os._exit(0)
