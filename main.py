@@ -421,15 +421,15 @@ def on_connect(client, userdata: list, flags: dict, reason_code, properties=None
 """
 
 
-def is_admin() -> bool:
-    """
-    English: Checks whether the current process is running with administrator privileges
-    中文: 检查当前进程是否以管理员权限运行
-    """
-    try:
-        return ctypes.windll.shell32.IsUserAnAdmin()
-    except Exception:
-        return False
+# def is_admin() -> bool:
+#     """
+#     English: Checks whether the current process is running with administrator privileges
+#     中文: 检查当前进程是否以管理员权限运行
+#     """
+#     try:
+#         return ctypes.windll.shell32.IsUserAnAdmin()
+#     except Exception:
+#         return False
 
 
 """
@@ -440,20 +440,20 @@ def is_admin() -> bool:
 """
 
 
-def admin() -> None:
-    """
-    English: Opens a messagebox to show whether the current process has admin privileges
-    中文: 弹出信息框展示当前进程是否拥有管理员权限
-    """
-    def show_message():
-        if is_admin():
-            messagebox.showinfo("信息", "已经拥有管理员权限")
-        else:
-            messagebox.showerror("错误", "没有管理员权限")
+# def admin() -> None:
+#     """
+#     English: Opens a messagebox to show whether the current process has admin privileges
+#     中文: 弹出信息框展示当前进程是否拥有管理员权限
+#     """
+#     def show_message():
+#         if is_admin():
+#             messagebox.showinfo("信息", "已经拥有管理员权限")
+#         else:
+#             messagebox.showerror("错误", "没有管理员权限")
 
-    thread2 = threading.Thread(target=show_message)
-    thread2.daemon = True
-    thread2.start()
+#     thread2 = threading.Thread(target=show_message)
+#     thread2.daemon = True
+#     thread2.start()
 
 def open_gui() -> None:
     """
@@ -462,10 +462,10 @@ def open_gui() -> None:
     """
     if os.path.isfile("GUI.py"):
         subprocess.Popen([".venv\\Scripts\\python.exe", "GUI.py"])
-        notify_in_thread("正在打开配置窗口...")
+        # notify_in_thread("正在打开配置窗口...")
     elif os.path.isfile("RC-GUI.exe"):
         subprocess.Popen(["RC-GUI.exe"])
-        notify_in_thread("正在打开配置窗口...")
+        # notify_in_thread("正在打开配置窗口...")
     else:
         def show_message():
             current_path = os.getcwd()
@@ -516,6 +516,8 @@ def exit_program() -> None:
 """
 def tray() -> None:
     try:
+        global IS_TRAY_ADMIN
+        admin_status = "【已获得管理员权限】" if IS_TRAY_ADMIN else "【未获得管理员权限】"
         # 初始化系统托盘图标和菜单
         icon_path = resource_path("icon.ico" if getattr(sys, "frozen", False) else "res\\icon.ico")
         # 从资源文件中读取图像
@@ -524,8 +526,8 @@ def tray() -> None:
         icon = pystray.Icon("RC-main", title="远程控制 V2.0.0")
         image = Image.open(io.BytesIO(image_data))
         menu = (
+            pystray.MenuItem(f"{admin_status}", None),
             pystray.MenuItem("打开配置", open_gui),
-            pystray.MenuItem("管理员权限查询", admin),
             pystray.MenuItem("退出", exit_program),
         )
         icon.menu = menu
@@ -592,6 +594,19 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 logger.addHandler(log_handler)
 
+# 检查程序是以脚本形式运行还是打包后的exe运行
+is_script_mode = not getattr(sys, "frozen", False)
+if is_script_mode:
+    # 如果是脚本形式运行，先清空日志文件
+    try:
+        with open(log_path, 'w', encoding='utf-8') as f:
+            f.write('')  # 清空文件内容
+        logging.info(f"已清空日志文件: {log_path}")
+        print(f"已清空日志文件: {log_path}")
+    except Exception as e:
+        logging.error(f"清空日志文件失败: {e}")
+        print(f"清空日志文件失败: {e}")
+
 # 记录程序启动信息
 logging.info("=" * 50)
 logging.info("程序启动")
@@ -600,6 +615,16 @@ logging.info(f"日志文件路径: {log_path}")
 logging.info(f"配置文件路径: {config_path}")
 logging.info(f"Python版本: {sys.version}")
 logging.info("=" * 50)
+
+# 在程序启动时查询托盘程序的管理员权限状态并保存为全局变量
+IS_TRAY_ADMIN = False
+try:
+    IS_TRAY_ADMIN = ctypes.windll.shell32.IsUserAnAdmin() != 0
+    logging.info(f"管理员权限状态: {'已获得' if IS_TRAY_ADMIN else '未获得'}")
+except Exception as e:
+    logging.error(f"检查管理员权限时出错: {e}")
+    IS_TRAY_ADMIN = False
+
 
 # 检查配置文件是否存在
 if os.path.exists(config_path):
@@ -702,27 +727,27 @@ for serve, serve_name in serves:
     logging.info(f'主题"{serve}"，值："{serve_name}"')
 
 tray()  # 托盘图标
-admin_status = is_admin()
-if admin_status:
-    logging.info("当前程序以管理员权限运行")
-    # 将管理员权限状态写入文件，方便其他程序查询
-    try:
-        status_file = os.path.join(logs_dir, "admin_status.txt")
-        with open(status_file, "w", encoding="utf-8") as f:
-            f.write("admin=1")
-        logging.info(f"管理员权限状态已写入文件: {status_file}")
-    except Exception as e:
-        logging.error(f"写入管理员权限状态文件失败: {e}")
-else:
-    logging.info("当前程序以普通权限运行")
-    # 将普通权限状态写入文件
-    try:
-        status_file = os.path.join(logs_dir, "admin_status.txt")
-        with open(status_file, "w", encoding="utf-8") as f:
-            f.write("admin=0")
-        logging.info(f"权限状态已写入文件: {status_file}")
-    except Exception as e:
-        logging.error(f"写入权限状态文件失败: {e}")
+# admin_status = is_admin()
+# if admin_status:
+#     logging.info("当前程序以管理员权限运行")
+#     # 将管理员权限状态写入文件，方便其他程序查询
+#     try:
+#         status_file = os.path.join(logs_dir, "admin_status.txt")
+#         with open(status_file, "w", encoding="utf-8") as f:
+#             f.write("admin=1")
+#         logging.info(f"管理员权限状态已写入文件: {status_file}")
+#     except Exception as e:
+#         logging.error(f"写入管理员权限状态文件失败: {e}")
+# else:
+#     logging.info("当前程序以普通权限运行")
+#     # 将普通权限状态写入文件
+#     try:
+#         status_file = os.path.join(logs_dir, "admin_status.txt")
+#         with open(status_file, "w", encoding="utf-8") as f:
+#             f.write("admin=0")
+#         logging.info(f"权限状态已写入文件: {status_file}")
+#     except Exception as e:
+#         logging.error(f"写入权限状态文件失败: {e}")
 
 # 初始化MQTT客户端
 mqttc = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2) # type: ignore

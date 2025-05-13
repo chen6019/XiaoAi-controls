@@ -570,8 +570,7 @@ def get_menu_items():
 # 托盘启动时检查主程序状态，使用单独线程处理主程序启动/重启，避免阻塞UI
 def init_main_program():
     if is_main_running():
-        logging.info("托盘启动时发现主程序正在运行,准备重启...")
-        restart_main()
+        logging.info("托盘启动时发现主程序正在运行...")
     else:
         logging.info("托盘启动时未发现主程序运行，准备启动...")
         is_admin_start_main()
