@@ -829,8 +829,6 @@ def check_tray_and_start():
         notify_in_thread("托盘未启动，将使用自带托盘")
     else:
         logging.info("托盘进程已存在")
-        notify_in_thread("托盘程序已启动")
-
 
 def tray_():
     """

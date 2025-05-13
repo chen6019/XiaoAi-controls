@@ -487,16 +487,22 @@ def stop_tray():
     logging.info("="*30)
     logging.info("正在关闭托盘程序")
     logging.info("="*30)
-    restart_main()
     
-    # 安全停止托盘图标
-    if 'icon' in globals() and icon:
-        try:
-            icon.stop()
-            logging.info("托盘图标已停止")
-        except Exception as e:
-            logging.error(f"停止托盘图标时出错: {e}")
-    threading.Timer(1.0, lambda: os._exit(0)).start()
+    # 定义在restart_main完成后执行的回调函数
+    def exit_after_restart():
+        logging.info("主程序重启完成，现在可以安全退出托盘")
+        # 安全停止托盘图标
+        if 'icon' in globals() and icon:
+            try:
+                icon.stop()
+                logging.info("托盘图标已停止")
+            except Exception as e:
+                logging.error(f"停止托盘图标时出错: {e}")
+        # 设置一个定时器在2秒后退出程序
+        threading.Timer(0.5, lambda: os._exit(0)).start()
+    
+    # 调用restart_main并传递回调函数
+    restart_main(callback=exit_after_restart)
 
 def close_main():
     """关闭主程序"""
@@ -510,12 +516,12 @@ def close_main():
         # logging.error(f"关闭主程序时出错: {e}")
         notify(f"关闭主程序时出错: {e}", level="error", show_error=True)
 
-def restart_main(icon=None, item=None):
+def restart_main(icon=None, item=None, callback=None):
     """重启主程序（先关闭再启动）"""
     # 使用单个线程执行重启过程，避免创建多个线程
-    threading.Thread(target=_restart_main_worker).start()
+    threading.Thread(target=lambda: _restart_main_worker(callback)).start()
 
-def _restart_main_worker():
+def _restart_main_worker(callback=None):
     """重启主程序的实际工作函数"""
     logging.info("执行函数: restart_main")
     notify("正在重启主程序...")
@@ -526,6 +532,11 @@ def _restart_main_worker():
     # 再启动主程序
     _admin_start_main_worker()
     logging.info("主程序重启完成")
+    
+    # 如果有回调函数，执行它
+    if callback and callable(callback):
+        logging.info("执行重启后的回调函数")
+        callback()
 
 def start_notify():
     """启动时发送通知"""
@@ -564,7 +575,7 @@ def get_menu_items():
         pystray.MenuItem("打开配置界面", open_gui),
         pystray.MenuItem("检查主程序管理员权限", check_admin),
         pystray.MenuItem("启动主程序", is_admin_start_main),
-        pystray.MenuItem("重启主程序", restart_main),        
+        pystray.MenuItem("重启主程序", lambda icon, item: restart_main(icon, item)),        
         pystray.MenuItem("关闭主程序", close_main),
         pystray.MenuItem("退出托盘（使用主程序自带托盘）", lambda icon, item: stop_tray()),
     ]
