@@ -7,5 +7,6 @@
 *.log
 *.json
 *.back
+up.md
 test.*
 /__pycache__

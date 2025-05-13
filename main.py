@@ -701,7 +701,7 @@ for application, directory in applications:
 for serve, serve_name in serves:
     logging.info(f'主题"{serve}"，值："{serve_name}"')
 
-# tray()  # 托盘图标
+tray()  # 托盘图标
 admin_status = is_admin()
 if admin_status:
     logging.info("当前程序以管理员权限运行")
