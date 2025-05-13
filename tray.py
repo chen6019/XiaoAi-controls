@@ -199,8 +199,9 @@ def run_py_in_venv_as_admin_hidden(python_exe_path, script_path, script_args=Non
         0                   # 窗口模式：0=隐藏
     )
     return result
+
 def get_main_proc(process_name):
-    """查找主程序进程是否存在"""
+    """查找程序进程是否存在"""
     logging.info(f"执行函数: get_main_proc; 参数: {process_name}")
     
     # 如果不是管理员权限运行，可能无法查看所有进程，记录警告
@@ -208,7 +209,7 @@ def get_main_proc(process_name):
     if not IS_TRAY_ADMIN:
         logging.warning("托盘程序未以管理员权限运行,可能无法查看所有进程")
     if process_name.endswith('.exe'):
-        logging.info(f"查找主程序可执行文件: {process_name}")
+        logging.info(f"查找程序可执行文件: {process_name}")
         # 可执行文件查找方式
         target_user=None
         process_name = process_name.lower()
@@ -570,7 +571,8 @@ def get_menu_items():
 # 托盘启动时检查主程序状态，使用单独线程处理主程序启动/重启，避免阻塞UI
 def init_main_program():
     if is_main_running():
-        logging.info("托盘启动时发现主程序正在运行...")
+        logging.info("托盘启动时发现主程序正在运行，准备重启...")
+        restart_main()
     else:
         logging.info("托盘启动时未发现主程序运行，准备启动...")
         is_admin_start_main()

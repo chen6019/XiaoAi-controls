@@ -22,19 +22,6 @@ from typing import Any, Dict, List, Union, Optional
 #     messagebox.showerror("错误", "应用程序已在运行。")
 #     sys.exit()
 
-
-# 判断是否拥有管理员权限
-def is_admin() -> bool:
-    """
-    English: Checks if the user has administrator privileges
-    中文: 检查用户是否拥有管理员权限
-    """
-    try:
-        return ctypes.windll.shell32.IsUserAnAdmin()
-    except Exception:
-        return False
-
-
 # 获取管理员权限
 def get_administrator_privileges() -> None:
     """
@@ -121,42 +108,42 @@ def set_auto_start() -> None:
     root_folder.RegisterTaskDefinition("A远程控制", task_definition, 6, "", "", 2)# 0表示使用交互式登录，用户为2，SYSTEM为3
     check_task()
     if result == 0:
-        messagebox.showinfo("提示", "创建任务成功\n已配置为用户登录时以管理员组权限运行")
+        messagebox.showinfo("提示", "创建任务成功\n已配置为任何用户登录时以管理员组权限运行")
         messagebox.showinfo("提示", "移动文件位置后需重新设置任务哦！") 
-    #     tray_exe_path = os.path.join(
-    #         os.path.dirname(os.path.abspath(sys.argv[0])), "RC-tray.exe"
-    #         # and "tray.py"
-    #     )
-    #     if os.path.exists(tray_exe_path):
-    #         quoted_tray_path = shlex.quote(tray_exe_path)# 托盘程序使用当前登录用户（最高权限）运行，登录后触发
-    #         tray_result = subprocess.call(
-    #             f'schtasks /Create /SC ONLOGON /TN "A远程控制-托盘" '
-    #             f'/TR "{quoted_tray_path}" /RL HIGHEST /F',
-    #             shell=True,
-    #         )
-    #         # 同步设置权限和运行级别
-    #         task_def = root_folder.GetTask("A远程控制-托盘").Definition
-    #         principal = task_def.Principal
-    #         principal.RunLevel = 1  # 1表示最高权限
-    #         principal.LogonType = 1  # 1表示使用当前登录用户凭据
+        tray_exe_path = os.path.join(
+            os.path.dirname(os.path.abspath(sys.argv[0])), "RC-tray.exe"
+            # and "tray.py"
+        )
+        if os.path.exists(tray_exe_path):
+            quoted_tray_path = shlex.quote(tray_exe_path)# 托盘程序使用当前登录用户（最高权限）运行，登录后触发
+            tray_result = subprocess.call(
+                f'schtasks /Create /SC ONLOGON /TN "A远程控制-托盘" '
+                f'/TR "{quoted_tray_path}" /RL HIGHEST /F',
+                shell=True,
+            )
+            # 同步设置权限和运行级别
+            task_def = root_folder.GetTask("A远程控制-托盘").Definition
+            principal = task_def.Principal
+            principal.RunLevel = 1  # 1表示最高权限
+            principal.LogonType = 1  # 1表示使用当前登录用户凭据
             
-    #         settings = task_def.Settings
-    #         settings.DisallowStartIfOnBatteries = False
-    #         settings.StopIfGoingOnBatteries = False
-    #         settings.ExecutionTimeLimit = "PT0S"
-    #         # task_def.Settings.Compatibility = 4
+            settings = task_def.Settings
+            settings.DisallowStartIfOnBatteries = False
+            settings.StopIfGoingOnBatteries = False
+            settings.ExecutionTimeLimit = "PT0S"
+            # task_def.Settings.Compatibility = 4
 
-    #         root_folder.RegisterTaskDefinition(
-    #             "A远程控制-托盘", task_def, 6, "", "", 0  # 0表示只在用户登录时运行，2表示不管用户是否登录都运行
-    #         )
-    #         if tray_result == 0:
-    #             messagebox.showinfo("提示", "创建托盘任务成功(使用当前登录用户，最高权限运行)")
-    #             check_task()
-    #         else:
-    #             messagebox.showerror("错误", "创建托盘自启动失败")
-    #     else:
-    #         messagebox.showwarning("警告", "未找到 RC-tray.exe 文件，跳过托盘启动设置")
-    #     check_task()
+            root_folder.RegisterTaskDefinition(
+                "A远程控制-托盘", task_def, 6, "", "", 0  # 0表示只在用户登录时运行，2表示不管用户是否登录都运行
+            )
+            if tray_result == 0:
+                messagebox.showinfo("提示", "创建托盘任务成功(使用当前登录用户，最高权限运行)")
+                check_task()
+            else:
+                messagebox.showerror("错误", "创建托盘自启动失败")
+        else:
+            messagebox.showwarning("警告", "未找到 RC-tray.exe 文件，跳过托盘启动设置")
+        check_task()
     else:
         messagebox.showerror("错误", "创建开机自启动失败")
         check_task()
@@ -178,9 +165,9 @@ def remove_auto_start() -> None:
         if delete_result == 0 and tray_delete == 0:
             messagebox.showinfo("提示", "关闭所有自启动任务成功")
         elif delete_result == 0:
-            messagebox.showinfo("提示", "关闭主程序自启动成功，托盘任务已不存在")
+            messagebox.showinfo("提示", "关闭主程序自启动成功，托盘任务不存在")
         elif tray_delete == 0:
-            messagebox.showinfo("提示", "关闭托盘自启动成功，主程序任务已不存在")
+            messagebox.showinfo("提示", "关闭托盘自启动成功，主程序任务不存在")
         else:
             messagebox.showerror("错误", "关闭开机自启动失败")
         check_task()
@@ -591,7 +578,7 @@ def enable_window() -> None:
     中文: 通过命令启用睡眠/休眠功能
     """
     #检查是否有管理员权限
-    if not is_admin():
+    if not IS_GUI_ADMIN:
         messagebox.showerror("错误", "需要管理员权限才能启用休眠/睡眠功能")
         return
     # 尝试启用休眠/睡眠功能
@@ -603,6 +590,15 @@ def enable_window() -> None:
             messagebox.showerror("错误", f"启用失败: \n{result.stderr.strip()}")
     except Exception as e:
         messagebox.showerror("错误", f"启用失败: {e}")
+
+# 在程序启动时查询程序的管理员权限状态并保存为全局变量
+IS_GUI_ADMIN = False
+try:
+    IS_GUI_ADMIN = ctypes.windll.shell32.IsUserAnAdmin() != 0
+    # logging.info(f"程序管理员权限状态: {'已获得' if IS_TRAY_ADMIN else '未获得'}")
+except Exception as e:
+    # logging.error(f"检查程序管理员权限时出错: {e}")
+    IS_GUI_ADMIN = False
 
 # 配置文件和目录改为当前工作目录
 appdata_dir: str = os.path.abspath(os.path.dirname(sys.argv[0]))
@@ -675,7 +671,7 @@ auto_start_button = ttk.Button(system_frame, text="", command=set_auto_start)
 auto_start_button.grid(row=2, column=2,  sticky="n")
 
 # 程序标题栏
-if is_admin():
+if IS_GUI_ADMIN:
     check_task()
     root.title("远程控制V2.0.0(管理员)")
 else:

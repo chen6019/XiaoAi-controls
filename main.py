@@ -9,6 +9,7 @@ pyinstaller -F -n RC-main --windowed --icon=res\\icon.ico --add-data "res\\icon.
 import io
 import paho.mqtt.client as mqtt
 import os
+import psutil
 import pystray
 from PIL import Image
 import wmi
@@ -411,6 +412,96 @@ def on_connect(client, userdata: list, flags: dict, reason_code, properties=None
                     client.subscribe(topic)
                     logging.info(f'订阅主题: "{topic}"')
 
+def get_main_proc(process_name):
+    """查找程序进程是否存在"""
+    logging.info(f"执行函数: get_main_proc; 参数: {process_name}")
+    
+    # 如果不是管理员权限运行，可能无法查看所有进程，记录警告
+    global IS_ADMIN
+    if not IS_ADMIN:
+        logging.warning("程序未以管理员权限运行,可能无法查看所有进程")
+    if process_name.endswith('.exe'):
+        logging.info(f"查找程序可执行文件: {process_name}")
+        # 可执行文件查找方式
+        target_user=None
+        process_name = process_name.lower()
+        target_user = target_user.lower() if target_user else None
+
+        for proc in psutil.process_iter(['name', 'username']):
+            try:
+                # 获取进程信息
+                proc_info = proc.info
+                current_name = proc_info['name'].lower()
+                current_user = proc_info['username']
+
+                # 匹配进程名
+                if current_name == process_name:
+                    # 未指定用户则直接返回True
+                    if target_user is None:
+                        logging.info(f"找到主程序进程: {proc.pid}, 用户: {current_user}")
+                        return True
+                    # 指定用户时提取用户名部分比较
+                    if current_user:
+                        user_part = current_user.split('\\')[-1].lower()
+                        if user_part == target_user:
+                            logging.info(f"找到主程序进程: {proc.pid}, 用户: {current_user}")
+                            return True
+            except (psutil.AccessDenied, psutil.NoSuchProcess):
+                continue
+        # 如果找不到进程，记录信息
+        logging.info(f"未找到主程序进程: {process_name}")
+        return None
+    else:
+        # Python脚本查找方式
+        logging.info(f"查找Python脚本主程序: {process_name}")
+        # 尝试查找命令行中包含脚本名的Python进程
+        for proc in psutil.process_iter(['pid', 'name', 'cmdline', 'username']):
+            try:
+                proc_info = proc.info
+                if proc_info['name'] and proc_info['name'].lower() in ('python.exe', 'pythonw.exe'):
+                    cmdline = ' '.join(proc_info['cmdline']) if proc_info['cmdline'] else ""
+                    if process_name in cmdline:
+                        logging.info(f"找到主程序Python进程: {proc.pid}, 命令行: {cmdline}")
+                        return proc
+            except (psutil.AccessDenied, psutil.NoSuchProcess, Exception) as e:
+                logging.error(f"获取Python进程信息失败: {e}")
+                continue
+        
+        # 如果常规方法找不到，尝试使用wmic命令行工具
+        logging.info("常规方法未找到Python进程，尝试使用wmic命令行工具")
+        try:
+            cmd = 'wmic process where "name=\'python.exe\' or name=\'pythonw.exe\'" get ProcessId,CommandLine /value'
+            result = subprocess.run(cmd, capture_output=True, text=True, shell=True)
+            lines = result.stdout.strip().split('\n')
+            
+            current_pid = None
+            current_cmd = None
+            
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+                    
+                if line.startswith("CommandLine="):
+                    current_cmd = line[12:]
+                elif line.startswith("ProcessId="):
+                    current_pid = line[10:]
+                    
+                    if current_cmd and current_pid and process_name in current_cmd:
+                        try:
+                            logging.info(f"wmic找到主程序Python进程: {current_pid}, 命令行: {current_cmd}")
+                            return psutil.Process(int(current_pid))
+                        except (psutil.NoSuchProcess, ValueError) as e:
+                            logging.error(f"获取进程对象失败，PID: {current_pid}, 错误: {e}")
+                    
+                    current_pid = None
+                    current_cmd = None
+        except Exception as e:
+            logging.error(f"使用wmic查找Python进程失败: {e}")
+    
+    logging.info("未找到主程序进程")
+    return None
+
 
 """
 判断当前程序是否以管理员权限运行。
@@ -516,8 +607,8 @@ def exit_program() -> None:
 """
 def tray() -> None:
     try:
-        global IS_TRAY_ADMIN
-        admin_status = "【已获得管理员权限】" if IS_TRAY_ADMIN else "【未获得管理员权限】"
+        global IS_ADMIN
+        admin_status = "【已获得管理员权限】" if IS_ADMIN else "【未获得管理员权限】"
         # 初始化系统托盘图标和菜单
         icon_path = resource_path("icon.ico" if getattr(sys, "frozen", False) else "res\\icon.ico")
         # 从资源文件中读取图像
@@ -617,13 +708,13 @@ logging.info(f"Python版本: {sys.version}")
 logging.info("=" * 50)
 
 # 在程序启动时查询托盘程序的管理员权限状态并保存为全局变量
-IS_TRAY_ADMIN = False
+IS_ADMIN = False
 try:
-    IS_TRAY_ADMIN = ctypes.windll.shell32.IsUserAnAdmin() != 0
-    logging.info(f"管理员权限状态: {'已获得' if IS_TRAY_ADMIN else '未获得'}")
+    IS_ADMIN = ctypes.windll.shell32.IsUserAnAdmin() != 0
+    logging.info(f"管理员权限状态: {'已获得' if IS_ADMIN else '未获得'}")
 except Exception as e:
     logging.error(f"检查管理员权限时出错: {e}")
-    IS_TRAY_ADMIN = False
+    IS_ADMIN = False
 
 
 # 检查配置文件是否存在
@@ -726,28 +817,31 @@ for application, directory in applications:
 for serve, serve_name in serves:
     logging.info(f'主题"{serve}"，值："{serve_name}"')
 
-tray()  # 托盘图标
-# admin_status = is_admin()
-# if admin_status:
-#     logging.info("当前程序以管理员权限运行")
-#     # 将管理员权限状态写入文件，方便其他程序查询
-#     try:
-#         status_file = os.path.join(logs_dir, "admin_status.txt")
-#         with open(status_file, "w", encoding="utf-8") as f:
-#             f.write("admin=1")
-#         logging.info(f"管理员权限状态已写入文件: {status_file}")
-#     except Exception as e:
-#         logging.error(f"写入管理员权限状态文件失败: {e}")
-# else:
-#     logging.info("当前程序以普通权限运行")
-#     # 将普通权限状态写入文件
-#     try:
-#         status_file = os.path.join(logs_dir, "admin_status.txt")
-#         with open(status_file, "w", encoding="utf-8") as f:
-#             f.write("admin=0")
-#         logging.info(f"权限状态已写入文件: {status_file}")
-#     except Exception as e:
-#         logging.error(f"写入权限状态文件失败: {e}")
+TRAY_EXE_NAME = "RC-tray.exe" if getattr(sys, "frozen", False) else "tray.py"
+if not get_main_proc(TRAY_EXE_NAME):
+    logging.error("托盘未启动，将使用自带托盘")
+    tray()
+
+if IS_ADMIN:
+    logging.info("当前程序以管理员权限运行")
+    # 将管理员权限状态写入文件，方便其他程序查询
+    try:
+        status_file = os.path.join(logs_dir, "admin_status.txt")
+        with open(status_file, "w", encoding="utf-8") as f:
+            f.write("admin=1")
+        logging.info(f"管理员权限状态已写入文件: {status_file}")
+    except Exception as e:
+        logging.error(f"写入管理员权限状态文件失败: {e}")
+else:
+    logging.info("当前程序以普通权限运行")
+    # 将普通权限状态写入文件
+    try:
+        status_file = os.path.join(logs_dir, "admin_status.txt")
+        with open(status_file, "w", encoding="utf-8") as f:
+            f.write("admin=0")
+        logging.info(f"权限状态已写入文件: {status_file}")
+    except Exception as e:
+        logging.error(f"写入权限状态文件失败: {e}")
 
 # 初始化MQTT客户端
 mqttc = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2) # type: ignore
