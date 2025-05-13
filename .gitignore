@@ -1,7 +1,12 @@
 /build
 /.vscode
 /dist
+/build
+/.vscode
+/dist
 *.spec
+*.gitignore
+*.txt
 *.gitignore
 *.txt
 *.log
