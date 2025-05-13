@@ -12,8 +12,9 @@ import sys
 import shlex
 import subprocess
 import win32com.client
-from typing import Any, Dict, List, Union, Optional
+from typing import Any, Dict, List, Union
 
+BANBEN = "V2.1.0"
 # 创建一个命名的互斥体
 # mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "RC-main-GUI")
 
@@ -35,7 +36,6 @@ def get_administrator_privileges() -> None:
     sys.exit()
 
 
-from typing import Any, Dict, List, Union, Optional
 
 # 设置窗口居中
 def center_window(window: Union[tk.Tk, tk.Toplevel]) -> None:
@@ -615,7 +615,7 @@ if os.path.exists(config_file_path):
 
 # 创建主窗口
 root = tk.Tk()
-root.title("远程控制V2.0.0")
+root.title(f"远程控制-{BANBEN}")
 
 # 设置根窗口的行列权重
 root.rowconfigure(0, weight=1)
@@ -673,7 +673,7 @@ auto_start_button.grid(row=2, column=2,  sticky="n")
 # 程序标题栏
 if IS_GUI_ADMIN:
     check_task()
-    root.title("远程控制V2.0.0(管理员)")
+    root.title(f"远程控制-{BANBEN}(管理员)")
 else:
     auto_start_button.config(text="获取权限", command=get_administrator_privileges)
 

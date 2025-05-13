@@ -29,9 +29,10 @@ from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
 import pyautogui
 from pyautogui import press as pyautogui_press
 
+BANBEN = "V2.1.0"
+
 # 禁用 PyAutoGUI 安全模式，确保即使鼠标在屏幕角落也能执行命令
 pyautogui.FAILSAFE = False
-
 
 # 创建一个命名的互斥体
 mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "RC-main")
@@ -502,50 +503,6 @@ def get_main_proc(process_name):
     logging.info("未找到程序进程")
     return None
 
-
-"""
-判断当前程序是否以管理员权限运行。
-
-返回值:
-- True: 以管理员权限运行
-- False: 不是以管理员权限运行
-"""
-
-
-# def is_admin() -> bool:
-#     """
-#     English: Checks whether the current process is running with administrator privileges
-#     中文: 检查当前进程是否以管理员权限运行
-#     """
-#     try:
-#         return ctypes.windll.shell32.IsUserAnAdmin()
-#     except Exception:
-#         return False
-
-
-"""
-显示管理员权限提示。
-
-无参数
-无返回值
-"""
-
-
-# def admin() -> None:
-#     """
-#     English: Opens a messagebox to show whether the current process has admin privileges
-#     中文: 弹出信息框展示当前进程是否拥有管理员权限
-#     """
-#     def show_message():
-#         if is_admin():
-#             messagebox.showinfo("信息", "已经拥有管理员权限")
-#         else:
-#             messagebox.showerror("错误", "没有管理员权限")
-
-#     thread2 = threading.Thread(target=show_message)
-#     thread2.daemon = True
-#     thread2.start()
-
 def open_gui() -> None:
     """
     English: Attempts to open GUI.py or RC-GUI.exe, else shows an error message
@@ -797,7 +754,7 @@ def tray() -> None:
         # 从资源文件中读取图像
         with open(icon_path, "rb") as f:
             image_data = f.read()
-        icon = pystray.Icon("RC-main", title="远程控制 V2.0.0")
+        icon = pystray.Icon("RC-main", title=f"远程控制-{BANBEN}")
         image = Image.open(io.BytesIO(image_data))
         menu = (
             pystray.MenuItem(f"{admin_status}", None),

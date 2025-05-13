@@ -19,6 +19,8 @@ from win11toast import notify as toast
 from PIL import Image
 import psutil
 
+BANBEN = "V2.1.0"
+
 # 日志配置
 appdata_dir = os.path.abspath(os.path.dirname(sys.argv[0]))
 logs_dir = os.path.join(appdata_dir, "logs")
@@ -568,7 +570,7 @@ def get_menu_items():
     mode_info = "【脚本模式】" if is_script_mode else "【EXE模式】"
     
     return [
-        pystray.MenuItem(f"{mode_info} 版本-V2.0.0", None),
+        pystray.MenuItem(f"{mode_info} 版本-{BANBEN}", None),
         # 显示权限状态的纯文本项
         pystray.MenuItem(f"托盘状态: {admin_status}", None),
         # 其他功能菜单项
@@ -600,7 +602,7 @@ menu_items = get_menu_items()
 menu = pystray.Menu(*menu_items)
 
 # 创建托盘图标
-icon = pystray.Icon("RC-main-Tray", image, "远程控制托盘V2.0.0", menu)
+icon = pystray.Icon("RC-main-Tray", image, f"远程控制托盘-{BANBEN}", menu)
 
 # 使用定时器延迟执行通知，不会阻塞主线程
 timer = threading.Timer(3.0, start_notify)
