@@ -438,18 +438,18 @@ def get_main_proc(process_name):
                 if current_name == process_name:
                     # 未指定用户则直接返回True
                     if target_user is None:
-                        logging.info(f"找到主程序进程: {proc.pid}, 用户: {current_user}")
+                        logging.info(f"找到程序进程: {proc.pid}, 用户: {current_user}")
                         return True
                     # 指定用户时提取用户名部分比较
                     if current_user:
                         user_part = current_user.split('\\')[-1].lower()
                         if user_part == target_user:
-                            logging.info(f"找到主程序进程: {proc.pid}, 用户: {current_user}")
+                            logging.info(f"找到程序进程: {proc.pid}, 用户: {current_user}")
                             return True
             except (psutil.AccessDenied, psutil.NoSuchProcess):
                 continue
         # 如果找不到进程，记录信息
-        logging.info(f"未找到主程序进程: {process_name}")
+        logging.info(f"未找到程序进程: {process_name}")
         return None
     else:
         # Python脚本查找方式
@@ -461,7 +461,7 @@ def get_main_proc(process_name):
                 if proc_info['name'] and proc_info['name'].lower() in ('python.exe', 'pythonw.exe'):
                     cmdline = ' '.join(proc_info['cmdline']) if proc_info['cmdline'] else ""
                     if process_name in cmdline:
-                        logging.info(f"找到主程序Python进程: {proc.pid}, 命令行: {cmdline}")
+                        logging.info(f"找到程序Python进程: {proc.pid}, 命令行: {cmdline}")
                         return proc
             except (psutil.AccessDenied, psutil.NoSuchProcess, Exception) as e:
                 logging.error(f"获取Python进程信息失败: {e}")
@@ -489,7 +489,7 @@ def get_main_proc(process_name):
                     
                     if current_cmd and current_pid and process_name in current_cmd:
                         try:
-                            logging.info(f"wmic找到主程序Python进程: {current_pid}, 命令行: {current_cmd}")
+                            logging.info(f"wmic找到程序Python进程: {current_pid}, 命令行: {current_cmd}")
                             return psutil.Process(int(current_pid))
                         except (psutil.NoSuchProcess, ValueError) as e:
                             logging.error(f"获取进程对象失败，PID: {current_pid}, 错误: {e}")
@@ -499,7 +499,7 @@ def get_main_proc(process_name):
         except Exception as e:
             logging.error(f"使用wmic查找Python进程失败: {e}")
     
-    logging.info("未找到主程序进程")
+    logging.info("未找到程序进程")
     return None
 
 
@@ -600,39 +600,6 @@ def exit_program() -> None:
         logging.info("程序已停止")
         threading.Timer(0.5, lambda: os._exit(0)).start()
         sys.exit(0)
-        
-"""
-托盘图标
-
-"""
-def tray() -> None:
-    try:
-        global IS_ADMIN
-        admin_status = "【已获得管理员权限】" if IS_ADMIN else "【未获得管理员权限】"
-        # 初始化系统托盘图标和菜单
-        icon_path = resource_path("icon.ico" if getattr(sys, "frozen", False) else "res\\icon.ico")
-        # 从资源文件中读取图像
-        with open(icon_path, "rb") as f:
-            image_data = f.read()
-        icon = pystray.Icon("RC-main", title="远程控制 V2.0.0")
-        image = Image.open(io.BytesIO(image_data))
-        menu = (
-            pystray.MenuItem(f"{admin_status}", None),
-            pystray.MenuItem("打开配置", open_gui),
-            pystray.MenuItem("退出", exit_program),
-        )
-        icon.menu = menu
-        icon.icon = image
-        icon_Thread = threading.Thread(target=icon.run)
-        icon_Thread.daemon = True
-        icon_Thread.start()
-        logging.info("托盘图标已加载完成")
-    except Exception as e:
-        messagebox.showerror(
-            "Error", f"加载托盘图标时出错\n详情请查看日志"
-        )
-        logging.error(f"加载托盘图标时出错: {e}")
-
 
 # 获取资源文件的路径
 def resource_path(relative_path):
@@ -816,11 +783,65 @@ for application, directory in applications:
 
 for serve, serve_name in serves:
     logging.info(f'主题"{serve}"，值："{serve_name}"')
+    
+"""
+托盘图标
 
-TRAY_EXE_NAME = "RC-tray.exe" if getattr(sys, "frozen", False) else "tray.py"
-if not get_main_proc(TRAY_EXE_NAME):
-    logging.error("托盘未启动，将使用自带托盘")
-    tray()
+"""
+def tray() -> None:
+    try:
+        global IS_ADMIN
+        admin_status = "【已获得管理员权限】" if IS_ADMIN else "【未获得管理员权限】"
+        # 初始化系统托盘图标和菜单
+        icon_path = resource_path("icon.ico" if getattr(sys, "frozen", False) else "res\\icon.ico")
+        # 从资源文件中读取图像
+        with open(icon_path, "rb") as f:
+            image_data = f.read()
+        icon = pystray.Icon("RC-main", title="远程控制 V2.0.0")
+        image = Image.open(io.BytesIO(image_data))
+        menu = (
+            pystray.MenuItem(f"{admin_status}", None),
+            pystray.MenuItem("打开配置", open_gui),
+            pystray.MenuItem("退出", exit_program),
+        )
+        icon.menu = menu
+        icon.icon = image
+        icon_Thread = threading.Thread(target=icon.run)
+        icon_Thread.daemon = True
+        icon_Thread.start()
+        logging.info("托盘图标已加载完成")
+    except Exception as e:
+        messagebox.showerror(
+            "Error", f"加载托盘图标时出错\n详情请查看日志"
+        )
+        logging.error(f"加载托盘图标时出错: {e}")
+
+
+def check_tray_and_start():
+    """
+    检测托盘程序是否运行，如果未运行则启动自带托盘
+    """
+    TRAY_EXE_NAME = "RC-tray.exe" if getattr(sys, "frozen", False) else "tray.py"
+    tray_zt = get_main_proc(TRAY_EXE_NAME)
+    if not tray_zt:
+        logging.error("托盘未启动，将使用自带托盘")
+        tray()
+        notify_in_thread("托盘未启动，将使用自带托盘")
+    else:
+        logging.info("托盘进程已存在")
+        notify_in_thread("托盘程序已启动")
+
+
+def tray_():
+    """
+    延迟1秒后检测托盘状态，不阻塞主进程
+    """
+    logging.info("将在1秒后检测托盘程序状态")
+    timer = threading.Timer(1.0, check_tray_and_start)
+    timer.daemon = True
+    timer.start()
+
+tray_()
 
 if IS_ADMIN:
     logging.info("当前程序以管理员权限运行")

@@ -407,7 +407,6 @@ def close_exe(name:str,skip_admin:bool=False):
             logging.info(f"尝试关闭进程: {name}")
             script_content = f"""
             @echo off
-            echo 正在关闭托盘程序...
             taskkill /im "{name}" /f
             if %errorlevel% equ 0 (
                 echo 成功关闭进程 "{name}".
@@ -486,6 +485,9 @@ def stop_tray():
     """关闭托盘程序"""
     logging.info("执行函数: stop_tray")
     logging.info("="*30)
+    logging.info("正在关闭托盘程序")
+    logging.info("="*30)
+    restart_main()
     
     # 安全停止托盘图标
     if 'icon' in globals() and icon:
@@ -494,7 +496,6 @@ def stop_tray():
             logging.info("托盘图标已停止")
         except Exception as e:
             logging.error(f"停止托盘图标时出错: {e}")
-
     threading.Timer(1.0, lambda: os._exit(0)).start()
 
 def close_main():
@@ -565,7 +566,7 @@ def get_menu_items():
         pystray.MenuItem("启动主程序", is_admin_start_main),
         pystray.MenuItem("重启主程序", restart_main),        
         pystray.MenuItem("关闭主程序", close_main),
-        pystray.MenuItem("退出托盘（保留主程序）", lambda icon, item: stop_tray()),
+        pystray.MenuItem("退出托盘（使用主程序自带托盘）", lambda icon, item: stop_tray()),
     ]
 
 # 托盘启动时检查主程序状态，使用单独线程处理主程序启动/重启，避免阻塞UI
