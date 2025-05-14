@@ -63,9 +63,11 @@ def execute_command(cmd: str, timeout: int = 30) -> int:
     if timeout:
         remaining = timeout
         while process.poll() is None and remaining > 0:
+            logging.info(f"命令正在运行: {cmd}")
             time.sleep(1)
             remaining -= 1
         if remaining == 0 and process.poll() is None:
+            logging.warning(f"命令超时，正在终止: {cmd}")
             process.kill()
     return process.wait()
 
@@ -132,6 +134,7 @@ def set_brightness(value: int) -> None:
     中文: 设置屏幕亮度，取值范围为 0-100
     """
     try:
+        logging.info(f"设置亮度: {value}")
         wmi.WMI(namespace="wmi").WmiMonitorBrightnessMethods()[0].WmiSetBrightness(
             value, 0
         )
@@ -205,19 +208,21 @@ def process_command(command: str, topic: str) -> None:
                 logging.info(result.stdout)
             elif command == "on":
                 if not directory or not os.path.isfile(directory):
-                    notify_in_thread(f"启动失败，文件不存在: {directory}")
                     logging.error(f"启动失败，文件不存在: {directory}")
+                    notify_in_thread(f"启动失败，文件不存在: {directory}")
                     return
-                subprocess.Popen(directory)
                 logging.info(f"启动: {directory}")
+                subprocess.Popen(directory)
                 notify_in_thread(f"启动: {directory}")
             return
     
     def check_service_status(service_name):
         result = subprocess.run(["sc", "query", service_name], capture_output=True, text=True)
         if "RUNNING" in result.stdout:
+            logging.info(f"服务 {service_name} 正在运行")
             return "running"
         elif "STOPPED" in result.stdout:
+            logging.info(f"服务 {service_name} 已停止")
             return "stopped"
         else:
             logging.error(f"无法获取服务{serve_name}的状态:{result.stderr}")
@@ -265,55 +270,68 @@ def process_command(command: str, topic: str) -> None:
     if topic == Computer:
         # 电脑开关机控制
         if command == "on":
+            logging.info("执行锁屏操作")
             ctypes.windll.user32.LockWorkStation()
         elif command == "off":
-            execute_command("shutdown -r -t 15")
-            notify_in_thread("电脑将在15秒后重启")
+            logging.info("60秒后执行重启操作")
+            execute_command("shutdown -r -t 60")
+            notify_in_thread("电脑将在60秒后重启")
     elif topic == screen:
         # 屏幕亮度控制
         if command == "off":
+            logging.info("执行亮度最小化操作")
             set_brightness(0)
-        
         elif command == "on":
+            logging.info("执行亮度最大化操作")
             set_brightness(100)
         elif command.startswith("on#"):
             try:
                 # 解析百分比值
                 brightness = int(command.split("#")[1])
+                logging.info(f"设置亮度: {brightness}")
                 set_brightness(brightness)
             except ValueError:
-                notify_in_thread("亮度值无效")
                 logging.error("亮度值无效")
+                notify_in_thread("亮度值无效")
             except Exception as e:
-                notify_in_thread(f"设置亮度时发生未知错误，请查看日志")
                 logging.error(f"设置亮度时出错: {e}")
+                notify_in_thread(f"设置亮度时发生未知错误，请查看日志")
         else:
-            notify_in_thread(f"未知的亮度控制命令: {command}")
             logging.error(f"未知的亮度控制命令: {command}")
+            notify_in_thread(f"未知的亮度控制命令: {command}")
     elif topic == volume:
         # 音量控制
         if command == "off":
+            logging.info("执行音量最小化操作")
             set_volume(0)
         elif command == "on":
+            logging.info("执行音量最大化操作")
             set_volume(100)
+        elif command == "pause":
+            # 播放/暂停
+            logging.info("执行静音操作")
+            set_volume(0)
         elif command.startswith("on#"):
             try:
                 # 解析百分比值
                 volume_value = int(command.split("#")[1])
+                logging.info(f"设置音量: {volume_value}")
                 set_volume(volume_value)
             except ValueError:
-                notify_in_thread("音量值无效")
                 logging.error("音量值无效")
+                notify_in_thread("音量值无效")
             except Exception as e:
-                notify_in_thread(f"设置音量时发生未知错误，请查看日志")
                 logging.error(f"设置音量时出错: {e}")
+                notify_in_thread(f"设置音量时发生未知错误，请查看日志")
         else:
-            notify_in_thread(f"未知的音量控制命令: {command}")
             logging.error(f"未知的音量控制命令: {command}")
+            notify_in_thread(f"未知的音量控制命令: {command}")
     elif topic == sleep:
         if command == "off":
+            logging.info("执行关闭睡眠模式操作")
             notify_in_thread("当前还没有进入睡眠模式哦！")
         elif command == "on":
+            logging.info("执行开启睡眠模式操作")
             execute_command("rundll32.exe powrprof.dll,SetSuspendState 0,1,0")
     elif topic == media:
         # 媒体控制（作为窗帘设备）
@@ -346,15 +364,15 @@ def process_command(command: str, topic: str) -> None:
                         logging.info(f"执行上一曲操作（百分比:{value}）")
                         pyautogui_press('prevtrack')
             else:
-                notify_in_thread(f"未知的媒体控制命令: {command}")
                 logging.error(f"未知的媒体控制命令: {command}")
+                notify_in_thread(f"未知的媒体控制命令: {command}")
         except Exception as e:
             logging.error(f"媒体控制执行失败: {e}")
             notify_in_thread(f"媒体控制执行失败，详情请查看日志")
     else:
         # 未知主题
-        notify_in_thread(f"未知主题: {topic}")
         logging.error(f"未知主题: {topic}")
+        notify_in_thread(f"未知主题: {topic}")
 
 
 """
@@ -448,6 +466,7 @@ def get_main_proc(process_name):
                             logging.info(f"找到程序进程: {proc.pid}, 用户: {current_user}")
                             return True
             except (psutil.AccessDenied, psutil.NoSuchProcess):
+                logging.error(f"获取进程信息失败: {proc.pid}")
                 continue
         # 如果找不到进程，记录信息
         logging.info(f"未找到程序进程: {process_name}")
@@ -509,18 +528,20 @@ def open_gui() -> None:
     中文: 尝试运行 GUI.py 或 RC-GUI.exe，如果找不到则弹出错误提示
     """
     if os.path.isfile("GUI.py"):
+        logging.info("正在打开配置窗口...")
         subprocess.Popen([".venv\\Scripts\\python.exe", "GUI.py"])
         # notify_in_thread("正在打开配置窗口...")
     elif os.path.isfile("RC-GUI.exe"):
+        logging.info("正在打开配置窗口...")
         subprocess.Popen(["RC-GUI.exe"])
         # notify_in_thread("正在打开配置窗口...")
     else:
         def show_message():
             current_path = os.getcwd()
+            logging.error(f"找不到GUI.py或RC-GUI.exe\n当前工作路径{current_path}")
             messagebox.showerror(
                 "Error", f"找不到GUI.py或RC-GUI.exe\n当前工作路径{current_path}"
             )
-            logging.error(f"找不到GUI.py或RC-GUI.exe\n当前工作路径{current_path}")
 
         thread = threading.Thread(target=show_message)
         thread.daemon = True
@@ -749,6 +770,7 @@ def tray() -> None:
     try:
         global IS_ADMIN
         admin_status = "【已获得管理员权限】" if IS_ADMIN else "【未获得管理员权限】"
+        logging.info(f"开始加载托盘图标，当前权限状态: {admin_status}")
         # 初始化系统托盘图标和菜单
         icon_path = resource_path("icon.ico" if getattr(sys, "frozen", False) else "res\\icon.ico")
         # 从资源文件中读取图像
