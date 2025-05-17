@@ -641,8 +641,29 @@ config_file_path: str = os.path.join(appdata_dir, "config.json")
 # 尝试读取配置文件
 config: Dict[str, Any] = {}
 if os.path.exists(config_file_path):
-    with open(config_file_path, "r", encoding="utf-8") as f:
-        config = json.load(f)
+    try:
+        with open(config_file_path, "r", encoding="utf-8") as f:
+            config = json.load(f)
+    except json.decoder.JSONDecodeError as e:
+        error_msg = f"配置文件格式错误：\n{str(e)}\n\n请选择：\n• 点击\"是\"删除错误的配置文件并继续\n• 点击\"否\"退出程序不删除配置文件"
+        if messagebox.askyesno("配置文件错误", error_msg):
+            # 用户选择删除配置文件
+            try:
+                os.rename(config_file_path, f"{config_file_path}.bak")
+                messagebox.showinfo("备份完成", f"已将错误的配置文件备份为：\n{config_file_path}.bak")
+            except Exception as backup_error:
+                messagebox.showwarning("备份失败", f"无法备份配置文件：{str(backup_error)}\n将直接删除错误的配置文件。")           
+                try:
+                    os.remove(config_file_path)
+                except Exception as remove_error:
+                    messagebox.showerror("错误", f"无法删除配置文件：{str(remove_error)}\n程序将退出。")
+                    sys.exit(1)
+            # 继续使用空配置
+            config = {}
+        else:
+            # 用户选择退出程序
+            messagebox.showinfo("程序退出", "您选择了保留配置文件并退出程序。\n请手动修复配置文件后再次运行程序。")
+            sys.exit(0)
 
 
 # 创建主窗口
