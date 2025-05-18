@@ -85,99 +85,102 @@ def set_auto_start() -> None:
         return
     
     # 让用户选择两种方案
-    choice = messagebox.askquestion(
+    choice = messagebox.askyesnocancel(
         "选择启动方案", 
         "请选择以下两种启动方案之一：\n\n" +
-        "【方案一】用户登录时运行（使用管理员组权限，无托盘时推荐）\n" +
-        "优点：用户登录后立即启动，只有用户登录时才运行\n" +
+        "【方案一】用户登录时运行\n注：无托盘时推荐!!\n" +
+        "优点：只有用户登录时才运行\n" +
         "缺点：需要用户登录后才能启动\n\n" +
-        "【方案二】系统启动时运行（使用SYSTEM用户权限，有托盘时推荐）\n" +
-        "优点：系统启动即可运行，无需等待用户登录\n" +
-        "缺点：无法使用媒体控制\n\n" +
-        "是否选择【方案一】？选择\"否\"则使用【方案二】",
+        "【方案二】系统启动时运行\n注：有托盘时推荐!!\n" +
+        "优点：系统启动即可运行，无需用户登录\n" +
+        "缺点：需要登录后托盘自动重启主程序才能使用媒体控制\n\n" +
+        "选择 是：【方案一】\n\n选择 否：【方案二】",
         icon='question'
     )
+      # 如果用户取消选择（点击右上角X），则退出设置过程
+    if choice is None:
+        messagebox.showinfo("已取消", "已取消设置开机自启动")
+        return
     
     quoted_exe_path = shlex.quote(exe_path)
     
-    if choice == 'yes':
+    if choice == True:  # 选择"是"，对应方案一
         # 方案一：使用Administrators用户组创建任务计划，任何用户登录时运行
         result = subprocess.call(
             f'schtasks /Create /SC ONLOGON /TN "A远程控制" /TR "{quoted_exe_path}" /RU "BUILTIN\\Administrators" /RL HIGHEST /F',
             shell=True,
         )
-    else:
+    else:  # 选择"否"，对应方案二
         # 方案二：使用SYSTEM用户在系统启动时运行
         result = subprocess.call(
             f'schtasks /Create /SC ONSTART /TN "A远程控制" /TR "{quoted_exe_path}" /RU "SYSTEM" /RL HIGHEST /F',
             shell=True,
         )
-
     scheduler = win32com.client.Dispatch("Schedule.Service")
     scheduler.Connect()
-    root_folder = scheduler.GetFolder("\\")
-    task_definition = root_folder.GetTask("A远程控制").Definition
+    root_folder_main = scheduler.GetFolder("\\")
+    task_definition = root_folder_main.GetTask("A远程控制").Definition
     principal = task_definition.Principal
     # 根据选择的方案设置不同的登录类型和权限
-    if choice == 'yes':
+    if choice == True:  # 选择"是"，对应方案一
         # 方案一：设置为用户组登录类型
         principal.LogonType = 3  # 3表示TASK_LOGON_GROUP，用户组登录
-    else:
+    else:  # 选择"否"，对应方案二
         # 方案二：设置为服务账户登录类型
         principal.LogonType = 5  # 5表示TASK_LOGON_SERVICE_ACCOUNT，服务账户登录
     
     principal.RunLevel = 1  # 最高权限
-    task_definition.Settings.MultipleInstances = 1  # 并行运行
-    task_definition.Settings.Hidden = False  # 确保不是隐藏运行
     settings = task_definition.Settings
+    settings.MultipleInstances = 3  # 并行运行:0，排队：1，不运行：2，停止运行的：3
+    settings.Hidden = False  # 确保不是隐藏运行
     settings.DisallowStartIfOnBatteries = False  # 不允许在电池供电时启动
     settings.StopIfGoingOnBatteries = False  # 允许在电池供电时启动
     settings.ExecutionTimeLimit = "PT0S"  # 无限时间限制
     # task_definition.Settings.Compatibility = 4    # 设置兼容性为 Windows 10
-    root_folder.RegisterTaskDefinition("A远程控制", task_definition, 6, "", "", 2)  # 0表示只在用户登录时运行，2表示不管用户是否登录都运行
-    check_task()
-    if result == 0:
-        if choice == 'yes':
-            messagebox.showinfo("提示", "创建任务成功\n已配置为任何用户登录时以管理员组权限运行")
-        else:
-            messagebox.showinfo("提示", "创建任务成功\n已配置为系统启动时以SYSTEM用户权限运行")
-        messagebox.showinfo("提示", "移动文件位置后需重新设置任务哦！") 
-        tray_exe_path = os.path.join(
+    root_folder_main.RegisterTaskDefinition("A远程控制", task_definition, 6, "", "", 2)  # 0表示只在用户登录时运行，2表示不管用户是否登录都运行
+    tray_exe_path = os.path.join(
             os.path.dirname(os.path.abspath(sys.argv[0])), "RC-tray.exe"
             # and "tray.py"
         )
-        if os.path.exists(tray_exe_path):
-            quoted_tray_path = shlex.quote(tray_exe_path)  # 托盘程序使用当前登录用户（最高权限）运行，登录后触发
-            tray_result = subprocess.call(
-                f'schtasks /Create /SC ONLOGON /TN "A远程控制-托盘" '
-                f'/TR "{quoted_tray_path}" /RL HIGHEST /F',
-                shell=True,
-            )
-            # 同步设置权限和运行级别
-            task_def = root_folder.GetTask("A远程控制-托盘").Definition
-            principal = task_def.Principal
-            principal.RunLevel = 1  # 1表示最高权限
-            principal.LogonType = 1  # 1表示使用当前登录用户凭据
-            
-            settings = task_def.Settings
-            settings.DisallowStartIfOnBatteries = False
-            settings.StopIfGoingOnBatteries = False
-            settings.ExecutionTimeLimit = "PT0S"
-            # task_def.Settings.Compatibility = 4
+    if os.path.exists(tray_exe_path):
+        quoted_tray_path = shlex.quote(tray_exe_path)  # 托盘程序使用当前登录用户（最高权限）运行，登录后触发
+        tray_result = subprocess.call(
+            f'schtasks /Create /SC ONLOGON /TN "A远程控制-托盘" /TR "{quoted_tray_path}" /RL HIGHEST /F',
+            shell=True,
+        )
+        # 同步设置权限和运行级别
+        scheduler = win32com.client.Dispatch("Schedule.Service")
+        scheduler.Connect()
+        root_folder_tray = scheduler.GetFolder("\\")
+        task_def = root_folder_tray.GetTask("A远程控制-托盘").Definition
+        settings_tray = task_def.Settings
+        settings_tray.MultipleInstances = 0  # 并行运行:0，排队：1，不运行：2，停止运行的：3
+        settings_tray.Hidden = False  # 确保不是隐藏运行
+        settings_tray.DisallowStartIfOnBatteries = False  # 不允许在电池供电时启动
+        settings_tray.StopIfGoingOnBatteries = False      # 允许在电池供电时启动
+        settings_tray.ExecutionTimeLimit = "PT0S"         # 无限时间限制
+        # task_def.Settings.Compatibility = 4
 
-            root_folder.RegisterTaskDefinition(
-                "A远程控制-托盘", task_def, 6, "", "", 0  # 0表示只在用户登录时运行，2表示不管用户是否登录都运行
-            )
-            if tray_result == 0:
-                messagebox.showinfo("提示", "创建托盘任务成功(使用当前登录用户，最高权限运行)")
-                check_task()
-            else:
-                messagebox.showerror("错误", "创建托盘自启动失败")
-        else:
-            messagebox.showwarning("警告", "未找到 RC-tray.exe 文件，跳过托盘启动设置")
+        root_folder_tray.RegisterTaskDefinition(
+            "A远程控制-托盘", task_def, 6, "", "", 0  # 0表示只在用户登录时运行，2表示不管用户是否登录都运行
+        )
+        # if tray_result == 0:
+        #     messagebox.showinfo("提示", "创建托盘任务成功(使用当前登录用户，最高权限运行)")
+        # else:
+        #     messagebox.showerror("错误", "创建托盘自启动失败")
+    else:
+        messagebox.showwarning("警告", "未找到 RC-tray.exe 文件，跳过托盘启动设置")    # 检查创建任务的结果
+    if check_task_exists("A远程控制"):
+        if choice == True:  # 选择"是"，对应方案一
+            messagebox.showinfo("提示", "创建任务成功\n已配置为任何用户登录时以管理员组权限运行")
+        else:  # 选择"否"，对应方案二
+            messagebox.showinfo("提示", "创建任务成功\n已配置为系统启动时以SYSTEM用户权限运行")
+            if tray_result != 0:
+                messagebox.showwarning("警告", f"创建托盘自启动失败\n{tray_result}")
+        messagebox.showinfo("提示", "移动文件位置后需重新设置任务哦！")
         check_task()
     else:
-        messagebox.showerror("错误", "创建开机自启动失败")
+        messagebox.showerror("错误", f"创建开机自启动失败\n{result}")
         check_task()
 
 
